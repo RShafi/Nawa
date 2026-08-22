@@ -1,95 +1,123 @@
 "use client";
 
 import { create } from "zustand";
-import { findLessonById, INITIAL_USER_PROGRESS } from "@/data/mockCurriculum";
-import type { ScrollTarget, SelectedDialect, TashkeelMode, UserProgress } from "@/types/arabic";
+import { persist } from "zustand/middleware";
+import {
+  findCurriculumLesson,
+  getNextCurriculumLessonId,
+  INITIAL_USER_PROGRESS,
+} from "@/data/curriculumData";
+import { DERIVED_WORDS } from "@/data/mockRoots";
+import { hasDerivedWord } from "@/lib/arabic-utils";
+import type { SelectedDialect, TashkeelMode, UserProgress } from "@/types/arabic";
+
+/** Bump only when intentionally wiping stored progress. */
+export const PROGRESS_SEED = "fresh-v2";
 
 type NawaState = {
   selectedRootId: string;
   selectedPatternId: string;
   tashkeelMode: TashkeelMode;
   selectedDialectPhraseId: string | null;
+  selectedDialect: SelectedDialect;
   userProgress: UserProgress;
-  activeLessonId: string | null;
-  scrollTarget: ScrollTarget;
-  highlightTick: number;
+  progressSeed: string;
+  _hasHydrated: boolean;
 
   setRootId: (id: string) => void;
   setPatternId: (id: string) => void;
   setTashkeelMode: (mode: TashkeelMode) => void;
   setSelectedDialect: (dialect: SelectedDialect) => void;
   setDialectPhraseId: (id: string | null) => void;
-  clearScrollTarget: () => void;
-  launchLesson: (lessonId: string) => void;
+  setActiveLessonId: (id: string) => void;
   completeLesson: (lessonId: string) => void;
+  hydrateLessonTools: (lessonId: string) => void;
+  resetProgressIfStale: () => void;
+  setHasHydrated: (v: boolean) => void;
 };
 
-export const useNawaStore = create<NawaState>((set, get) => ({
-  selectedRootId: "ktb",
-  selectedPatternId: "verb-i",
-  tashkeelMode: "full",
-  selectedDialectPhraseId: "phrase-hello",
-  userProgress: INITIAL_USER_PROGRESS,
-  activeLessonId: null,
-  scrollTarget: null,
-  highlightTick: 0,
+export const useNawaStore = create<NawaState>()(
+  persist(
+    (set, get) => ({
+      selectedRootId: "ktb",
+      selectedPatternId: "verb-i",
+      tashkeelMode: "full",
+      selectedDialectPhraseId: "phrase-hello",
+      selectedDialect: "levantine",
+      userProgress: INITIAL_USER_PROGRESS,
+      progressSeed: PROGRESS_SEED,
+      _hasHydrated: false,
 
-  setRootId: (id) => set({ selectedRootId: id }),
-  setPatternId: (id) => set({ selectedPatternId: id }),
-  setTashkeelMode: (mode) => set({ tashkeelMode: mode }),
-  setSelectedDialect: (dialect) =>
-    set((s) => ({
-      userProgress: { ...s.userProgress, selectedDialect: dialect },
-    })),
-  setDialectPhraseId: (id) => set({ selectedDialectPhraseId: id }),
-  clearScrollTarget: () => set({ scrollTarget: null }),
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
 
-  launchLesson: (lessonId) => {
-    const found = findLessonById(lessonId);
-    if (!found) return;
-    const { lesson, stage } = found;
-
-    const patch: Partial<NawaState> = {
-      activeLessonId: lessonId,
-      highlightTick: get().highlightTick + 1,
-      userProgress: {
-        ...get().userProgress,
-        currentStageId: stage.stageId,
+      setRootId: (id) => {
+        const currentPattern = get().selectedPatternId;
+        if (hasDerivedWord(id, currentPattern, DERIVED_WORDS)) {
+          set({ selectedRootId: id });
+          return;
+        }
+        const fallback = DERIVED_WORDS.find((w) => w.rootId === id)?.patternId ?? currentPattern;
+        set({ selectedRootId: id, selectedPatternId: fallback });
       },
-    };
+      setPatternId: (id) => set({ selectedPatternId: id }),
+      setTashkeelMode: (mode) => set({ tashkeelMode: mode }),
+      setSelectedDialect: (dialect) => set({ selectedDialect: dialect }),
+      setDialectPhraseId: (id) => set({ selectedDialectPhraseId: id }),
 
-    if (lesson.rootId) patch.selectedRootId = lesson.rootId;
-    if (lesson.patternId) patch.selectedPatternId = lesson.patternId;
-    if (lesson.tashkeelMode) patch.tashkeelMode = lesson.tashkeelMode;
-    if (lesson.dialectPhraseId) patch.selectedDialectPhraseId = lesson.dialectPhraseId;
-
-    if (lesson.target === "morph") patch.scrollTarget = "morph";
-    else if (lesson.target === "dialect") patch.scrollTarget = "dialect";
-    else patch.scrollTarget = "path";
-
-    set(patch);
-  },
-
-  completeLesson: (lessonId) => {
-    const { userProgress } = get();
-    if (userProgress.completedLessonIds.includes(lessonId)) return;
-
-    const found = findLessonById(lessonId);
-    const masteredRoots = [...userProgress.masteredRoots];
-    if (found?.lesson.rootId && !masteredRoots.includes(found.lesson.rootId)) {
-      // Master root when completing a morph lesson on that root
-      if (found.lesson.target === "morph") {
-        masteredRoots.push(found.lesson.rootId);
-      }
-    }
-
-    set({
-      userProgress: {
-        ...userProgress,
-        completedLessonIds: [...userProgress.completedLessonIds, lessonId],
-        masteredRoots,
-        currentStageId: found?.stage.stageId ?? userProgress.currentStageId,
+      setActiveLessonId: (id) => {
+        set({
+          userProgress: { ...get().userProgress, activeLessonId: id },
+        });
+        get().hydrateLessonTools(id);
       },
-    });
-  },
-}));
+
+      hydrateLessonTools: (lessonId) => {
+        const found = findCurriculumLesson(lessonId);
+        if (!found) return;
+        const { lesson } = found;
+        set({
+          ...(lesson.rootId ? { selectedRootId: lesson.rootId } : {}),
+          ...(lesson.patternId ? { selectedPatternId: lesson.patternId } : {}),
+          ...(lesson.tashkeelMode ? { tashkeelMode: lesson.tashkeelMode } : {}),
+          ...(lesson.dialectPhraseId
+            ? { selectedDialectPhraseId: lesson.dialectPhraseId }
+            : {}),
+        });
+      },
+
+      completeLesson: (lessonId) => {
+        const { userProgress } = get();
+        if (userProgress.completedLessonIds.includes(lessonId)) return;
+
+        const completedLessonIds = [...userProgress.completedLessonIds, lessonId];
+        const nextId = getNextCurriculumLessonId(completedLessonIds);
+
+        set({
+          userProgress: {
+            completedLessonIds,
+            activeLessonId: nextId ?? lessonId,
+          },
+        });
+      },
+
+      resetProgressIfStale: () => {
+        if (get().progressSeed === PROGRESS_SEED) return;
+        set({
+          userProgress: INITIAL_USER_PROGRESS,
+          progressSeed: PROGRESS_SEED,
+        });
+      },
+    }),
+    {
+      name: "nawa-progress",
+      partialize: (state) => ({
+        userProgress: state.userProgress,
+        progressSeed: state.progressSeed,
+        selectedDialect: state.selectedDialect,
+      }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    },
+  ),
+);

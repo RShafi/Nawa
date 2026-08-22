@@ -65,15 +65,28 @@ export type SampleSentence = {
   translation: string;
 };
 
-export type ProficiencyLevel = "beginner" | "intermediate" | "advanced";
+export type SelectedDialect = "levantine" | "egyptian";
 
-export type LessonTarget = "morph" | "dialect" | "foundations";
+export type LessonStatus = "locked" | "active" | "completed";
+
+export type ScrollTarget = "morph" | "dialect" | "path" | null;
+
+/* ── Curriculum path (subway map) ─────────────────────────────── */
+
+export type LessonType =
+  | "phonetics"
+  | "morph-engine"
+  | "dialect-bridge"
+  | "reading-drill"
+  | "quiz";
 
 export type Lesson = {
   id: string;
   title: string;
   description: string;
-  target: LessonTarget;
+  type: LessonType;
+  isCompleted: boolean;
+  /** Optional tool wiring for Morph / Dialect sessions */
   rootId?: string;
   patternId?: string;
   dialectPhraseId?: string;
@@ -84,28 +97,20 @@ export type Unit = {
   id: string;
   title: string;
   description: string;
-  unlocked: boolean;
-  completed: boolean;
   lessons: Lesson[];
+  isUnlocked: boolean;
+  isCompleted: boolean;
 };
 
-export type CurriculumStage = {
-  stageId: string;
+export type Stage = {
+  id: string;
   title: string;
   description: string;
-  level: ProficiencyLevel;
+  themeColor: string;
   units: Unit[];
 };
 
-export type SelectedDialect = "levantine" | "egyptian";
-
 export type UserProgress = {
-  currentStageId: string;
+  activeLessonId: string;
   completedLessonIds: string[];
-  masteredRoots: string[];
-  selectedDialect: SelectedDialect;
 };
-
-export type LessonStatus = "locked" | "active" | "completed";
-
-export type ScrollTarget = "morph" | "dialect" | "path" | null;

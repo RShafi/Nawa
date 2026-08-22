@@ -18,9 +18,13 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Features
+## Audio (TTS)
 
-- **Morph Engine** — pick a triliteral root and وزن; animate consonants into ف–ع–ل slots
-- **Tashkeel toggle** — full / minimal / none diacritics
-- **Dialect Bridge** — MSA · Levantine · Egyptian comparison cards
-- **Learning path** — curriculum stages that deep-link into Morph or Dialect panels
+`GET /api/tts?text=كَتَبَ&lang=ar` returns MP3.
+
+Provider priority:
+1. **Azure Neural** (`AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION`) — best Arabic letter distinction (Zariyah / Salma voices)
+2. **OpenAI `tts-1-hd`** (`OPENAI_API_KEY`) — strong multilingual
+3. **Google Translate TTS** — free fallback (weaker on similar consonants)
+
+Copy `.env.example` → `.env.local` and add a key for higher quality.
