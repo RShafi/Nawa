@@ -1,5 +1,7 @@
 "use client";
 
+import { hasArabicScript } from "@/lib/arabic-tts";
+
 type SpeakOptions = {
   lang?: string;
   latinFallback?: string;
@@ -17,8 +19,8 @@ export function canSpeak(): boolean {
 }
 
 /**
- * Prefer server `/api/tts` (Arabic neural/gTTS). Fall back to speaking
- * transliteration via Web Speech only if the API fails.
+ * Prefer server `/api/tts` (Arabic neural). Never fall back to English
+ * reading of Latin spellings when the source text is Arabic.
  */
 export async function speakArabic(text: string, options: SpeakOptions = {}): Promise<SpeakResult> {
   const { lang = "ar", latinFallback } = options;
@@ -29,49 +31,76 @@ export async function speakArabic(text: string, options: SpeakOptions = {}): Pro
   try {
     await playViaApi(text, lang);
     return { mode: "api", usedVoice: "nawa-tts" };
-  } catch {
-    if (latinFallback?.trim()) {
+  } catch (err) {
+    if (latinFallback?.trim() && !hasArabicScript(text)) {
       await playViaWebSpeech(latinFallback, "en-US");
       return { mode: "latin", usedVoice: "web-speech-latin" };
     }
-    throw new Error("TTS unavailable");
+    throw err instanceof Error ? err : new Error("TTS unavailable");
   }
 }
 
 async function playViaApi(text: string, lang: string): Promise<void> {
-  const url = `/api/tts?text=${encodeURIComponent(text)}&lang=${encodeURIComponent(lang)}`;
-  const res = await fetch(url);
+  const res = await fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, lang }),
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? `TTS HTTP ${res.status}`);
   }
 
-  const blob = await res.blob();
+  const provider = res.headers.get("X-TTS-Provider") ?? "unknown";
+  const buf = await res.arrayBuffer();
+  const blob = new Blob([buf], { type: "audio/mpeg" });
   const objectUrl = URL.createObjectURL(blob);
 
   if (!sharedAudio) sharedAudio = new Audio();
   const audio = sharedAudio;
   audio.pause();
+  audio.currentTime = 0;
   audio.src = objectUrl;
+  audio.preload = "auto";
 
   await new Promise<void>((resolve, reject) => {
-    const cleanup = () => {
-      URL.revokeObjectURL(objectUrl);
+    let settled = false;
+
+    const cleanup = (revokeDelayMs: number) => {
       audio.onended = null;
       audio.onerror = null;
+      audio.oncanplaythrough = null;
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), revokeDelayMs);
     };
-    audio.onended = () => {
-      cleanup();
+
+    const fail = (err: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup(0);
+      reject(err);
+    };
+
+    const succeed = () => {
+      if (settled) return;
+      settled = true;
+      // Delay revoke so the last frames aren't clipped mid-decode
+      cleanup(1500);
       resolve();
     };
-    audio.onerror = () => {
-      cleanup();
-      reject(new Error("Audio element failed"));
+
+    audio.onended = () => succeed();
+    audio.onerror = () => fail(new Error(`Audio element failed (${provider})`));
+
+    const start = () => {
+      void audio.play().catch((playErr) => fail(playErr instanceof Error ? playErr : new Error(String(playErr))));
     };
-    void audio.play().catch((err) => {
-      cleanup();
-      reject(err);
-    });
+
+    if (audio.readyState >= 3) {
+      start();
+    } else {
+      audio.oncanplaythrough = () => start();
+      audio.load();
+    }
   });
 }
 

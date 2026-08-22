@@ -30,47 +30,33 @@
   --font-arabic: var(--font-arabic);
 }
 
-:root {
-  --radius: 0.625rem;
-  --background: oklch(0.985 0.004 95);
-  --foreground: oklch(0.18 0.02 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 250);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.02 250);
-  --primary: oklch(0.42 0.08 195);
-  --primary-foreground: oklch(0.98 0.01 95);
-  --secondary: oklch(0.94 0.01 95);
-  --secondary-foreground: oklch(0.28 0.03 250);
-  --muted: oklch(0.94 0.008 95);
-  --muted-foreground: oklch(0.5 0.02 250);
-  --accent: oklch(0.9 0.04 75);
-  --accent-foreground: oklch(0.28 0.04 75);
-  --destructive: oklch(0.55 0.2 25);
-  --border: oklch(0.88 0.01 95);
-  --input: oklch(0.88 0.01 95);
-  --ring: oklch(0.42 0.08 195);
-}
-
+/*
+  Calm Dark Glassmorphic — OLED-first.
+  Theme tokens MUST stay in oklch so Tailwind v4 color utilities resolve.
+*/
+:root,
 .dark {
-  --background: oklch(0.16 0.02 250);
-  --foreground: oklch(0.96 0.01 95);
-  --card: oklch(0.2 0.02 250);
-  --card-foreground: oklch(0.96 0.01 95);
-  --popover: oklch(0.2 0.02 250);
-  --popover-foreground: oklch(0.96 0.01 95);
-  --primary: oklch(0.72 0.08 195);
-  --primary-foreground: oklch(0.16 0.02 250);
-  --secondary: oklch(0.26 0.02 250);
-  --secondary-foreground: oklch(0.96 0.01 95);
-  --muted: oklch(0.26 0.02 250);
-  --muted-foreground: oklch(0.7 0.02 95);
-  --accent: oklch(0.32 0.04 75);
-  --accent-foreground: oklch(0.94 0.03 75);
-  --destructive: oklch(0.65 0.18 25);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.72 0.08 195);
+  --radius: 0.85rem;
+  --background: oklch(0.11 0.015 265);
+  --foreground: oklch(0.93 0.01 95);
+  --card: oklch(0.16 0.02 265);
+  --card-foreground: oklch(0.93 0.01 95);
+  --popover: oklch(0.14 0.02 265);
+  --popover-foreground: oklch(0.93 0.01 95);
+  --primary: oklch(0.78 0.14 160);
+  --primary-foreground: oklch(0.16 0.03 160);
+  --secondary: oklch(0.2 0.02 265);
+  --secondary-foreground: oklch(0.93 0.01 95);
+  --muted: oklch(0.2 0.015 265);
+  --muted-foreground: oklch(0.68 0.02 265);
+  --accent: oklch(0.28 0.05 85);
+  --accent-foreground: oklch(0.9 0.08 85);
+  --destructive: oklch(0.68 0.18 25);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.78 0.14 160);
+  --glow-emerald: oklch(0.78 0.14 160 / 45%);
+  --glow-amber: oklch(0.82 0.14 85 / 40%);
 }
 
 @layer base {
@@ -78,15 +64,181 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    color-scheme: dark;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    background-color: oklch(0.11 0.015 265);
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.78 0.14 160 / 8%), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 0%, oklch(0.82 0.14 85 / 5%), transparent),
+      radial-gradient(ellipse 50% 30% at 0% 100%, oklch(0.7 0.1 230 / 4%), transparent);
+    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(1 0 0 / 18%) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 14%);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: oklch(1 0 0 / 28%);
+    background-clip: padding-box;
+  }
+
+  [dir="rtl"].font-arabic,
+  .font-arabic[dir="rtl"],
+  [lang="ar"].font-arabic {
+    font-family: var(--font-arabic), "Noto Naskh Arabic", "Amiri", serif;
+    line-height: 2.15;
+    letter-spacing: 0.03em;
+    padding-block: 0.15em;
   }
 }
 
 @layer utilities {
   .font-arabic {
-    font-family: var(--font-arabic), "Noto Naskh Arabic", serif;
-    line-height: 2;
-    letter-spacing: 0.02em;
+    font-family: var(--font-arabic), "Noto Naskh Arabic", "Amiri", serif;
+    line-height: 2.15;
+    letter-spacing: 0.03em;
+  }
+
+  .glass-panel {
+    background: oklch(1 0 0 / 3%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid oklch(1 0 0 / 8%);
+  }
+
+  .glass-panel-strong {
+    background: oklch(1 0 0 / 5.5%);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid oklch(1 0 0 / 12%);
+  }
+
+  .glow-emerald {
+    box-shadow:
+      0 0 24px -6px var(--glow-emerald),
+      0 0 48px -16px oklch(0.78 0.14 160 / 25%);
+  }
+
+  .glow-amber {
+    box-shadow:
+      0 0 24px -6px var(--glow-amber),
+      0 0 48px -16px oklch(0.82 0.14 85 / 22%);
+  }
+
+  .glow-forge {
+    box-shadow:
+      0 0 40px -8px oklch(0.7 0.18 45 / 35%),
+      0 0 80px -20px oklch(0.65 0.2 25 / 20%);
+  }
+
+  .text-glow-emerald {
+    text-shadow: 0 0 18px oklch(0.78 0.14 160 / 45%);
+  }
+
+  .text-glow-amber {
+    text-shadow: 0 0 18px oklch(0.82 0.14 85 / 40%);
+  }
+
+  .ambient-aura {
+    position: absolute;
+    inset: -20%;
+    border-radius: 50%;
+    background: radial-gradient(circle, oklch(0.7 0.18 45 / 22%), transparent 65%);
+    filter: blur(40px);
+    pointer-events: none;
+    animation: aura-pulse 3.6s ease-in-out infinite;
+  }
+
+  .shimmer-border {
+    position: relative;
+  }
+
+  .shimmer-border::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 1px oklch(0.82 0.14 85 / 35%);
+    background: linear-gradient(
+      120deg,
+      transparent 30%,
+      oklch(0.82 0.14 85 / 18%) 50%,
+      transparent 70%
+    );
+    background-size: 220% 100%;
+    animation: shimmer-sweep 3.5s linear infinite;
+    mix-blend-mode: screen;
+    opacity: 0.7;
+  }
+}
+
+@keyframes aura-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes shimmer-sweep {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes seed-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes float-particle {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(-28px) scale(0.4);
+    opacity: 0;
   }
 }

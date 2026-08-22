@@ -32,6 +32,7 @@ type NawaState = {
   setActiveLessonId: (id: string) => void;
   completeLesson: (lessonId: string) => void;
   hydrateLessonTools: (lessonId: string) => void;
+  hydrateLessonProgress: (completedLessonIds: string[]) => void;
   resetProgressIfStale: () => void;
   setHasHydrated: (v: boolean) => void;
 };
@@ -96,6 +97,17 @@ export const useNawaStore = create<NawaState>()(
           userProgress: {
             completedLessonIds,
             activeLessonId: nextId ?? lessonId,
+          },
+        });
+      },
+
+      hydrateLessonProgress: (completedLessonIds) => {
+        const unique = [...new Set(completedLessonIds)];
+        const nextId = getNextCurriculumLessonId(unique);
+        set({
+          userProgress: {
+            completedLessonIds: unique,
+            activeLessonId: nextId ?? get().userProgress.activeLessonId,
           },
         });
       },

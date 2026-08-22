@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Circle } from "lucide-react";
+import { Check, Circle, Headphones, Swords, Sparkles, Wine } from "lucide-react";
 import type { PhoneticsContent } from "@/data/lessonContent";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { speakArabic } from "@/lib/speech";
 import { cn } from "@/lib/utils";
+
+const MODE_META: Record<
+  PhoneticsContent["mode"],
+  { icon: typeof Headphones; accent: string }
+> = {
+  "sound-lab": { icon: Headphones, accent: "border-sky-500/30" },
+  "pair-duel": { icon: Swords, accent: "border-orange-500/30" },
+  "vowel-lab": { icon: Sparkles, accent: "border-violet-500/30" },
+  "hello-tasting": { icon: Wine, accent: "border-emerald-500/30" },
+};
 
 export function PhoneticsLesson({
   content,
@@ -28,22 +38,36 @@ export function PhoneticsLesson({
   }, [allItemsHeard, allPairsHeard, onComplete]);
 
   const heardCount = itemKeys.filter((k) => heard[k]).length;
+  const meta = MODE_META[content.mode];
+  const Icon = meta.icon;
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className={cn("border-s-4", meta.accent)}>
         <CardHeader>
-          <CardTitle>Listen & compare</CardTitle>
+          <div className="mb-1 flex items-center gap-2">
+            <Icon className="text-primary size-5" />
+            <CardTitle className="text-xl sm:text-2xl">{content.title}</CardTitle>
+          </div>
           <CardDescription className="text-base leading-relaxed sm:text-lg">
             {content.intro}
           </CardDescription>
           <p className="text-muted-foreground text-sm sm:text-base">
             Heard {heardCount}/{itemKeys.length}
-            {pairKeys.length ? " · then tap both sides of each minimal pair" : ""}
+            {pairKeys.length ? " · then finish both sides of each pair" : ""}
           </p>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div
+            className={cn(
+              "grid gap-3",
+              content.mode === "vowel-lab"
+                ? "sm:grid-cols-3"
+                : content.mode === "hello-tasting"
+                  ? "sm:grid-cols-3"
+                  : "sm:grid-cols-2 lg:grid-cols-3",
+            )}
+          >
             {content.items.map((item) => {
               const on = Boolean(heard[item.arabic]);
               return (
@@ -57,10 +81,15 @@ export function PhoneticsLesson({
                   className={cn(
                     "rounded-xl border px-4 py-4 text-start transition-colors",
                     on ? "border-primary/40 bg-primary/5" : "hover:bg-muted/50",
+                    content.mode === "hello-tasting" && "min-h-36",
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <span className="font-arabic text-5xl leading-none sm:text-6xl" dir="rtl" lang="ar">
+                    <span
+                      className="font-arabic text-5xl leading-none sm:text-6xl"
+                      dir="rtl"
+                      lang="ar"
+                    >
                       {item.arabic}
                     </span>
                     {on ? (
@@ -86,9 +115,9 @@ export function PhoneticsLesson({
       {content.pairs?.length ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Minimal pairs</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Head-to-head pairs</CardTitle>
             <CardDescription className="text-base sm:text-lg">
-              Same vowel mark, different consonant — like “sip” vs a darker “Sop.” Tap both sides.
+              Tap left, then right. Same vowel mark — different consonant color.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -115,7 +144,7 @@ export function PhoneticsLesson({
                           void speakArabic(side.arabic, { latinFallback: side.latin });
                         }}
                         className={cn(
-                          "min-w-20 rounded-lg border px-3 py-2 text-center",
+                          "min-w-24 rounded-lg border px-3 py-2 text-center",
                           on ? "border-primary/40 bg-primary/5" : "bg-muted/40 hover:bg-muted",
                         )}
                       >
@@ -128,7 +157,7 @@ export function PhoneticsLesson({
                   })}
                 </div>
                 <p className="text-muted-foreground text-sm sm:max-w-xs sm:text-end sm:text-base">
-                  Pair {idx + 1}: {pair.note}
+                  Round {idx + 1}: {pair.note}
                 </p>
               </div>
             ))}
