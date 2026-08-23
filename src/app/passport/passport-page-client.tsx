@@ -5,17 +5,27 @@ import Link from "next/link";
 import { ArrowLeft, MapPin } from "lucide-react";
 import { unlockCityAction } from "@/app/actions/progress";
 import { CityCard } from "@/components/passport/CityCard";
+import { AppStoreHydrator } from "@/components/progress/AppStoreHydrator";
 import { PASSPORT_CITIES } from "@/data/passportCities";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useGamificationStore } from "@/store/useGamificationStore";
+import { useAppStore } from "@/store/useAppStore";
 
 export function PassportPageClient() {
-  const hibrCurrency = useGamificationStore((s) => s.hibrCurrency);
-  const unlockedCities = useGamificationStore((s) => s.unlockedCities);
-  const setHibrCurrency = useGamificationStore((s) => s.setHibrCurrency);
-  const addUnlockedCity = useGamificationStore((s) => s.addUnlockedCity);
-  const progressHydrated = useGamificationStore((s) => s.progressHydrated);
+  return (
+    <AppStoreHydrator force>
+      <PassportInner />
+    </AppStoreHydrator>
+  );
+}
+
+function PassportInner() {
+  const hibrBalance = useAppStore((s) => s.hibrBalance);
+  const unlockedCities = useAppStore((s) => s.unlockedCities);
+  const status = useAppStore((s) => s.status);
+  const setHibrBalance = useAppStore((s) => s.setHibrBalance);
+  const unlockCityOptimistic = useAppStore((s) => s.unlockCityOptimistic);
+  const hydrate = useAppStore((s) => s.hydrate);
 
   const [error, setError] = useState<string | null>(null);
   const [justUnlocked, setJustUnlocked] = useState<string | null>(null);
@@ -29,44 +39,48 @@ export function PassportPageClient() {
         setError(result.error ?? "Could not unlock city.");
         return;
       }
-      addUnlockedCity(cityId);
+      unlockCityOptimistic(cityId);
       setJustUnlocked(cityId);
-      window.setTimeout(() => setJustUnlocked(null), 1800);
+      window.setTimeout(() => setJustUnlocked(null), 2200);
       if (typeof result.currency === "number") {
-        setHibrCurrency(result.currency);
+        setHibrBalance(result.currency);
       } else {
-        setHibrCurrency(hibrCurrency - cost);
+        setHibrBalance(hibrBalance - cost);
       }
+      void hydrate();
     });
   }
 
   return (
     <main className="mx-auto max-w-4xl space-y-8 px-4 py-6 sm:px-6 sm:py-8">
       <Button asChild variant="ghost" size="sm" className="-ms-2 gap-1 text-white/70">
-        <Link href="/">
+        <Link href="/path">
           <ArrowLeft className="size-4" />
-          Back to home
+          Back to Path
         </Link>
       </Button>
 
-      <section className="glass-panel glow-amber relative overflow-hidden space-y-4 rounded-3xl px-5 py-8 sm:px-8">
+      <section className="glass-panel glow-amber relative space-y-4 overflow-hidden rounded-3xl px-5 py-8 sm:px-8">
         <div
           className="pointer-events-none absolute -end-8 top-0 size-48 rounded-full bg-amber-400/15 blur-3xl"
           aria-hidden
         />
-        <Badge variant="secondary" className="gap-1.5 border-amber-400/20 bg-amber-500/10 text-amber-100">
+        <Badge
+          variant="secondary"
+          className="gap-1.5 border-amber-400/20 bg-amber-500/10 text-amber-100"
+        >
           <MapPin className="size-3.5" />
-          Passport
+          Pillar 3 · Passports
         </Badge>
         <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-          Your dialect cities
+          Dialect cities
         </h1>
         <p className="text-muted-foreground max-w-2xl text-base leading-relaxed">
-          Earn Hibr by finishing lessons, then unlock cities on your learning map. Progress syncs to
-          your account.
+          Spend Hibr from Arena wins and Reviews to stamp a city. Enter Hub opens dialect practice
+          (chat coming soon).
         </p>
         <p className="font-mono text-sm text-amber-100/90">
-          {progressHydrated ? hibrCurrency : "—"} Hibr available
+          {status === "ready" ? hibrBalance : "—"} Hibr available
         </p>
       </section>
 
@@ -84,7 +98,7 @@ export function PassportPageClient() {
               key={city.id}
               city={city}
               unlocked={unlocked}
-              canAfford={hibrCurrency >= city.cost}
+              canAfford={hibrBalance >= city.cost}
               pending={pending}
               justUnlocked={justUnlocked === city.id}
               onUnlock={() => unlock(city.id, city.cost)}

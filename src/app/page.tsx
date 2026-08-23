@@ -1,21 +1,6 @@
-import { getUserDashboardData } from "@/app/actions/progress";
-import { SiteHeader } from "@/components/common/SiteHeader";
-import { ProgressHydrator } from "@/components/progress/ProgressHydrator";
-import { HomePageClient } from "./home-page-client";
+import { redirect } from "next/navigation";
 
-export default async function HomePage() {
-  const dashboard = await getUserDashboardData();
-
-  return (
-    <div className="min-h-screen" dir="ltr">
-      <SiteHeader />
-      {dashboard ? (
-        <ProgressHydrator data={dashboard}>
-          <HomePageClient />
-        </ProgressHydrator>
-      ) : (
-        <HomePageClient />
-      )}
-    </div>
-  );
+/** V1 entry → Learning Path pillar */
+export default function HomePage() {
+  redirect("/path");
 }

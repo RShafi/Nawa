@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { ArabicText } from "@/components/common/ArabicText";
 import { previewRatings } from "@/lib/fsrs";
 import { useReviewStore } from "@/store/useReviewStore";
 import { Badge } from "@/components/ui/badge";
@@ -64,13 +65,9 @@ export function Flashcard() {
           </div>
 
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-            <p
-              className="font-arabic text-5xl leading-tight font-semibold sm:text-6xl"
-              dir="rtl"
-              lang="ar"
-            >
+            <ArabicText className="text-5xl leading-tight font-semibold sm:text-6xl">
               {content.arabic}
-            </p>
+            </ArabicText>
             {!isRevealed ? (
               <p className="text-muted-foreground text-base sm:text-lg">
                 Recall the meaning, then reveal.
@@ -90,9 +87,9 @@ export function Flashcard() {
                   {content.kind === "root" ? (
                     <p className="text-muted-foreground text-base">
                       Consonants:{" "}
-                      <span className="font-arabic text-xl" dir="rtl">
+                      <ArabicText className="text-xl">
                         {content.consonants.map((c) => c.arabic).join(" · ")}
-                      </span>
+                      </ArabicText>
                     </p>
                   ) : null}
                   {content.kind === "pattern" ? (

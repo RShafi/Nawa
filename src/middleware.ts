@@ -1,7 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/bustan", "/forge", "/review", "/passport"];
+const PROTECTED_PREFIXES = [
+  "/arena",
+  "/bustan",
+  "/forge",
+  "/review",
+  "/passport",
+  "/passports",
+  "/path",
+  "/lesson",
+];
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -48,8 +57,10 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isLogin && user) {
+    const next = request.nextUrl.searchParams.get("next");
     const url = request.nextUrl.clone();
-    url.pathname = "/bustan";
+    url.pathname =
+      next && next.startsWith("/") && !next.startsWith("//") ? next : "/path";
     url.search = "";
     return NextResponse.redirect(url);
   }

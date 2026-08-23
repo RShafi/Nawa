@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Circle, Headphones, Swords, Sparkles, Wine } from "lucide-react";
 import type { PhoneticsContent } from "@/data/lessonContent";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { speakArabic } from "@/lib/speech";
+import { prefetchArabic, speakArabic } from "@/lib/audio";
 import { cn } from "@/lib/utils";
 
 const MODE_META: Record<
@@ -26,6 +26,8 @@ export function PhoneticsLesson({
 }) {
   const [heard, setHeard] = useState<Record<string, boolean>>({});
   const [pairsHeard, setPairsHeard] = useState<Record<string, boolean>>({});
+  const [playingKey, setPlayingKey] = useState<string | null>(null);
+  const gate = useRef(false);
 
   const itemKeys = content.items.map((i) => i.arabic);
   const allItemsHeard = itemKeys.every((k) => heard[k]);
@@ -34,8 +36,31 @@ export function PhoneticsLesson({
   const allPairsHeard = pairKeys.length === 0 || pairKeys.every((k) => pairsHeard[k]);
 
   useEffect(() => {
+    const texts = [
+      ...content.items.map((i) => i.arabic),
+      ...(content.pairs?.flatMap((p) => [p.a.arabic, p.b.arabic]) ?? []),
+    ];
+    prefetchArabic(texts);
+  }, [content]);
+
+  useEffect(() => {
     if (allItemsHeard && allPairsHeard) onComplete?.();
   }, [allItemsHeard, allPairsHeard, onComplete]);
+
+  async function play(arabic: string, latin: string, mark: () => void) {
+    if (gate.current) return;
+    gate.current = true;
+    setPlayingKey(arabic);
+    mark();
+    try {
+      await speakArabic(arabic, { latinFallback: latin });
+    } finally {
+      setPlayingKey(null);
+      window.setTimeout(() => {
+        gate.current = false;
+      }, 200);
+    }
+  }
 
   const heardCount = itemKeys.filter((k) => heard[k]).length;
   const meta = MODE_META[content.mode];
@@ -70,17 +95,21 @@ export function PhoneticsLesson({
           >
             {content.items.map((item) => {
               const on = Boolean(heard[item.arabic]);
+              const playing = playingKey === item.arabic;
               return (
                 <button
                   key={`${item.arabic}-${item.latin}`}
                   type="button"
-                  onClick={() => {
-                    setHeard((h) => ({ ...h, [item.arabic]: true }));
-                    void speakArabic(item.arabic, { latinFallback: item.latin });
-                  }}
+                  disabled={playing}
+                  onClick={() =>
+                    void play(item.arabic, item.latin, () =>
+                      setHeard((h) => ({ ...h, [item.arabic]: true })),
+                    )
+                  }
                   className={cn(
                     "rounded-xl border px-4 py-4 text-start transition-colors",
                     on ? "border-primary/40 bg-primary/5" : "hover:bg-muted/50",
+                    playing && "ring-2 ring-primary/40",
                     content.mode === "hello-tasting" && "min-h-36",
                   )}
                 >
@@ -103,7 +132,7 @@ export function PhoneticsLesson({
                     {item.tip}
                   </p>
                   <p className="text-muted-foreground mt-2 text-xs tracking-wide uppercase sm:text-sm">
-                    Tap to hear
+                    {playing ? "Playing…" : "Tap to hear"}
                   </p>
                 </button>
               );
@@ -135,17 +164,21 @@ export function PhoneticsLesson({
                   ).map(([side, sideKey]) => {
                     const key = `${side.arabic}|${sideKey}`;
                     const on = Boolean(pairsHeard[key]);
+                    const playing = playingKey === side.arabic;
                     return (
                       <button
                         key={key}
                         type="button"
-                        onClick={() => {
-                          setPairsHeard((h) => ({ ...h, [key]: true }));
-                          void speakArabic(side.arabic, { latinFallback: side.latin });
-                        }}
+                        disabled={playing}
+                        onClick={() =>
+                          void play(side.arabic, side.latin, () =>
+                            setPairsHeard((h) => ({ ...h, [key]: true })),
+                          )
+                        }
                         className={cn(
                           "min-w-24 rounded-lg border px-3 py-2 text-center",
                           on ? "border-primary/40 bg-primary/5" : "bg-muted/40 hover:bg-muted",
+                          playing && "ring-2 ring-primary/40",
                         )}
                       >
                         <span className="font-arabic block text-3xl sm:text-4xl" dir="rtl">

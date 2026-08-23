@@ -1,11 +1,16 @@
 import { Communicate } from "edge-tts-universal";
 import { NextRequest, NextResponse } from "next/server";
-import { ipaForPrepared, prepareArabicForTts } from "@/lib/arabic-tts";
+import { prepareArabicForTts, type PreparedTts } from "@/lib/arabic-tts";
 
 export const runtime = "nodejs";
 
-const cache = new Map<string, { bytes: ArrayBuffer; contentType: string; at: number; provider: string }>();
-const CACHE_TTL_MS = 1000 * 60 * 60;
+/** Bump when synthesis strategy changes so stale bad clips are not reused. */
+const CACHE_VERSION = "v7-phonetic-anchor";
+const cache = new Map<
+  string,
+  { bytes: ArrayBuffer; contentType: string; at: number; provider: string }
+>();
+const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 const MAX_CHARS = 120;
 
 const EDGE_VOICES = {
@@ -19,7 +24,7 @@ function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
-type TtsRequest = { text: string; lang: string; voiceHint: string };
+type TtsRequest = { prepared: PreparedTts; lang: string; voiceHint: string };
 
 function parseRequest(
   req: NextRequest,
@@ -32,16 +37,16 @@ function parseRequest(
   if (!textRaw) return badRequest("Missing text");
   if (textRaw.length > MAX_CHARS) return badRequest(`Text too long (max ${MAX_CHARS} chars)`);
 
-  return { text: prepareArabicForTts(textRaw), lang, voiceHint };
+  return { prepared: prepareArabicForTts(textRaw), lang, voiceHint };
 }
 
 /**
- * Provider order (most reliable Arabic first):
- * 1. Azure Speech neural (+ IPA phonemes for short drills)
- * 2. Google Cloud Text-to-Speech WaveNet
- * 3. OpenAI gpt-4o-mini-tts with Arabic instructions
- * 4. Edge neural (free) — can truncate on short clips
- * 5. Google Translate TTS — last resort
+ * Provider order (production):
+ * 1. Azure Neural with IPA phonemes for short drills
+ * 2. Google Cloud WaveNet
+ * 3. OpenAI
+ * 4. Edge neural (expanded spoken form for drills)
+ * 5. Google Translate TTS
  */
 export async function GET(req: NextRequest) {
   return handleTts(req);
@@ -64,30 +69,29 @@ async function handleTts(
   const parsed = parseRequest(req, body);
   if (parsed instanceof NextResponse) return parsed;
 
-  const { text, lang, voiceHint } = parsed;
+  const { prepared, lang, voiceHint } = parsed;
   const edgeVoice = pickEdgeVoice(lang, voiceHint);
-  const cacheKey = `${lang}:${edgeVoice}:${text}`;
+  const cacheKey = `${CACHE_VERSION}:${lang}:${edgeVoice}:${prepared.display}:${prepared.ipa ?? ""}`;
   const hit = cache.get(cacheKey);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
-    return audioResponse(hit.bytes, hit.contentType, hit.provider, edgeVoice, text, "hit");
+    return audioResponse(hit.bytes, hit.contentType, hit.provider, edgeVoice, prepared.display, "hit");
   }
 
   const errors: string[] = [];
-
   const attempts: Array<() => Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }>> =
     [];
 
   if (process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION) {
-    attempts.push(() => synthesizeAzure(text, edgeVoice));
+    attempts.push(() => synthesizeAzure(prepared, edgeVoice));
   }
   if (process.env.GOOGLE_TTS_API_KEY || process.env.GOOGLE_CLOUD_API_KEY) {
-    attempts.push(() => synthesizeGoogleCloud(text));
+    attempts.push(() => synthesizeGoogleCloud(prepared));
   }
   if (process.env.OPENAI_API_KEY) {
-    attempts.push(() => synthesizeOpenAI(text));
+    attempts.push(() => synthesizeOpenAI(prepared));
   }
-  attempts.push(() => synthesizeEdgeNeural(text, edgeVoice));
-  attempts.push(() => synthesizeGoogleTranslate(text, lang));
+  attempts.push(() => synthesizeEdgeNeural(prepared, edgeVoice));
+  attempts.push(() => synthesizeGoogleTranslate(prepared, lang));
 
   let audio: { bytes: ArrayBuffer; contentType: string; provider: string } | null = null;
 
@@ -108,7 +112,7 @@ async function handleTts(
   }
 
   cache.set(cacheKey, { ...audio, at: Date.now() });
-  return audioResponse(audio.bytes, audio.contentType, audio.provider, edgeVoice, text, "miss");
+  return audioResponse(audio.bytes, audio.contentType, audio.provider, edgeVoice, prepared.display, "miss");
 }
 
 function audioResponse(
@@ -117,16 +121,16 @@ function audioResponse(
   provider: string,
   voice: string,
   text: string,
-  cache: string,
+  cacheStatus: string,
 ) {
   return new NextResponse(bytes, {
     headers: {
       "Content-Type": contentType,
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "public, max-age=86400, immutable",
       "X-TTS-Provider": provider,
       "X-TTS-Voice": voice,
       "X-TTS-Text": encodeURIComponent(text),
-      "X-TTS-Cache": cache,
+      "X-TTS-Cache": cacheStatus,
     },
   });
 }
@@ -151,24 +155,35 @@ function pickEdgeVoice(lang: string, hint: string): string {
   return EDGE_VOICES.msa;
 }
 
-/** Azure Neural — best emphatic (ص/ط) support; IPA for short drills. */
+/**
+ * Azure Neural — IPA phonemes for short drills (Microsoft ar-SA phone set),
+ * plain Arabic for full words.
+ */
 async function synthesizeAzure(
-  text: string,
+  prepared: PreparedTts,
   voiceName: string,
 ): Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }> {
   const key = process.env.AZURE_SPEECH_KEY!;
   const region = process.env.AZURE_SPEECH_REGION!;
   const locale = voiceName.split("-").slice(0, 2).join("-");
-  const ipa = ipaForPrepared(text);
+  const rate = prepared.short ? "-25%" : "-8%";
 
-  const inner = ipa
-    ? `<phoneme alphabet="ipa" ph="${escapeXml(ipa)}">${escapeXml(text)}</phoneme>`
-    : escapeXml(text);
+  let body: string;
+  if (prepared.ipa) {
+    const ph = `<phoneme alphabet="ipa" ph="${escapeXml(prepared.ipa)}">${escapeXml(prepared.spoken)}</phoneme>`;
+    // Repeat short drills; for longer words still echo once so final vowels aren't clipped by pause-form
+    body = prepared.short
+      ? `${ph}<break time="300ms"/>${ph}<break time="140ms"/>`
+      : `${ph}<break time="180ms"/>`;
+  } else if (prepared.short) {
+    body = `${escapeXml(prepared.spoken)}<break time="280ms"/>`;
+  } else {
+    body = `${escapeXml(prepared.spoken)}<break time="140ms"/>`;
+  }
 
-  // Trailing break prevents end clipping on short syllables
   const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}">
   <voice name="${voiceName}">
-    <prosody rate="-8%">${inner}<break time="120ms"/></prosody>
+    <prosody rate="${rate}">${body}</prosody>
   </voice>
 </speak>`;
 
@@ -194,23 +209,19 @@ async function synthesizeAzure(
   return {
     bytes,
     contentType: "audio/mpeg",
-    provider: ipa ? `azure-ipa:${voiceName}` : `azure-neural:${voiceName}`,
+    provider: prepared.ipa
+      ? `azure-ipa:${voiceName}`
+      : `azure-neural:${voiceName}`,
   };
 }
 
-/** Google Cloud Text-to-Speech WaveNet (ar-XA). */
 async function synthesizeGoogleCloud(
-  text: string,
+  prepared: PreparedTts,
 ): Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }> {
   const apiKey = process.env.GOOGLE_TTS_API_KEY || process.env.GOOGLE_CLOUD_API_KEY;
   if (!apiKey) throw new Error("Missing GOOGLE_TTS_API_KEY");
 
-  const ipa = ipaForPrepared(text);
-  const input = ipa
-    ? {
-        ssml: `<speak><phoneme alphabet="ipa" ph="${escapeXml(ipa)}">${escapeXml(text)}</phoneme><break time="120ms"/></speak>`,
-      }
-    : { text };
+  const spoken = prepared.short ? `${prepared.spoken} ${prepared.spoken}` : prepared.display;
 
   const res = await fetch(
     `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(apiKey)}`,
@@ -218,14 +229,14 @@ async function synthesizeGoogleCloud(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        input,
+        input: { text: spoken },
         voice: {
           languageCode: "ar-XA",
           name: process.env.GOOGLE_TTS_VOICE || "ar-XA-Wavenet-B",
         },
         audioConfig: {
           audioEncoding: "MP3",
-          speakingRate: 0.9,
+          speakingRate: prepared.short ? 0.75 : 0.9,
           pitch: 0,
         },
       }),
@@ -248,10 +259,11 @@ async function synthesizeGoogleCloud(
   };
 }
 
-/** OpenAI gpt-4o-mini-tts — better than tts-1 for Arabic with instructions. */
 async function synthesizeOpenAI(
-  text: string,
+  prepared: PreparedTts,
 ): Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }> {
+  const input = prepared.short ? `${prepared.spoken}… ${prepared.spoken}` : prepared.display;
+
   const res = await fetch("https://api.openai.com/v1/audio/speech", {
     method: "POST",
     headers: {
@@ -261,16 +273,15 @@ async function synthesizeOpenAI(
     body: JSON.stringify({
       model: "gpt-4o-mini-tts",
       voice: "coral",
-      input: text,
+      input,
       instructions:
-        "Speak Modern Standard Arabic only. Pronounce exactly the given Arabic text as a clear syllable or word. Emphatic consonants ص ط ض ظ must sound distinctly heavier/darker than س ت د ذ. Do not say English letter names. Do not add extra words. End cleanly with no cutoff.",
+        "Speak Modern Standard Arabic only. Pronounce the Arabic exactly. Emphatic ص ط ض ظ must sound darker than س ت د ذ. Throat letters ع ح خ غ must be distinct. Never say English letter names.",
       response_format: "mp3",
-      speed: 0.9,
+      speed: prepared.short ? 0.8 : 0.9,
     }),
   });
 
   if (!res.ok) {
-    // Older accounts may lack gpt-4o-mini-tts — try hd once
     const fallback = await fetch("https://api.openai.com/v1/audio/speech", {
       method: "POST",
       headers: {
@@ -280,9 +291,9 @@ async function synthesizeOpenAI(
       body: JSON.stringify({
         model: "tts-1-hd",
         voice: "nova",
-        input: text,
+        input,
         response_format: "mp3",
-        speed: 0.9,
+        speed: 0.85,
       }),
     });
     if (!fallback.ok) {
@@ -303,15 +314,15 @@ async function synthesizeOpenAI(
   };
 }
 
-/** Free Edge neural — collect full stream to reduce truncation. */
 async function synthesizeEdgeNeural(
-  text: string,
+  prepared: PreparedTts,
   voiceName: string,
 ): Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }> {
+  const spoken = prepared.short ? `${prepared.spoken}، ${prepared.spoken}` : prepared.display;
   const chunks: Buffer[] = [];
-  const communicate = new Communicate(text, {
+  const communicate = new Communicate(spoken, {
     voice: voiceName,
-    rate: "-8%",
+    rate: prepared.short ? "-20%" : "-8%",
     pitch: "+0Hz",
     volume: "+0%",
   });
@@ -333,15 +344,16 @@ async function synthesizeEdgeNeural(
 }
 
 async function synthesizeGoogleTranslate(
-  text: string,
+  prepared: PreparedTts,
   lang: string,
 ): Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }> {
   const tl = lang.startsWith("ar") ? "ar" : lang;
+  const q = prepared.short ? `${prepared.spoken} ${prepared.spoken}` : prepared.display;
   const url = new URL("https://translate.google.com/translate_tts");
   url.searchParams.set("ie", "UTF-8");
   url.searchParams.set("client", "tw-ob");
   url.searchParams.set("tl", tl);
-  url.searchParams.set("q", text);
+  url.searchParams.set("q", q);
 
   const res = await fetch(url.toString(), {
     headers: {

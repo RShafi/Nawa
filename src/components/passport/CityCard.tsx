@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Lock } from "lucide-react";
 import type { PassportCity } from "@/data/passportCities";
+import { ArabicText } from "@/components/common/ArabicText";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -75,16 +76,23 @@ export function CityCard({
           <h3 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
             {city.name}
           </h3>
-          <p className="font-arabic text-xl leading-loose text-white/75" dir="rtl" lang="ar">
-            {city.arabicName}
-          </p>
+          <ArabicText className="text-xl leading-loose text-white/75">{city.arabicName}</ArabicText>
           <p className="max-w-sm text-sm leading-relaxed text-white/60 sm:text-base">
             {city.description}
           </p>
         </div>
 
         {unlocked ? (
-          <p className="mt-5 text-sm text-emerald-200/90">Open for dialect practice soon.</p>
+          <div className="mt-5">
+            <Button
+              asChild
+              size="sm"
+              className="bg-emerald-500 font-semibold text-black hover:bg-emerald-400"
+            >
+              <a href={`#hub-${city.id}`}>Enter Hub</a>
+            </Button>
+            <p className="mt-2 text-xs text-white/45">Dialect chat hub — coming soon</p>
+          </div>
         ) : null}
       </div>
 
@@ -147,9 +155,7 @@ function VisaStampStatic() {
       <p className="text-[10px] font-bold tracking-[0.18em] text-emerald-200 uppercase">
         Visa Granted
       </p>
-      <p className="font-arabic text-sm leading-loose text-emerald-100" dir="rtl" lang="ar">
-        مُعْتَمَد
-      </p>
+      <ArabicText className="text-sm leading-loose text-emerald-100">مُعْتَمَد</ArabicText>
     </div>
   );
 }

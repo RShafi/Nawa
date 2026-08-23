@@ -14,7 +14,7 @@ export async function login(
 ): Promise<AuthActionState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "/bustan");
+  const next = String(formData.get("next") ?? "/path");
 
   if (!email || !password) {
     return { error: "Email and password are required." };
@@ -27,7 +27,7 @@ export async function login(
     return { error: error.message || "Invalid credentials." };
   }
 
-  redirect(next.startsWith("/") ? next : "/bustan");
+  redirect(next.startsWith("/") ? next : "/path");
 }
 
 export async function signup(
@@ -59,7 +59,7 @@ export async function signup(
     };
   }
 
-  redirect("/bustan");
+  redirect("/path");
 }
 
 export async function logout() {

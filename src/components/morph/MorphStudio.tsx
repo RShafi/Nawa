@@ -14,9 +14,8 @@ import {
   formatPhonetic,
   getDerivedWord,
   hasDerivedWord,
-  stripDiacritics,
 } from "@/lib/arabic-utils";
-import { speakArabic } from "@/lib/speech";
+import { speakArabic } from "@/lib/audio";
 import { cn } from "@/lib/utils";
 import { useNawaStore } from "@/store/nawa-store";
 import type { TashkeelMode } from "@/types/arabic";
@@ -84,16 +83,16 @@ export function MorphStudio({
         .filter((g) => g !== answer)
         .slice(0, 2);
       return {
-        prompt: `These three letters (${root.transliteration}) are the “family meaning” for…`,
+        prompt: `These three letters (${root.transliteration}) are the Thread for…`,
         options: shuffleStable([answer, ...otherGlosses], root.id.length),
         answer,
-        hint: "Think of the family idea (like “writing”), not one English sentence.",
+        hint: "The Thread’s family idea (like “writing”), not one finished sentence.",
       };
     }
 
     if (teachFocus === "pattern") {
       return {
-        prompt: `With this pattern, the word means…`,
+        prompt: `With this Frame, the woven word means…`,
         options: shuffleStable(
           [
             word.translation,
@@ -105,7 +104,7 @@ export function MorphStudio({
           word.arabic.length + 3,
         ),
         answer: word.translation,
-        hint: "Same root letters, different mold — what English gloss did you just hear?",
+        hint: "Same Thread, different Frame — what English meaning did you just hear?",
       };
     }
 
@@ -115,10 +114,10 @@ export function MorphStudio({
       .filter((t, i, arr) => arr.indexOf(t) === i)
       .slice(0, 2);
     return {
-      prompt: "What does this word mean?",
+      prompt: "What does the word you just wove mean?",
       options: shuffleStable([answer, ...distractors], word.arabic.length),
       answer,
-      hint: "Same meaning you saw after you finished slotting.",
+      hint: "Same meaning you saw after you finished weaving.",
     };
   }, [root, word, teachFocus]);
 
@@ -132,32 +131,32 @@ export function MorphStudio({
 
   const focusBlurb =
     teachFocus === "root"
-      ? "Today’s goal: see that three consonants carry a whole family of meanings (like write / writer / written)."
+      ? "Today’s goal: meet the Thread — three consonants that carry a family of meanings."
       : teachFocus === "pattern"
-        ? "Today’s goal: same three root letters, new mold → new word."
-        : "Today’s goal: put the root into a pattern, then learn the word you made.";
+        ? "Today’s goal: same Thread, new Frame → a new finished word."
+        : "Today’s goal: weave the Thread into the Frame, then learn the word you made.";
 
   return (
     <Card className="overflow-hidden border-primary/20">
       <CardContent className="space-y-5 p-4 sm:p-6">
         <div className="space-y-2">
           <p className="text-primary text-sm font-medium tracking-wide uppercase">
-            Build a word
+            Weave a word
           </p>
           <p className="text-base leading-relaxed sm:text-lg">{focusBlurb}</p>
           <p className="text-muted-foreground text-base leading-relaxed">
-            Think of a <span className="text-foreground font-medium">root</span> as three meaning
-            letters, and a <span className="text-foreground font-medium">pattern</span> as a mold
-            that adds vowels (and sometimes extra letters). You place the root letters into the
-            mold — they don’t drop in by themselves.
+            The <span className="text-foreground font-medium">Root is the raw Thread</span> (the
+            core meaning). The{" "}
+            <span className="text-foreground font-medium">Pattern is the Frame</span> (the final
+            shape). Weave the thread into the frame to build the word.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           {(
             [
-              ["learn", "1 · Build", "Slot letters + hear"],
-              ["confirm", "2 · Check", "Quick meaning check"],
+              ["learn", "1 · Weave", "Thread into frame"],
+              ["confirm", "2 · Check", "Confirm the meaning"],
             ] as const
           ).map(([id, label, sub]) => (
             <button
@@ -191,10 +190,10 @@ export function MorphStudio({
               <div className="grid gap-5 lg:grid-cols-2">
                 <div className="space-y-3 rounded-xl border p-4">
                   <p className="text-sm font-semibold tracking-wide uppercase sm:text-base">
-                    Your root letters
+                    Your Thread (root)
                   </p>
                   <p className="text-muted-foreground text-sm sm:text-base">
-                    Tap these into the empty boxes below — in order, right to left (Arabic order).
+                    Tap each letter in order into the Frame below (right to left).
                   </p>
                   <div className="flex items-center gap-2" dir="rtl">
                     {root.consonants.map((letter, i) => (
@@ -219,17 +218,16 @@ export function MorphStudio({
 
                 <div className="space-y-3 rounded-xl border p-4">
                   <p className="text-sm font-semibold tracking-wide uppercase sm:text-base">
-                    The mold (pattern)
+                    The Frame (pattern)
                   </p>
                   {focusPatternId ? (
                     <div className="bg-muted/40 rounded-lg border px-3 py-3">
                       <p className="text-base font-medium">{pattern.templateName}</p>
-                      <p className="font-arabic mt-1 text-2xl sm:text-3xl" dir="rtl">
-                        {stripDiacritics(pattern.templateArabic, "full")}
-                      </p>
+                      <ArabicText className="mt-1 block text-2xl sm:text-3xl">
+                        {pattern.templateArabic}
+                      </ArabicText>
                       <p className="text-muted-foreground mt-2 text-sm leading-relaxed sm:text-base">
-                        The letters ف · ع · ل are empty seats. Your three root letters sit in those
-                        seats.
+                        ف · ع · ل mark where your Thread letters weave into this Frame.
                       </p>
                     </div>
                   ) : (
@@ -248,9 +246,7 @@ export function MorphStudio({
                             )}
                           >
                             <span className="block text-sm font-medium">{p.templateName}</span>
-                            <span className="font-arabic text-lg" dir="rtl">
-                              {stripDiacritics(p.templateArabic, "full")}
-                            </span>
+                            <ArabicText className="text-lg">{p.templateArabic}</ArabicText>
                           </button>
                         );
                       })}
@@ -440,10 +436,9 @@ function InteractiveSlots({
     <div className="space-y-4 rounded-xl border border-dashed bg-muted/30 px-4 py-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-base font-semibold sm:text-lg">Your turn — fill the seats</p>
+          <p className="text-base font-semibold sm:text-lg">Weave the Thread into the Frame</p>
           <p className="text-muted-foreground mt-1 text-sm leading-relaxed sm:text-base">
-            Empty boxes are seats for root letters. Tap the next letter in the tray below (start
-            with letter #1). This is interactive — not an auto-play demo.
+            Select each root letter in order (right to left) to complete the weave.
           </p>
         </div>
         <Button type="button" variant="ghost" size="sm" className="gap-1" onClick={onReset}>

@@ -2,7 +2,6 @@
 
 import { create } from "zustand";
 import { submitCardReview } from "@/app/actions/srs";
-import { DEMO_SRS_USER_ID } from "@/lib/srs-constants";
 import type { PopulatedSrsItem, SessionStats, SrsRating } from "@/types/srs";
 
 type ReviewStore = {
@@ -12,9 +11,8 @@ type ReviewStore = {
   isSubmitting: boolean;
   cardShownAt: number | null;
   sessionStats: SessionStats;
-  userId: string;
 
-  initializeQueue: (items: PopulatedSrsItem[], userId?: string) => void;
+  initializeQueue: (items: PopulatedSrsItem[]) => void;
   revealAnswer: () => void;
   submitRating: (rating: SrsRating) => void;
   resetSession: () => void;
@@ -45,9 +43,8 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
   isSubmitting: false,
   cardShownAt: null,
   sessionStats: emptyStats(),
-  userId: DEMO_SRS_USER_ID,
 
-  initializeQueue: (items, userId = DEMO_SRS_USER_ID) => {
+  initializeQueue: (items) => {
     set({
       queue: items.map(rehydrateItem),
       currentIndex: 0,
@@ -55,7 +52,6 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
       isSubmitting: false,
       cardShownAt: Date.now(),
       sessionStats: emptyStats(),
-      userId,
     });
   },
 
@@ -72,7 +68,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
     }),
 
   submitRating: (rating) => {
-    const { queue, currentIndex, sessionStats, userId, cardShownAt, isSubmitting } = get();
+    const { queue, currentIndex, sessionStats, cardShownAt, isSubmitting } = get();
     if (isSubmitting) return;
 
     const current = queue[currentIndex];
@@ -89,7 +85,6 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
       easy: sessionStats.easy + (rating === 4 ? 1 : 0),
     };
 
-    // Optimistic queue update: Again → back of queue; otherwise drop.
     const remaining = queue.filter((_, i) => i !== currentIndex);
     const nextQueue = rating === 1 ? [...remaining, current] : remaining;
 
@@ -102,8 +97,7 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
       sessionStats: stats,
     });
 
-    // Persist in the background (mock → Supabase later).
-    void submitCardReview(userId, current.id, rating, durationMs).catch((err) => {
+    void submitCardReview(current.id, rating, durationMs).catch((err) => {
       console.error("[srs] submitCardReview failed", err);
     });
   },

@@ -14,7 +14,7 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const next = params.next?.startsWith("/") ? params.next : "/bustan";
+  const next = params.next?.startsWith("/") ? params.next : "/path";
 
   return (
     <main className="bg-background flex min-h-screen items-center justify-center px-4 py-12">

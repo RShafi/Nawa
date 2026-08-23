@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Circle, Eye, Link2, Newspaper, Utensils } from "lucide-react";
 import type { ReadingContent } from "@/data/lessonContent";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { speakArabic } from "@/lib/speech";
+import { prefetchArabic, speakArabic } from "@/lib/audio";
 import { stripDiacritics } from "@/lib/arabic-utils";
 import { useNawaStore } from "@/store/nawa-store";
 import { cn } from "@/lib/utils";
@@ -26,14 +26,32 @@ export function ReadingLesson({
 }) {
   const tashkeelMode = useNawaStore((s) => s.tashkeelMode);
   const [heard, setHeard] = useState<Record<string, boolean>>({});
+  const gate = useRef(false);
 
   const keys = content.items.map((i) => i.arabic);
   const allHeard = keys.every((k) => heard[k]);
   const Icon = MODE_ICON[content.mode];
 
   useEffect(() => {
+    prefetchArabic(content.items.map((i) => i.arabic));
+  }, [content]);
+
+  useEffect(() => {
     if (allHeard) onComplete?.();
   }, [allHeard, onComplete]);
+
+  async function play(arabic: string, latin: string) {
+    if (gate.current) return;
+    gate.current = true;
+    setHeard((h) => ({ ...h, [arabic]: true }));
+    try {
+      await speakArabic(arabic, { latinFallback: latin });
+    } finally {
+      window.setTimeout(() => {
+        gate.current = false;
+      }, 200);
+    }
+  }
 
   return (
     <Card
@@ -88,14 +106,11 @@ export function ReadingLesson({
                       type="button"
                       className={cn(
                         "font-arabic leading-none hover:opacity-80",
-                        content.mode === "headline" ? "text-4xl sm:text-5xl" : "text-4xl sm:text-5xl",
+                        "text-4xl sm:text-5xl",
                       )}
                       dir="rtl"
                       lang="ar"
-                      onClick={() => {
-                        setHeard((h) => ({ ...h, [item.arabic]: true }));
-                        void speakArabic(item.arabic, { latinFallback: item.latin });
-                      }}
+                      onClick={() => void play(item.arabic, item.latin)}
                     >
                       {shown}
                     </button>

@@ -2,17 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { LESSON_HIBR_BONUS, getCityById } from "@/data/passportCities";
-import { mergeBustanTrees, type DbBustanTreeRow } from "@/lib/bustan-progress";
-import type { BustanTree } from "@/store/useGamificationStore";
 import { createClient } from "@/utils/supabase/server";
-
-export type UserDashboardData = {
-  email: string | null;
-  currency: number;
-  trees: BustanTree[];
-  unlockedCities: string[];
-  completedLessonIds: string[];
-};
 
 export type ProgressActionResult = {
   ok: boolean;
@@ -38,87 +28,6 @@ async function requireUser() {
 }
 
 /**
- * Profile + Bustān trees + unlocked cities + lesson completions for the signed-in user.
- */
-export async function getUserDashboardData(): Promise<UserDashboardData | null> {
-  const { supabase, user } = await requireUser();
-  if (!user) return null;
-
-  const [profileRes, treesRes, citiesRes, lessonsRes] = await Promise.all([
-    supabase
-      .from("user_profiles")
-      .select("email, hibr_currency")
-      .eq("id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("user_bustan_trees")
-      .select("root_id, letters, mastery_level")
-      .eq("user_id", user.id),
-    supabase.from("user_unlocked_cities").select("city_id").eq("user_id", user.id),
-    supabase.from("user_lesson_progress").select("lesson_id").eq("user_id", user.id),
-  ]);
-
-  // Ensure a profile exists (covers users created before the trigger was installed)
-  let currency = profileRes.data?.hibr_currency ?? 0;
-  let email = profileRes.data?.email ?? user.email ?? null;
-
-  if (!profileRes.data) {
-    const { data: created } = await supabase
-      .from("user_profiles")
-      .upsert(
-        { id: user.id, email: user.email ?? null, hibr_currency: 0 },
-        { onConflict: "id" },
-      )
-      .select("email, hibr_currency")
-      .maybeSingle();
-
-    currency = created?.hibr_currency ?? 0;
-    email = created?.email ?? user.email ?? null;
-  }
-
-  const dbTrees = (treesRes.data ?? []) as DbBustanTreeRow[];
-
-  return {
-    email,
-    currency,
-    trees: mergeBustanTrees(dbTrees),
-    unlockedCities: (citiesRes.data ?? []).map((r) => r.city_id as string),
-    completedLessonIds: (lessonsRes.data ?? []).map((r) => r.lesson_id as string),
-  };
-}
-
-/** Upsert mastery for one orchard tree belonging to the current user. */
-export async function updateTreeMastery(
-  rootId: string,
-  letters: string,
-  level: number,
-): Promise<ProgressActionResult> {
-  const { supabase, user } = await requireUser();
-  if (!user) return { ok: false, error: "Not authenticated." };
-
-  const mastery = Math.max(0, Math.min(3, Math.floor(level)));
-
-  const { error } = await supabase.from("user_bustan_trees").upsert(
-    {
-      user_id: user.id,
-      root_id: rootId,
-      letters,
-      mastery_level: mastery,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,root_id" },
-  );
-
-  if (error) {
-    return { ok: false, error: error.message };
-  }
-
-  revalidatePath("/bustan");
-  revalidatePath("/passport");
-  return { ok: true };
-}
-
-/**
  * Atomically verify currency, deduct `cost`, and unlock a city (Postgres RPC).
  */
 export async function unlockCityAction(
@@ -133,7 +42,6 @@ export async function unlockCityAction(
     return { ok: false, error: "Unknown city." };
   }
 
-  // Trust the catalog cost, not a client-supplied arbitrary value
   const chargedCost = city.cost;
   if (cost !== chargedCost) {
     return { ok: false, error: "Cost mismatch. Refresh and try again." };
@@ -151,16 +59,23 @@ export async function unlockCityAction(
   const payload = data as {
     ok?: boolean;
     already_unlocked?: boolean;
+    hibr_balance?: number;
     hibr_currency?: number;
   } | null;
 
+  revalidatePath("/passports");
   revalidatePath("/passport");
-  revalidatePath("/bustan");
+  revalidatePath("/path");
 
   return {
     ok: true,
     alreadyUnlocked: Boolean(payload?.already_unlocked),
-    currency: typeof payload?.hibr_currency === "number" ? payload.hibr_currency : undefined,
+    currency:
+      typeof payload?.hibr_balance === "number"
+        ? payload.hibr_balance
+        : typeof payload?.hibr_currency === "number"
+          ? payload.hibr_currency
+          : undefined,
   };
 }
 
@@ -181,7 +96,6 @@ export async function completeLessonAction(
   });
 
   if (insertError) {
-    // Unique violation → already completed; no second bonus
     if (insertError.code === "23505") {
       return { ok: true, alreadyCompleted: true, bonusAwarded: 0 };
     }
@@ -190,7 +104,7 @@ export async function completeLessonAction(
 
   const { data: profile, error: profileError } = await supabase
     .from("user_profiles")
-    .select("hibr_currency")
+    .select("hibr_balance")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -198,10 +112,10 @@ export async function completeLessonAction(
     return { ok: false, error: profileError?.message ?? "Profile not found." };
   }
 
-  const nextCurrency = profile.hibr_currency + LESSON_HIBR_BONUS;
+  const nextCurrency = profile.hibr_balance + LESSON_HIBR_BONUS;
   const { error: updateError } = await supabase
     .from("user_profiles")
-    .update({ hibr_currency: nextCurrency })
+    .update({ hibr_balance: nextCurrency })
     .eq("id", user.id);
 
   if (updateError) {
@@ -209,7 +123,8 @@ export async function completeLessonAction(
   }
 
   revalidatePath("/");
-  revalidatePath("/passport");
+  revalidatePath("/path");
+  revalidatePath("/passports");
   revalidatePath(`/lesson/${lessonId}`);
 
   return { ok: true, bonusAwarded: LESSON_HIBR_BONUS, currency: nextCurrency };

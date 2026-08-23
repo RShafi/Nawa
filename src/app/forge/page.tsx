@@ -1,11 +1,6 @@
-import { SiteHeader } from "@/components/common/SiteHeader";
-import { ForgePageClient } from "./forge-page-client";
+import { redirect } from "next/navigation";
 
-export default function ForgePage() {
-  return (
-    <div className="min-h-screen bg-background" dir="ltr">
-      <SiteHeader />
-      <ForgePageClient />
-    </div>
-  );
+/** Morph Forge replaced by Harb al-Juthūr */
+export default function ForgeRedirectPage() {
+  redirect("/arena");
 }

@@ -9,7 +9,7 @@
 CREATE TABLE IF NOT EXISTS public.user_profiles (
   id uuid PRIMARY KEY REFERENCES auth.users (id) ON DELETE CASCADE,
   email text,
-  hibr_currency integer NOT NULL DEFAULT 0 CHECK (hibr_currency >= 0),
+  hibr_balance integer NOT NULL DEFAULT 0 CHECK (hibr_balance >= 0),
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -160,7 +160,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.user_profiles (id, email, hibr_currency)
+  INSERT INTO public.user_profiles (id, email, hibr_balance)
   VALUES (NEW.id, NEW.email, 0)
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
@@ -205,15 +205,15 @@ BEGIN
     FROM public.user_unlocked_cities
     WHERE user_id = uid AND city_id = p_city_id
   ) THEN
-    SELECT hibr_currency INTO bal FROM public.user_profiles WHERE id = uid;
+    SELECT hibr_balance INTO bal FROM public.user_profiles WHERE id = uid;
     RETURN jsonb_build_object(
       'ok', true,
       'already_unlocked', true,
-      'hibr_currency', COALESCE(bal, 0)
+      'hibr_balance', COALESCE(bal, 0)
     );
   END IF;
 
-  SELECT hibr_currency INTO bal
+  SELECT hibr_balance INTO bal
   FROM public.user_profiles
   WHERE id = uid
   FOR UPDATE;
@@ -227,7 +227,7 @@ BEGIN
   END IF;
 
   UPDATE public.user_profiles
-  SET hibr_currency = hibr_currency - p_cost
+  SET hibr_balance = hibr_balance - p_cost
   WHERE id = uid;
 
   INSERT INTO public.user_unlocked_cities (user_id, city_id)
@@ -236,7 +236,7 @@ BEGIN
   RETURN jsonb_build_object(
     'ok', true,
     'already_unlocked', false,
-    'hibr_currency', bal - p_cost
+    'hibr_balance', bal - p_cost
   );
 END;
 $$;

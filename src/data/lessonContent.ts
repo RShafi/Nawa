@@ -305,27 +305,27 @@ export const LESSON_CONTENT: Record<string, LessonBodyContent> = {
   "s1-u1-l3": {
     kind: "quiz",
     mode: "spot-the-word",
-    title: "Same mold, different roots",
+    title: "Same Frame, different Threads",
     intro:
-      "You just practiced a basic past pattern (like “he wrote”). Now match each word to its English meaning. Same mold — different three-letter roots.",
+      "You just practiced a basic past Frame (like “he wrote”). Now match each word to its English meaning. Same Frame — different three-letter Threads.",
     questions: [
       {
         prompt: "كَتَبَ means…",
         options: ["he studied", "he wrote", "he spoke", "book"],
         answer: "he wrote",
-        explain: "Root k-t-b (writing) in the basic past mold.",
+        explain: "Thread k-t-b (writing) woven into the basic past Frame.",
       },
       {
         prompt: "دَرَسَ means…",
         options: ["he wrote", "office", "he studied", "peace"],
         answer: "he studied",
-        explain: "Same past mold on the study root d-r-s.",
+        explain: "Same past Frame on the study Thread d-r-s.",
       },
       {
-        prompt: "Teachers write the basic past mold with placeholder letters as…",
+        prompt: "The simple past Frame (the shape teachers sketch) looks like…",
         options: ["فَعَلَ", "فَعَّلَ", "اِسْتَفْعَلَ", "مَفْعَل"],
         answer: "فَعَلَ",
-        explain: "فَعَلَ is the simple past skeleton. فَعَّلَ (with shadda) is a different mold.",
+        explain: "فَعَلَ is the simple past Frame. فَعَّلَ (with a double mark) is a different Frame.",
       },
     ],
   },
@@ -347,13 +347,13 @@ export const LESSON_CONTENT: Record<string, LessonBodyContent> = {
     kind: "quiz",
     mode: "spot-the-word",
     title: "Pick the past verb",
-    intro: "One option is the simple past “he wrote.” The others are nouns or a different mold.",
+    intro: "One option is the simple past “he wrote.” The others are nouns or a different Frame.",
     questions: [
       {
         prompt: "Which word means “he wrote” (simple past)?",
-        options: ["كِتَاب (book)", "كَتَبَ", "مَكْتَب (office)", "كَتَّبَ (different mold)"],
+        options: ["كِتَاب (book)", "كَتَبَ", "مَكْتَب (office)", "كَتَّبَ (different Frame)"],
         answer: "كَتَبَ",
-        explain: "كَتَبَ is simple past. كَتَّبَ has a doubled letter (another mold).",
+        explain: "كَتَبَ is simple past. كَتَّبَ has a doubled letter (another Frame).",
       },
       {
         prompt: "عَلِمَ is built on which three-letter root?",
@@ -430,10 +430,10 @@ export const LESSON_CONTENT: Record<string, LessonBodyContent> = {
     mode: "speed-check",
     title: "Find the “seek” prefix",
     intro:
-      "One common mold starts with استـ and often means “seek / ask for.” Example: seek knowledge → inquire.",
+      "One common Frame starts with استـ and often means “seek / ask for.” Example: seek knowledge → inquire.",
     questions: [
       {
-        prompt: "Which chunk often starts this “seek” mold?",
+        prompt: "Which chunk often starts this “seek” Frame?",
         options: ["مَ", "ال", "استـ", "يَ"],
         answer: "استـ",
         explain: "Spot استـ at the front — that’s your clue.",
@@ -524,7 +524,7 @@ export const LESSON_CONTENT: Record<string, LessonBodyContent> = {
           "Only Egyptian slang",
           "Formal / MSA greeting",
           "Only Levantine slang",
-          "A verb mold",
+          "A verb Frame",
         ],
         answer: "Formal / MSA greeting",
         explain: "Classic polite “peace be upon you.”",

@@ -148,6 +148,29 @@
       0 0 48px -16px oklch(0.82 0.14 85 / 22%);
   }
 
+  /* Battle tiles: keep Arabic on one line without ballooning card height */
+  .battle-arabic {
+    line-height: 1.25 !important;
+    padding-block: 0;
+    letter-spacing: 0.01em;
+  }
+
+  .tutorial-target-emerald {
+    box-shadow:
+      0 0 0 3px oklch(0.78 0.14 160 / 85%),
+      0 0 28px 4px oklch(0.78 0.14 160 / 55%),
+      0 0 56px 8px oklch(0.78 0.14 160 / 30%);
+    animation: tutorial-pulse-emerald 1.2s ease-in-out infinite;
+  }
+
+  .tutorial-target-amber {
+    box-shadow:
+      0 0 0 3px oklch(0.85 0.16 85 / 90%),
+      0 0 28px 4px oklch(0.82 0.14 85 / 55%),
+      0 0 56px 8px oklch(0.82 0.14 85 / 28%);
+    animation: tutorial-pulse-amber 1.2s ease-in-out infinite;
+  }
+
   .glow-forge {
     box-shadow:
       0 0 40px -8px oklch(0.7 0.18 45 / 35%),
@@ -205,6 +228,34 @@
   50% {
     opacity: 1;
     transform: scale(1.05);
+  }
+}
+
+@keyframes tutorial-pulse-emerald {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px oklch(0.78 0.14 160 / 70%),
+      0 0 20px 2px oklch(0.78 0.14 160 / 40%);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px oklch(0.85 0.16 160 / 95%),
+      0 0 40px 10px oklch(0.78 0.14 160 / 55%);
+  }
+}
+
+@keyframes tutorial-pulse-amber {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px oklch(0.85 0.16 85 / 70%),
+      0 0 20px 2px oklch(0.82 0.14 85 / 40%);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px oklch(0.9 0.16 85 / 95%),
+      0 0 40px 10px oklch(0.82 0.14 85 / 55%);
   }
 }
 

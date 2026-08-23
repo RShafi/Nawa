@@ -7,16 +7,29 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { logout } from "@/app/login/actions";
+import { ArabicText } from "@/components/common/ArabicText";
 import { TashkeelToggle } from "@/components/common/TashkeelToggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useGamificationStore } from "@/store/useGamificationStore";
+import { useAppStore } from "@/store/useAppStore";
 
 const NAV_LINKS = [
-  { href: "/", label: "Learning Path", match: (p: string) => p === "/" },
-  { href: "/bustan", label: "Bustān", match: (p: string) => p.startsWith("/bustan") },
-  { href: "/forge", label: "Morph Forge", match: (p: string) => p.startsWith("/forge") },
-  { href: "/passport", label: "Passports", match: (p: string) => p.startsWith("/passport") },
+  {
+    href: "/path",
+    label: "Learning Path",
+    match: (p: string) => p === "/path" || p.startsWith("/path/") || p.startsWith("/lesson"),
+  },
+  {
+    href: "/arena",
+    label: "Arena",
+    match: (p: string) => p.startsWith("/arena"),
+  },
+  {
+    href: "/passports",
+    label: "Passports",
+    match: (p: string) => p.startsWith("/passport"),
+  },
+  { href: "/review", label: "Review", match: (p: string) => p.startsWith("/review") },
 ] as const;
 
 type NavbarProps = {
@@ -56,9 +69,7 @@ export function Navbar({ email }: NavbarProps) {
             <span className="relative inline-flex size-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px] shadow-emerald-400/80" />
           </span>
           <span className="flex items-baseline gap-1.5 tracking-tight">
-            <span className="font-arabic text-lg leading-none text-emerald-100 sm:text-xl" dir="rtl" lang="ar">
-              نَوَاة
-            </span>
+            <ArabicText className="text-lg leading-none text-emerald-100 sm:text-xl">نَوَاة</ArabicText>
             <span className="text-white/25">|</span>
             <span className="text-base font-semibold text-white/95 sm:text-lg">Nawā</span>
           </span>
@@ -184,10 +195,15 @@ export function Navbar({ email }: NavbarProps) {
 }
 
 function HibrBadge() {
-  const hibr = useGamificationStore((s) => s.hibrCurrency);
-  const hydrated = useGamificationStore((s) => s.progressHydrated);
+  const hibr = useAppStore((s) => s.hibrBalance);
+  const hydrated = useAppStore((s) => s.status === "ready");
+  const hydrate = useAppStore((s) => s.hydrate);
   const prev = useRef(hibr);
   const [bump, setBump] = useState(false);
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
 
   useEffect(() => {
     if (prev.current !== hibr) {
@@ -200,7 +216,7 @@ function HibrBadge() {
 
   return (
     <Link
-      href="/passport"
+      href="/passports"
       className={cn(
         "glow-amber glass-panel inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-amber-100 transition hover:bg-amber-400/10",
         bump && "ring-1 ring-amber-300/50",

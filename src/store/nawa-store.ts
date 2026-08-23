@@ -76,10 +76,10 @@ export const useNawaStore = create<NawaState>()(
         const found = findCurriculumLesson(lessonId);
         if (!found) return;
         const { lesson } = found;
+        // Do not overwrite tashkeelMode — header toggle is authoritative & persisted.
         set({
           ...(lesson.rootId ? { selectedRootId: lesson.rootId } : {}),
           ...(lesson.patternId ? { selectedPatternId: lesson.patternId } : {}),
-          ...(lesson.tashkeelMode ? { tashkeelMode: lesson.tashkeelMode } : {}),
           ...(lesson.dialectPhraseId
             ? { selectedDialectPhraseId: lesson.dialectPhraseId }
             : {}),
@@ -126,6 +126,7 @@ export const useNawaStore = create<NawaState>()(
         userProgress: state.userProgress,
         progressSeed: state.progressSeed,
         selectedDialect: state.selectedDialect,
+        tashkeelMode: state.tashkeelMode,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
