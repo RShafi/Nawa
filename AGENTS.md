@@ -15,7 +15,7 @@ Schema SQL lives in `supabase/schema.sql` and `supabase/migrations/` — apply a
 ### Run / lint / build
 
 - Dev: `npm run dev` → `http://localhost:3000` (`/` redirects to `/path`).
-- Lint: `npm run lint`. A `next lint` deprecation notice is expected. As of the Path/Arena merge, `prefer-const` in `src/store/useBattleStore.ts` fails lint and therefore also fails `npm run build` (Next runs ESLint during build).
+- Lint: `npm run lint`. A `next lint` deprecation notice is expected and does not indicate failure.
 - After large merges, if the running `next dev` process shows `ENOENT` for `.next/routes-manifest.json`, stop it and restart `npm run dev` (or delete `.next` first).
 
 ### TTS
