@@ -133,7 +133,7 @@ export function DialectBridgeCard({
             {REGISTERS.map((r) => (
               <TabsTrigger key={r.id} value={r.id} className="flex-1 gap-1 sm:flex-none">
                 <span>{r.label}</span>
-                <span className="font-arabic text-xs opacity-70">{r.arabic}</span>
+                <ArabicText className="text-xs opacity-70">{r.arabic}</ArabicText>
                 {heard[r.id] ? <span className="text-[10px]">✓</span> : null}
               </TabsTrigger>
             ))}

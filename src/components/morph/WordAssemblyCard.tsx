@@ -85,9 +85,7 @@ export function WordAssemblyCard({ guided = false }: WordAssemblyCardProps) {
         <CardTitle>Your word</CardTitle>
         <CardDescription>
           Root letters fill {pattern.templateName} (
-          <span className="font-arabic" dir="rtl">
-            {stripDiacritics(pattern.templateArabic, "full")}
-          </span>
+          <ArabicText className="inline">{pattern.templateArabic}</ArabicText>
           ). Try the practice steps — don’t just listen.
         </CardDescription>
       </CardHeader>
@@ -244,9 +242,7 @@ export function WordAssemblyCard({ guided = false }: WordAssemblyCardProps) {
                         setDone((d) => ({ ...d, quiz: false }));
                       }}
                     >
-                      <span className="font-arabic me-1.5" dir="rtl">
-                        {stripDiacritics(w.arabic, "minimal")}
-                      </span>
+                      <ArabicText className="me-1.5">{w.arabic}</ArabicText>
                       <span className="text-muted-foreground text-xs">{p?.templateName ?? w.patternId}</span>
                     </Button>
                   );
@@ -312,6 +308,8 @@ function TemplateSlots({
   template: string;
   consonants: string[];
 }) {
+  const tashkeelMode = useNawaStore((s) => s.tashkeelMode);
+  const displayTemplate = stripDiacritics(template, tashkeelMode);
   const [f, a, l] = consonants;
   let fUsed = false;
   let aUsed = false;
@@ -319,8 +317,8 @@ function TemplateSlots({
 
   const parts: { key: string; label: string; isSlot: boolean; slotIndex?: number }[] = [];
 
-  for (let i = 0; i < template.length; i++) {
-    const ch = template[i];
+  for (let i = 0; i < displayTemplate.length; i++) {
+    const ch = displayTemplate[i];
     if (ch === "ف" && !fUsed) {
       parts.push({ key: `f-${i}`, label: f, isSlot: true, slotIndex: 0 });
       fUsed = true;

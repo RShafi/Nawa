@@ -14,9 +14,8 @@ import {
   formatPhonetic,
   getDerivedWord,
   hasDerivedWord,
-  stripDiacritics,
 } from "@/lib/arabic-utils";
-import { speakArabic } from "@/lib/speech";
+import { speakArabic } from "@/lib/audio";
 import { cn } from "@/lib/utils";
 import { useNawaStore } from "@/store/nawa-store";
 import type { TashkeelMode } from "@/types/arabic";
@@ -24,12 +23,6 @@ import type { TashkeelMode } from "@/types/arabic";
 type MorphStudioProps = {
   focusPatternId?: string;
   lockedRootId?: string;
-  /**
-   * What this lesson emphasizes:
-   * - root: three consonants carry meaning (Meet the Root)
-   * - word: assemble and learn this word’s gloss
-   * - pattern: notice how the pattern changes the word
-   */
   teachFocus?: "root" | "word" | "pattern";
   onComplete?: () => void;
 };
@@ -37,8 +30,8 @@ type MorphStudioProps = {
 type Phase = "learn" | "confirm";
 
 /**
- * Guided morph lesson: learn (root + pattern → word + meaning) then confirm.
- * Not a free sandbox — one clear job per step.
+ * You build the word: tap root letters into empty pattern slots.
+ * Then hear the result and confirm the meaning.
  */
 export function MorphStudio({
   focusPatternId,
@@ -53,7 +46,8 @@ export function MorphStudio({
   const setTashkeelMode = useNawaStore((s) => s.setTashkeelMode);
 
   const [phase, setPhase] = useState<Phase>("learn");
-  const [replay, setReplay] = useState(0);
+  const [slotReset, setSlotReset] = useState(0);
+  const [assembled, setAssembled] = useState(false);
   const [quizChoice, setQuizChoice] = useState<string | null>(null);
   const [heard, setHeard] = useState(false);
   const [showVowelHelp, setShowVowelHelp] = useState(false);
@@ -64,10 +58,16 @@ export function MorphStudio({
   const pattern = getPatternById(patternId);
   const word = getDerivedWord(rootId, patternId, DERIVED_WORDS);
 
-  // Keep store pattern in sync with the lesson focus
   useEffect(() => {
     if (focusPatternId) setPatternId(focusPatternId);
   }, [focusPatternId, setPatternId]);
+
+  useEffect(() => {
+    setAssembled(false);
+    setHeard(false);
+    setQuizChoice(null);
+    setSlotReset((n) => n + 1);
+  }, [rootId, patternId]);
 
   const availablePatterns = useMemo(
     () => PATTERNS.filter((p) => hasDerivedWord(rootId, p.id, DERIVED_WORDS)),
@@ -82,12 +82,29 @@ export function MorphStudio({
       const otherGlosses = ROOTS.map((r) => r.gloss)
         .filter((g) => g !== answer)
         .slice(0, 2);
-      const options = shuffleStable([answer, ...otherGlosses], root.id.length);
       return {
-        prompt: `The three letters ${root.consonants.map((c) => c.arabic).join(" ")} (root ${root.transliteration}) are about…`,
-        options,
+        prompt: `These three letters (${root.transliteration}) are the Thread for…`,
+        options: shuffleStable([answer, ...otherGlosses], root.id.length),
         answer,
-        hint: "Use the root gloss from Learn (the family meaning) — not a full dictionary sentence.",
+        hint: "The Thread’s family idea (like “writing”), not one finished sentence.",
+      };
+    }
+
+    if (teachFocus === "pattern") {
+      return {
+        prompt: `With this Frame, the woven word means…`,
+        options: shuffleStable(
+          [
+            word.translation,
+            ...DERIVED_WORDS.filter((w) => w.translation !== word.translation)
+              .map((w) => w.translation)
+              .filter((t, i, arr) => arr.indexOf(t) === i)
+              .slice(0, 2),
+          ],
+          word.arabic.length + 3,
+        ),
+        answer: word.translation,
+        hint: "Same Thread, different Frame — what English meaning did you just hear?",
       };
     }
 
@@ -97,10 +114,10 @@ export function MorphStudio({
       .filter((t, i, arr) => arr.indexOf(t) === i)
       .slice(0, 2);
     return {
-      prompt: "You just saw this word with its English meaning. What does it mean?",
+      prompt: "What does the word you just wove mean?",
       options: shuffleStable([answer, ...distractors], word.arabic.length),
       answer,
-      hint: "This is a memory check of the gloss shown in Learn — not a cold vocab test.",
+      hint: "Same meaning you saw after you finished weaving.",
     };
   }, [root, word, teachFocus]);
 
@@ -110,38 +127,36 @@ export function MorphStudio({
 
   if (!root || !pattern) return null;
 
-  const assemblyKey = `${root.id}-${pattern.id}-${replay}`;
-  const canConfirm = Boolean(word) && heard;
+  const canConfirm = Boolean(word) && assembled && heard;
 
   const focusBlurb =
     teachFocus === "root"
-      ? "Job this lesson: see how three root letters carry a family of meanings."
+      ? "Today’s goal: meet the Thread — three consonants that carry a family of meanings."
       : teachFocus === "pattern"
-        ? "Job this lesson: same root, new pattern → new word shape and meaning."
-        : "Job this lesson: slot the root into a pattern and learn the resulting word.";
+        ? "Today’s goal: same Thread, new Frame → a new finished word."
+        : "Today’s goal: weave the Thread into the Frame, then learn the word you made.";
 
   return (
     <Card className="overflow-hidden border-primary/20">
       <CardContent className="space-y-5 p-4 sm:p-6">
         <div className="space-y-2">
           <p className="text-primary text-sm font-medium tracking-wide uppercase">
-            Morph engine
+            Weave a word
           </p>
           <p className="text-base leading-relaxed sm:text-lg">{focusBlurb}</p>
           <p className="text-muted-foreground text-base leading-relaxed">
-            Arabic words are built like{" "}
-            <span className="text-foreground font-medium">root + pattern</span>. The root is
-            three consonants (meaning). The pattern is the “mold” (vowels and extra letters) that
-            turns the root into a real word.
+            The <span className="text-foreground font-medium">Root is the raw Thread</span> (the
+            core meaning). The{" "}
+            <span className="text-foreground font-medium">Pattern is the Frame</span> (the final
+            shape). Weave the thread into the frame to build the word.
           </p>
         </div>
 
-        {/* Sequential steps — not interchangeable topics */}
         <div className="flex flex-wrap gap-2">
           {(
             [
-              ["learn", "1 · Learn", "See root + pattern → word"],
-              ["confirm", "2 · Confirm", "Quick memory check"],
+              ["learn", "1 · Weave", "Thread into frame"],
+              ["confirm", "2 · Check", "Confirm the meaning"],
             ] as const
           ).map(([id, label, sub]) => (
             <button
@@ -153,9 +168,7 @@ export function MorphStudio({
               }}
               className={cn(
                 "rounded-xl border px-3 py-2 text-start transition-colors",
-                phase === id
-                  ? "border-primary bg-primary/10"
-                  : "hover:bg-muted/50",
+                phase === id ? "border-primary bg-primary/10" : "hover:bg-muted/50",
                 id === "confirm" && !canConfirm && "cursor-not-allowed opacity-50",
               )}
             >
@@ -175,58 +188,46 @@ export function MorphStudio({
               className="space-y-5"
             >
               <div className="grid gap-5 lg:grid-cols-2">
-                {/* Root */}
                 <div className="space-y-3 rounded-xl border p-4">
                   <p className="text-sm font-semibold tracking-wide uppercase sm:text-base">
-                    Root · جذر{" "}
-                    <span className="text-muted-foreground font-normal normal-case">
-                      (the meaning carriers)
-                    </span>
+                    Your Thread (root)
+                  </p>
+                  <p className="text-muted-foreground text-sm sm:text-base">
+                    Tap each letter in order into the Frame below (right to left).
                   </p>
                   <div className="flex items-center gap-2" dir="rtl">
-                    {root.consonants.map((letter) => (
-                      <button
+                    {root.consonants.map((letter, i) => (
+                      <div
                         key={letter.arabic}
-                        type="button"
-                        onClick={() =>
-                          void speakArabic(letter.arabic, { latinFallback: letter.latin })
-                        }
-                        className="bg-primary/10 border-primary/25 hover:bg-primary/15 flex size-14 flex-col items-center justify-center rounded-lg border sm:size-16"
+                        className="bg-muted/50 flex size-14 flex-col items-center justify-center rounded-lg border sm:size-16"
                       >
-                        <span className="font-arabic text-3xl leading-none font-semibold sm:text-4xl">
+                        <span className="font-arabic text-3xl font-semibold sm:text-4xl">
                           {letter.arabic}
                         </span>
-                        <span className="text-muted-foreground text-xs">{letter.latin}</span>
-                      </button>
+                        <span className="text-muted-foreground text-xs">
+                          #{i + 1} · {letter.latin}
+                        </span>
+                      </div>
                     ))}
                   </div>
-                  <p className="text-base leading-relaxed sm:text-lg">
-                    <span className="font-semibold">{root.transliteration}</span>
-                    {" — "}
-                    about <span className="font-semibold">{root.gloss}</span>
-                  </p>
-                  <p className="text-muted-foreground text-sm leading-relaxed sm:text-base">
-                    Example: English “write / writer / written” share a writing idea. Arabic packs
-                    that idea into three letters, then dresses them with patterns.
+                  <p className="text-base sm:text-lg">
+                    <span className="font-semibold">{root.transliteration}</span> — family meaning:{" "}
+                    <span className="font-semibold">{root.gloss}</span>
                   </p>
                 </div>
 
-                {/* Pattern */}
                 <div className="space-y-3 rounded-xl border p-4">
                   <p className="text-sm font-semibold tracking-wide uppercase sm:text-base">
-                    Pattern · وزن{" "}
-                    <span className="text-muted-foreground font-normal normal-case">
-                      (the mold)
-                    </span>
+                    The Frame (pattern)
                   </p>
                   {focusPatternId ? (
                     <div className="bg-muted/40 rounded-lg border px-3 py-3">
                       <p className="text-base font-medium">{pattern.templateName}</p>
-                      <p className="font-arabic mt-1 text-2xl sm:text-3xl" dir="rtl">
-                        {stripDiacritics(pattern.templateArabic, "full")}
-                      </p>
+                      <ArabicText className="mt-1 block text-2xl sm:text-3xl">
+                        {pattern.templateArabic}
+                      </ArabicText>
                       <p className="text-muted-foreground mt-2 text-sm leading-relaxed sm:text-base">
-                        Placeholder letters ف ع ل stand for your three root consonants, in order.
+                        ف · ع · ل mark where your Thread letters weave into this Frame.
                       </p>
                     </div>
                   ) : (
@@ -245,9 +246,7 @@ export function MorphStudio({
                             )}
                           >
                             <span className="block text-sm font-medium">{p.templateName}</span>
-                            <span className="font-arabic text-lg" dir="rtl">
-                              {stripDiacritics(p.templateArabic, "full")}
-                            </span>
+                            <ArabicText className="text-lg">{p.templateArabic}</ArabicText>
                           </button>
                         );
                       })}
@@ -256,42 +255,27 @@ export function MorphStudio({
                 </div>
               </div>
 
-              {/* Assembly */}
-              <div className="bg-muted/35 rounded-xl border border-dashed px-4 py-5">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-base font-medium">
-                    Watch the root letters slot into the pattern
-                  </p>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 gap-1 text-sm"
-                    onClick={() => setReplay((n) => n + 1)}
-                  >
-                    <RotateCcw className="size-3.5" />
-                    Replay
-                  </Button>
-                </div>
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={assemblyKey}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <TemplateSlots
-                      template={pattern.templateArabic}
-                      consonants={root.consonants.map((c) => c.arabic)}
-                    />
-                  </motion.div>
-                </AnimatePresence>
-              </div>
+              <InteractiveSlots
+                key={`${root.id}-${pattern.id}-${slotReset}`}
+                template={pattern.templateArabic}
+                consonants={root.consonants.map((c) => c.arabic)}
+                latin={root.consonants.map((c) => c.latin)}
+                onComplete={() => setAssembled(true)}
+                onReset={() => {
+                  setAssembled(false);
+                  setHeard(false);
+                  setSlotReset((n) => n + 1);
+                }}
+              />
 
-              {word ? (
-                <div className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-5 text-center">
+              {assembled && word ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-5 text-center"
+                >
                   <p className="text-muted-foreground text-sm font-medium tracking-wide uppercase sm:text-base">
-                    Resulting word — learn this gloss
+                    You built this word
                   </p>
                   <ArabicText className="block text-5xl font-semibold leading-normal sm:text-6xl">
                     {word.arabic}
@@ -304,7 +288,7 @@ export function MorphStudio({
                     <SpeakButton
                       text={word.arabic}
                       latinFallback={word.transliteration}
-                      label={heard ? "Heard ✓ — play again" : "Hear the word"}
+                      label={heard ? "Heard ✓ — play again" : "Hear it"}
                       onSpoke={() => setHeard(true)}
                       size="default"
                     />
@@ -313,15 +297,10 @@ export function MorphStudio({
                       {word.grammaticalCategory}
                     </Badge>
                   </div>
-                  <p className="text-muted-foreground mx-auto max-w-lg text-sm leading-relaxed sm:text-base">
-                    {teachFocus === "root"
-                      ? `Remember: the root is about “${root.gloss}.” The full word “${word.translation}” is that root wearing this pattern.`
-                      : `Read the English line above once, then hear the Arabic. You’ll confirm the meaning next.`}
-                  </p>
-                </div>
+                </motion.div>
               ) : (
-                <p className="text-muted-foreground py-4 text-center text-base">
-                  No sample for this pattern — pick another.
+                <p className="text-muted-foreground text-center text-base">
+                  Finish placing all three letters to unlock the finished word.
                 </p>
               )}
 
@@ -332,7 +311,7 @@ export function MorphStudio({
                   onClick={() => setShowVowelHelp((v) => !v)}
                 >
                   <HelpCircle className="size-4" />
-                  {showVowelHelp ? "Hide vowel-mark help" : "What are the little marks on the letters?"}
+                  {showVowelHelp ? "Hide vowel help" : "What are the little marks?"}
                 </button>
                 <Button
                   type="button"
@@ -341,7 +320,11 @@ export function MorphStudio({
                   className="gap-1"
                   size="lg"
                 >
-                  {canConfirm ? "Continue to confirm" : "Hear the word first"}
+                  {!assembled
+                    ? "Finish slotting first"
+                    : !heard
+                      ? "Hear the word first"
+                      : "Check yourself"}
                   <ChevronRight className="size-4" />
                 </Button>
               </div>
@@ -365,7 +348,7 @@ export function MorphStudio({
                 <p className="mt-3 text-base font-medium sm:text-lg">{quiz.prompt}</p>
                 <p className="text-muted-foreground mt-1 text-sm sm:text-base">{quiz.hint}</p>
               </div>
-              <div className="mx-auto grid max-w-xl gap-2 sm:grid-cols-1">
+              <div className="mx-auto grid max-w-xl gap-2">
                 {quiz.options.map((opt) => {
                   const selected = quizChoice === opt;
                   const correct = opt === quiz.answer;
@@ -394,16 +377,16 @@ export function MorphStudio({
                   onSpoke={() => setHeard(true)}
                 />
                 <Button type="button" variant="outline" onClick={() => setPhase("learn")}>
-                  Back to Learn
+                  Back to build
                 </Button>
               </div>
               {quizChoice === quiz.answer && heard ? (
                 <p className="text-center text-base font-medium text-emerald-700 dark:text-emerald-300 sm:text-lg">
-                  Correct — lesson complete.
+                  Nice — lesson complete.
                 </p>
               ) : quizChoice && quizChoice !== quiz.answer ? (
                 <p className="text-muted-foreground text-center text-base">
-                  Not quite — tap Back to Learn and re-read the gloss, then try again.
+                  Not yet — go back and re-read the English gloss, then try again.
                 </p>
               ) : null}
             </motion.div>
@@ -412,6 +395,144 @@ export function MorphStudio({
       </CardContent>
     </Card>
   );
+}
+
+function InteractiveSlots({
+  template,
+  consonants,
+  latin,
+  onComplete,
+  onReset,
+}: {
+  template: string;
+  consonants: string[];
+  latin: string[];
+  onComplete: () => void;
+  onReset: () => void;
+}) {
+  const [filled, setFilled] = useState<(string | null)[]>([null, null, null]);
+  const nextIndex = filled.findIndex((x) => x === null);
+  const done = filled.every(Boolean);
+
+  useEffect(() => {
+    if (done) onComplete();
+  }, [done, onComplete]);
+
+  const parts = useMemo(() => buildSlotParts(template), [template]);
+
+  function placeNext(letter: string, index: number) {
+    if (done) return;
+    // Must place in order: 1st, 2nd, then 3rd root letter
+    if (index !== nextIndex) return;
+    setFilled((prev) => {
+      const copy = [...prev] as (string | null)[];
+      copy[index] = letter;
+      return copy;
+    });
+    void speakArabic(letter, { latinFallback: latin[index] });
+  }
+
+  return (
+    <div className="space-y-4 rounded-xl border border-dashed bg-muted/30 px-4 py-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-base font-semibold sm:text-lg">Weave the Thread into the Frame</p>
+          <p className="text-muted-foreground mt-1 text-sm leading-relaxed sm:text-base">
+            Select each root letter in order (right to left) to complete the weave.
+          </p>
+        </div>
+        <Button type="button" variant="ghost" size="sm" className="gap-1" onClick={onReset}>
+          <RotateCcw className="size-3.5" />
+          Clear
+        </Button>
+      </div>
+
+      <div
+        className="font-arabic flex flex-wrap items-center justify-center gap-1.5 text-3xl sm:text-4xl"
+        dir="rtl"
+      >
+        {parts.map((part) =>
+          part.isSlot ? (
+            <span
+              key={part.key}
+              className={cn(
+                "mx-0.5 inline-flex min-w-11 items-center justify-center rounded-md border-2 border-dashed px-2.5 py-1.5",
+                filled[part.slotIndex!]
+                  ? "border-primary bg-primary text-primary-foreground border-solid"
+                  : part.slotIndex === nextIndex
+                    ? "border-primary/60 bg-primary/5"
+                    : "border-muted-foreground/30 text-muted-foreground",
+              )}
+            >
+              {filled[part.slotIndex!] ?? "·"}
+            </span>
+          ) : (
+            <span key={part.key} className="text-muted-foreground px-0.5">
+              {part.label}
+            </span>
+          ),
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {consonants.map((letter, index) => {
+          const used = filled[index] !== null;
+          const isNext = index === nextIndex;
+          return (
+            <button
+              key={`${letter}-${index}`}
+              type="button"
+              disabled={used || (!isNext && !done)}
+              onClick={() => placeNext(letter, index)}
+              className={cn(
+                "rounded-xl border px-4 py-3 text-center transition-all",
+                used && "opacity-40",
+                isNext && !used && "border-primary bg-primary/10 ring-primary/40 scale-[1.02] ring-2",
+                !isNext && !used && "opacity-60",
+              )}
+            >
+              <span className="font-arabic block text-3xl" dir="rtl">
+                {letter}
+              </span>
+              <span className="text-muted-foreground text-xs">
+                {used ? "placed" : isNext ? "tap me" : `wait · #${index + 1}`}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="text-muted-foreground text-center text-sm">
+        {done
+          ? "All three seats filled."
+          : `Next: place letter #${nextIndex + 1} (${latin[nextIndex]})`}
+      </p>
+    </div>
+  );
+}
+
+function buildSlotParts(template: string) {
+  let fUsed = false;
+  let aUsed = false;
+  let lUsed = false;
+  const parts: { key: string; label: string; isSlot: boolean; slotIndex?: number }[] = [];
+
+  for (let i = 0; i < template.length; i++) {
+    const ch = template[i];
+    if (ch === "ف" && !fUsed) {
+      parts.push({ key: `f-${i}`, label: "ف", isSlot: true, slotIndex: 0 });
+      fUsed = true;
+    } else if (ch === "ع" && !aUsed) {
+      parts.push({ key: `a-${i}`, label: "ع", isSlot: true, slotIndex: 1 });
+      aUsed = true;
+    } else if (ch === "ل" && !lUsed) {
+      parts.push({ key: `l-${i}`, label: "ل", isSlot: true, slotIndex: 2 });
+      lUsed = true;
+    } else {
+      parts.push({ key: `ch-${i}`, label: ch, isSlot: false });
+    }
+  }
+  return parts;
 }
 
 function shuffleStable(items: string[], seed: number) {
@@ -424,14 +545,14 @@ function shuffleStable(items: string[], seed: number) {
 function VowelHelpInline() {
   return (
     <div className="bg-muted/40 space-y-3 rounded-xl border px-4 py-4">
-      <p className="text-base font-semibold sm:text-lg">Vowel marks (tashkeel) — optional reminder</p>
+      <p className="text-base font-semibold sm:text-lg">Little vowel marks</p>
       <p className="text-muted-foreground text-base leading-relaxed">
-        These are not new root letters. Short a / i / u sit as tiny marks on consonants. Tap to hear:
+        These aren’t extra root letters. They add a short a / i / u sound on top of a consonant.
       </p>
       <div className="flex flex-wrap justify-center gap-4">
-        <DemoGlyph arabic="كَ" caption="Fatha · short a" latin="ka" />
-        <DemoGlyph arabic="كِ" caption="Kasra · short i" latin="ki" />
-        <DemoGlyph arabic="كُ" caption="Damma · short u" latin="ku" />
+        <DemoGlyph arabic="كَ" caption="short a (like cat)" latin="ka" />
+        <DemoGlyph arabic="كِ" caption="short i (like kit)" latin="ki" />
+        <DemoGlyph arabic="كُ" caption="short u (like put)" latin="ku" />
       </div>
     </div>
   );
@@ -477,7 +598,6 @@ function DemoGlyph({
       type="button"
       onClick={() => void speakArabic(arabic, { latinFallback: latin })}
       className="rounded-xl text-center transition-transform hover:scale-[1.03]"
-      title={`Listen: ${latin}`}
     >
       <div
         className="font-arabic border-primary/30 bg-primary/10 mx-auto flex size-16 items-center justify-center rounded-xl border text-3xl sm:size-[4.5rem] sm:text-4xl"
@@ -487,62 +607,6 @@ function DemoGlyph({
         {arabic}
       </div>
       <p className="text-foreground mt-2 text-sm font-medium sm:text-base">{caption}</p>
-      <p className="text-muted-foreground text-xs tracking-wide uppercase sm:text-sm">Tap to hear</p>
     </button>
-  );
-}
-
-function TemplateSlots({
-  template,
-  consonants,
-}: {
-  template: string;
-  consonants: string[];
-}) {
-  const [f, a, l] = consonants;
-  let fUsed = false;
-  let aUsed = false;
-  let lUsed = false;
-  const parts: { key: string; label: string; isSlot: boolean; slotIndex?: number }[] = [];
-
-  for (let i = 0; i < template.length; i++) {
-    const ch = template[i];
-    if (ch === "ف" && !fUsed) {
-      parts.push({ key: `f-${i}`, label: f, isSlot: true, slotIndex: 0 });
-      fUsed = true;
-    } else if (ch === "ع" && !aUsed) {
-      parts.push({ key: `a-${i}`, label: a, isSlot: true, slotIndex: 1 });
-      aUsed = true;
-    } else if (ch === "ل" && !lUsed) {
-      parts.push({ key: `l-${i}`, label: l, isSlot: true, slotIndex: 2 });
-      lUsed = true;
-    } else {
-      parts.push({ key: `ch-${i}`, label: ch, isSlot: false });
-    }
-  }
-
-  return (
-    <div
-      className="font-arabic flex flex-wrap items-center justify-center gap-1.5 text-3xl sm:text-4xl"
-      dir="rtl"
-    >
-      {parts.map((part, index) =>
-        part.isSlot ? (
-          <motion.span
-            key={`${part.key}-${part.label}`}
-            initial={{ y: -10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: (part.slotIndex ?? index) * 0.07, duration: 0.25 }}
-            className="bg-primary text-primary-foreground mx-0.5 inline-flex min-w-10 items-center justify-center rounded-md px-2.5 py-1.5"
-          >
-            {part.label}
-          </motion.span>
-        ) : (
-          <span key={part.key} className="text-muted-foreground px-0.5">
-            {part.label}
-          </span>
-        ),
-      )}
-    </div>
   );
 }

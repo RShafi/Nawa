@@ -20,11 +20,12 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Audio (TTS)
 
-`GET /api/tts?text=كَتَبَ&lang=ar` returns MP3.
+`POST /api/tts` with `{ text, lang }` returns MP3. Client prep lives in `src/lib/audio.ts` (+ `useAudio` hook):
 
-Provider priority:
-1. **Azure Neural** (`AZURE_SPEECH_KEY` + `AZURE_SPEECH_REGION`) — best Arabic letter distinction (Zariyah / Salma voices)
-2. **OpenAI `tts-1-hd`** (`OPENAI_API_KEY`) — strong multilingual
-3. **Google Translate TTS** — free fallback (weaker on similar consonants)
+- Isolated letters → phonetic CV (`ب` → `بَ` /ba/), never letter names
+- Full tashkeel preserved; Azure IPA keeps final fatha audible
+- Fallback: Web Speech `ar-SA` at rate `0.85`
 
-Copy `.env.example` → `.env.local` and add a key for higher quality.
+Provider priority: Azure Neural → Google Cloud → OpenAI → Edge → gTTS.
+
+Copy `.env.example` → `.env.local` and add a speech key for best quality.
