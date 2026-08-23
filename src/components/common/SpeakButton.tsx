@@ -18,7 +18,6 @@ type SpeakButtonProps = {
 
 export function SpeakButton({
   text,
-  latinFallback: _latinFallback,
   label = "Listen",
   lang = "ar-SA",
   className,

@@ -411,7 +411,7 @@ export const useBattleStore = create<BattleState>((set, get) => ({
 
     const allShattered = nextWards.every((w) => w.shattered);
     const nowStaggered = allShattered;
-    let enemyHp = Math.max(0, state.enemyHp - damage);
+    const enemyHp = Math.max(0, state.enemyHp - damage);
     const victory = enemyHp <= 0;
 
     const lines = [
