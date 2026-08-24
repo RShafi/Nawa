@@ -1,65 +1,93 @@
 "use client";
 
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Variant = "primary" | "amber" | "neutral" | "danger";
+type Variant = "primary" | "amber" | "cyan" | "emerald" | "neutral" | "danger";
 
-interface Push3DButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface Push3DButtonProps
+  extends Omit<
+    ButtonHTMLAttributes<HTMLButtonElement>,
+    "onAnimationStart" | "onDragStart" | "onDragEnd" | "onDrag"
+  > {
   children: ReactNode;
   variant?: Variant;
   fullWidth?: boolean;
 }
 
-const variantStyles: Record<Variant, { face: string; edge: string }> = {
+/**
+ * Astral action button — a refined frosted control with a warm gradient face,
+ * a thin luminous top highlight, a soft ambient glow, and a subtle spring press
+ * (translate + glow collapse) rather than a heavy cartoon edge shadow.
+ */
+const variantStyles: Record<
+  Variant,
+  { face: string; edge: string; glow: string }
+> = {
+  // gold / amber — primary astral action
   primary: {
-    face: "bg-primary text-primary-foreground",
-    // darker emerald edge for the pressable depth
-    edge: "0 6px 0 0 oklch(0.55 0.13 160), 0 6px 24px -4px oklch(0.78 0.14 160 / 55%)",
+    face: "text-[#160D02] bg-gradient-to-b from-[#FBBF24] to-[#D97706]",
+    edge: "inset 0 1px 0 0 rgba(255,255,255,0.45), 0 3px 0 0 #92400E",
+    glow: "0 10px 30px -8px rgba(245,158,11,0.55)",
   },
   amber: {
-    face: "bg-[oklch(0.82_0.14_85)] text-[oklch(0.2_0.04_85)]",
-    edge: "0 6px 0 0 oklch(0.58 0.13 70), 0 6px 24px -4px oklch(0.82 0.14 85 / 55%)",
+    face: "text-[#160D02] bg-gradient-to-b from-[#FBBF24] to-[#D97706]",
+    edge: "inset 0 1px 0 0 rgba(255,255,255,0.45), 0 3px 0 0 #92400E",
+    glow: "0 12px 36px -8px rgba(245,158,11,0.6)",
+  },
+  // lapis / celestial cyan
+  cyan: {
+    face: "text-[#04121C] bg-gradient-to-b from-[#7DD3FC] to-[#0EA5E9]",
+    edge: "inset 0 1px 0 0 rgba(255,255,255,0.5), 0 3px 0 0 #075985",
+    glow: "0 10px 30px -8px rgba(56,189,248,0.55)",
+  },
+  // muted emerald — success
+  emerald: {
+    face: "text-[#04140D] bg-gradient-to-b from-[#4ADE80] to-[#059669]",
+    edge: "inset 0 1px 0 0 rgba(255,255,255,0.4), 0 3px 0 0 #065F46",
+    glow: "0 10px 30px -8px rgba(16,185,129,0.5)",
   },
   danger: {
-    face: "bg-destructive text-white",
-    edge: "0 6px 0 0 oklch(0.48 0.16 25), 0 6px 24px -4px oklch(0.68 0.18 25 / 55%)",
+    face: "text-[#1B0606] bg-gradient-to-b from-[#FB7185] to-[#E11D48]",
+    edge: "inset 0 1px 0 0 rgba(255,255,255,0.35), 0 3px 0 0 #9F1239",
+    glow: "0 10px 30px -8px rgba(225,29,72,0.5)",
   },
   neutral: {
-    face: "bg-secondary text-secondary-foreground border border-border",
-    edge: "0 6px 0 0 oklch(0.13 0.02 265), 0 6px 20px -6px oklch(0 0 0 / 60%)",
+    face: "text-[#E7ECF5] bg-white/[0.06] border border-white/12",
+    edge: "inset 0 1px 0 0 rgba(255,255,255,0.12), 0 3px 0 0 rgba(0,0,0,0.5)",
+    glow: "0 8px 24px -10px rgba(0,0,0,0.6)",
   },
 };
 
-/**
- * Tactile 3D button — a heavy colored "edge" box-shadow makes the button look
- * raised; on :active it translates down and the shadow collapses so it reads as
- * a physical press.
- */
 export function Push3DButton({
   children,
   variant = "primary",
   fullWidth,
   className,
   style,
+  disabled,
   ...props
 }: Push3DButtonProps) {
   const v = variantStyles[variant];
   return (
-    <button
+    <motion.button
       {...props}
+      disabled={disabled}
+      whileHover={disabled ? undefined : { y: -1 }}
+      whileTap={disabled ? undefined : { y: 3 }}
+      transition={{ type: "spring", stiffness: 600, damping: 26 }}
       className={cn(
-        "group relative inline-flex select-none items-center justify-center gap-2 rounded-2xl px-6 py-4 text-base font-bold tracking-wide",
-        "transition-[transform,box-shadow] duration-100 ease-out will-change-transform",
-        "translate-y-0 active:translate-y-[6px] active:[box-shadow:none]",
-        "disabled:cursor-not-allowed disabled:opacity-50 disabled:active:translate-y-0",
+        "group relative inline-flex select-none items-center justify-center gap-2 rounded-2xl px-6 py-3.5",
+        "text-base font-semibold tracking-wide",
+        "disabled:cursor-not-allowed disabled:opacity-45",
         v.face,
         fullWidth && "w-full",
         className,
       )}
-      style={{ boxShadow: v.edge, ...style }}
+      style={{ boxShadow: `${v.edge}, ${v.glow}`, ...style }}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }

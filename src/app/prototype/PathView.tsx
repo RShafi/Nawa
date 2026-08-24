@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Check, Lock, Star, Crown } from "lucide-react";
+import { Check, Lock, Sparkles, Crown, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NodeState = "done" | "active" | "locked";
@@ -13,93 +13,108 @@ interface PathNode {
   icon?: "star" | "crown";
 }
 
-interface Unit {
+interface Chapter {
   id: string;
   title: string;
   subtitle: string;
   nodes: PathNode[];
 }
 
-const UNITS: Unit[] = [
+const CHAPTERS: Chapter[] = [
   {
-    id: "u1",
-    title: "Unit 1: Foundations",
-    subtitle: "The Arabic alphabet & core sounds",
+    id: "c1",
+    title: "Chapter I: The Core Inscriptions",
+    subtitle: "The letterforms & first sacred sounds",
     nodes: [
       { id: "n1", label: "The Alphabet", state: "done" },
       { id: "n2", label: "Short Vowels", state: "done" },
       { id: "n3", label: "Intro to Verbs", state: "active", icon: "star" },
       { id: "n4", label: "Sun & Moon Letters", state: "locked" },
-      { id: "n5", label: "Unit Boss", state: "locked", icon: "crown" },
+      { id: "n5", label: "The First Trial", state: "locked", icon: "crown" },
     ],
   },
   {
-    id: "u2",
-    title: "Unit 2: Root & Pattern",
-    subtitle: "Trilateral roots and word forms",
+    id: "c2",
+    title: "Chapter II: Root & Pattern",
+    subtitle: "Trilateral roots and the loom of forms",
     nodes: [
       { id: "n6", label: "The Root System", state: "locked" },
       { id: "n7", label: "Form I Verbs", state: "locked" },
       { id: "n8", label: "Active Participles", state: "locked", icon: "star" },
       { id: "n9", label: "Building Nouns", state: "locked" },
-      { id: "n10", label: "Unit Boss", state: "locked", icon: "crown" },
+      { id: "n10", label: "The Second Trial", state: "locked", icon: "crown" },
     ],
   },
 ];
 
-// Zig-zag horizontal offsets for a playful winding trail.
-const OFFSETS = ["0%", "18%", "8%", "-14%", "0%"];
+// Gentle winding offsets for a celestial trail.
+const OFFSETS = ["0%", "22%", "6%", "-18%", "0%"];
 
-function NodeIcon({ node }: { node: PathNode }) {
-  if (node.state === "done") return <Check className="h-7 w-7" strokeWidth={3} />;
-  if (node.state === "locked") return <Lock className="h-6 w-6" strokeWidth={2.5} />;
-  if (node.icon === "crown") return <Crown className="h-7 w-7" strokeWidth={2.5} />;
-  return <Star className="h-7 w-7 fill-current" strokeWidth={2.5} />;
+function NodeGlyph({ node }: { node: PathNode }) {
+  if (node.state === "done") return <Check className="h-6 w-6" strokeWidth={3} />;
+  if (node.state === "locked") return <Lock className="h-5 w-5" strokeWidth={2.5} />;
+  if (node.icon === "crown") return <Crown className="h-6 w-6" strokeWidth={2.5} />;
+  return <Sparkles className="h-6 w-6" strokeWidth={2.5} />;
 }
 
-function PathNodeButton({ node, index }: { node: PathNode; index: number }) {
+function ConstellationNode({ node, index }: { node: PathNode; index: number }) {
   const isActive = node.state === "active";
   const isDone = node.state === "done";
   const isLocked = node.state === "locked";
 
   return (
     <div
-      className="flex flex-col items-center gap-2"
+      className="flex flex-col items-center gap-2.5"
       style={{ transform: `translateX(${OFFSETS[index % OFFSETS.length]})` }}
     >
       <motion.button
-        whileTap={isLocked ? undefined : { y: 6, boxShadow: "none" }}
-        whileHover={isLocked ? undefined : { scale: 1.05 }}
+        whileTap={isLocked ? undefined : { scale: 0.92, y: 2 }}
+        whileHover={isLocked ? undefined : { scale: 1.06 }}
+        transition={{ type: "spring", stiffness: 500, damping: 22 }}
         className={cn(
-          "relative flex h-[72px] w-[72px] items-center justify-center rounded-full",
-          "transition-colors",
-          isDone && "bg-primary text-primary-foreground",
-          isActive && "bg-[oklch(0.82_0.14_85)] text-[oklch(0.2_0.04_85)]",
-          isLocked && "glass-panel text-muted-foreground",
+          "relative flex h-[68px] w-[68px] items-center justify-center rounded-full",
+          isDone && "text-[#04140D]",
+          isActive && "text-[#160D02]",
+          isLocked && "text-slate-500",
         )}
         style={{
-          boxShadow: isDone
-            ? "0 7px 0 0 oklch(0.55 0.13 160), 0 8px 22px -4px oklch(0.78 0.14 160 / 55%)"
+          background: isDone
+            ? "linear-gradient(160deg, #4ADE80, #059669)"
             : isActive
-              ? "0 7px 0 0 oklch(0.58 0.13 70), 0 8px 22px -4px oklch(0.82 0.14 85 / 60%)"
-              : "0 6px 0 0 oklch(0.1 0.02 265)",
+              ? "linear-gradient(160deg, #FBBF24, #D97706)"
+              : "rgba(148,163,184,0.06)",
+          border: isLocked
+            ? "1px solid rgba(148,163,184,0.18)"
+            : "1px solid rgba(255,255,255,0.35)",
+          boxShadow: isDone
+            ? "inset 0 1px 0 rgba(255,255,255,0.4), 0 8px 22px -6px rgba(16,185,129,0.5)"
+            : isActive
+              ? "inset 0 1px 0 rgba(255,255,255,0.5), 0 10px 26px -6px rgba(245,158,11,0.6)"
+              : "inset 0 1px 0 rgba(255,255,255,0.06)",
+          backdropFilter: isLocked ? "blur(8px)" : undefined,
         }}
       >
+        {/* pulsing ambient ring on the active/unlocked node */}
         {isActive && (
           <motion.span
             aria-hidden
             className="absolute inset-0 rounded-full"
-            animate={{ boxShadow: ["0 0 0 0 oklch(0.82 0.14 85 / 55%)", "0 0 0 14px oklch(0.82 0.14 85 / 0%)"] }}
-            transition={{ duration: 1.6, repeat: Infinity, ease: "easeOut" }}
+            animate={{
+              boxShadow: [
+                "0 0 0 0 rgba(245,158,11,0.5)",
+                "0 0 0 16px rgba(245,158,11,0)",
+              ],
+            }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
           />
         )}
-        <NodeIcon node={node} />
+        <NodeGlyph node={node} />
       </motion.button>
 
       <span
         className={cn(
-          "max-w-[110px] text-center text-xs font-semibold leading-tight text-balance",
-          isLocked ? "text-muted-foreground" : "text-foreground",
+          "max-w-[120px] text-center text-xs font-medium leading-tight text-balance",
+          isLocked ? "text-slate-500" : "text-slate-200",
         )}
       >
         {node.label}
@@ -107,11 +122,11 @@ function PathNodeButton({ node, index }: { node: PathNode; index: number }) {
 
       {isActive && (
         <motion.span
-          initial={{ y: -4, opacity: 0.8 }}
+          initial={{ y: -3, opacity: 0.7 }}
           animate={{ y: 0, opacity: 1 }}
-          className="rounded-full bg-[oklch(0.82_0.14_85)] px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[oklch(0.2_0.04_85)]"
+          className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-300"
         >
-          Start
+          Begin
         </motion.span>
       )}
     </div>
@@ -120,36 +135,55 @@ function PathNodeButton({ node, index }: { node: PathNode; index: number }) {
 
 export function PathView() {
   return (
-    <div className="mx-auto h-full max-w-md overflow-y-auto pb-24">
-      {UNITS.map((unit) => (
-        <section key={unit.id}>
-          {/* Sticky unit header */}
+    <div className="relative mx-auto h-full max-w-md overflow-y-auto pb-24">
+      {/* faint star field */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 opacity-60"
+        style={{
+          backgroundImage:
+            "radial-gradient(1px 1px at 20% 12%, rgba(226,232,240,0.6), transparent), radial-gradient(1px 1px at 68% 22%, rgba(125,211,252,0.5), transparent), radial-gradient(1.5px 1.5px at 42% 44%, rgba(226,232,240,0.4), transparent), radial-gradient(1px 1px at 82% 60%, rgba(251,191,36,0.4), transparent), radial-gradient(1px 1px at 30% 78%, rgba(226,232,240,0.5), transparent)",
+        }}
+      />
+
+      {CHAPTERS.map((chapter) => (
+        <section key={chapter.id}>
+          {/* Sticky chapter header */}
           <div className="sticky top-0 z-10 px-4 py-3">
-            <div className="glass-panel-strong flex items-center justify-between rounded-2xl px-5 py-4 shadow-lg">
+            <div
+              className="flex items-center justify-between rounded-2xl px-5 py-4"
+              style={{
+                background: "rgba(15,23,42,0.72)",
+                backdropFilter: "blur(16px)",
+                border: "1px solid rgba(245,158,11,0.18)",
+                boxShadow: "0 8px 30px -12px rgba(0,0,0,0.7)",
+              }}
+            >
               <div>
-                <h2 className="text-lg font-black tracking-tight text-foreground">{unit.title}</h2>
-                <p className="text-xs text-muted-foreground">{unit.subtitle}</p>
+                <h2 className="text-base font-semibold tracking-tight text-slate-100">
+                  {chapter.title}
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-400">{chapter.subtitle}</p>
               </div>
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-                <Star className="h-5 w-5 fill-current" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/25 bg-amber-400/10 text-amber-300">
+                <Star className="h-4 w-4 fill-current" />
               </div>
             </div>
           </div>
 
-          {/* Winding node trail */}
-          <div className="relative flex flex-col items-center gap-10 px-4 py-10">
-            {/* connecting dotted path behind nodes */}
+          {/* Winding constellation trail */}
+          <div className="relative flex flex-col items-center gap-11 px-4 py-10">
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-y-6 left-1/2 -z-0 w-1 -translate-x-1/2 rounded-full"
+              className="pointer-events-none absolute inset-y-6 left-1/2 -z-0 w-px -translate-x-1/2"
               style={{
-                backgroundImage:
-                  "repeating-linear-gradient(oklch(1 0 0 / 22%) 0 8px, transparent 8px 20px)",
+                background:
+                  "repeating-linear-gradient(rgba(125,211,252,0.35) 0 6px, transparent 6px 16px)",
               }}
             />
-            {unit.nodes.map((node, i) => (
+            {chapter.nodes.map((node, i) => (
               <div key={node.id} className="relative z-[1]">
-                <PathNodeButton node={node} index={i} />
+                <ConstellationNode node={node} index={i} />
               </div>
             ))}
           </div>
