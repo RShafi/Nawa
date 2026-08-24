@@ -20,4 +20,4 @@ Schema SQL lives in `supabase/schema.sql` and `supabase/migrations/` — apply a
 
 ### TTS
 
-`/api/tts` accepts GET query params or POST JSON `{ text, lang, voice }`. Provider order and optional keys are documented in `.env.example` / `README.md`. Without speech keys the server falls back to free Edge neural TTS (`edge-tts-universal`); client-side Web Speech is a further fallback. Outbound network is required for remote TTS providers.
+Path audio uses `GET /api/tts?text=...` with **ElevenLabs only** (`eleven_multilingual_v2`). Requires `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID`. Missing keys log `[TTS] Missing ElevenLabs env keys` and return 503. Cache: `public/tts/{hash(voiceId_text)}.mp3`. Client: `new Audio('/api/tts?text=...')` via `useNeuralAudio` / `HearButton` / `SpeakButton` — no `window.speechSynthesis`.

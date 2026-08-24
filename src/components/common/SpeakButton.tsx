@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Volume2 } from "lucide-react";
+import { Loader2, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { speakArabic } from "@/lib/audio";
+import { useNeuralAudio } from "@/hooks/useNeuralAudio";
 import { cn } from "@/lib/utils";
 
 type SpeakButtonProps = {
@@ -13,20 +12,18 @@ type SpeakButtonProps = {
   lang?: string;
   className?: string;
   size?: "sm" | "default" | "lg" | "icon";
-  onSpoke?: (mode: "api" | "webspeech" | "silent") => void;
+  onSpoke?: (mode: "api" | "silent") => void;
 };
 
+/** Pronunciation button — ElevenLabs `/api/tts` only. */
 export function SpeakButton({
   text,
   label = "Listen",
-  lang = "ar-SA",
   className,
   size = "sm",
   onSpoke,
 }: SpeakButtonProps) {
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
-  const locked = useRef(false);
+  const { play, isLoading, isPlaying, error } = useNeuralAudio(text);
 
   return (
     <div className="inline-flex flex-col items-start gap-1">
@@ -34,39 +31,32 @@ export function SpeakButton({
         type="button"
         variant="outline"
         size={size}
-        disabled={busy}
+        disabled={!text.trim() || isLoading}
         className={cn(className)}
         onClick={() => {
-          if (locked.current) return;
-          locked.current = true;
-          setBusy(true);
-          setNote(null);
-          void (async () => {
-            try {
-              const result = await speakArabic(text, { lang });
-              onSpoke?.(result.mode);
-              if (result.mode === "silent") {
-                setNote("Couldn’t play audio. Try again in a moment.");
-              } else if (result.mode === "webspeech") {
-                setNote("Playing with device Arabic voice.");
-              }
-            } catch {
-              setNote("Couldn’t play audio. Try again in a moment.");
-            } finally {
-              setBusy(false);
-              window.setTimeout(() => {
-                locked.current = false;
-              }, 220);
-            }
-          })();
+          void play(text).then(() => onSpoke?.("api"));
         }}
-        title="Play pronunciation"
+        title="Play pronunciation (ElevenLabs)"
       >
-        <Volume2 className="size-4" />
-        {size === "icon" ? <span className="sr-only">{label}</span> : busy ? "Playing…" : label}
+        {isLoading ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <Volume2 className="size-4" />
+        )}
+        {size === "icon" ? (
+          <span className="sr-only">{label}</span>
+        ) : isLoading ? (
+          "Preparing…"
+        ) : isPlaying ? (
+          "Playing…"
+        ) : (
+          label
+        )}
       </Button>
-      {note ? (
-        <span className="text-muted-foreground max-w-[16rem] text-[10px] leading-snug">{note}</span>
+      {error ? (
+        <span className="text-muted-foreground max-w-[16rem] text-[10px] leading-snug text-rose-300">
+          {error}
+        </span>
       ) : null}
     </div>
   );

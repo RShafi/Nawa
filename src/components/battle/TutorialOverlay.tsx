@@ -1,192 +1,146 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { HelpCircle, X } from "lucide-react";
-import { ArabicText } from "@/components/common/ArabicText";
-import { Button } from "@/components/ui/button";
-import { TUTORIAL_DIALOGUE } from "@/data/tutorialDeck";
+import { ChevronDown } from "lucide-react";
+import { TUTORIAL_STORAGE_KEY } from "@/store/useBattleStore";
 import { cn } from "@/lib/utils";
-import { TUTORIAL_STORAGE_KEY, useBattleStore } from "@/store/useBattleStore";
 
-type Step = {
+export type TutorialSpotlightTarget = "hand" | "syntax" | "cast" | null;
+
+export type RailStep = 0 | 1 | 2 | 3 | 4 | 5;
+
+/** Compact tutorial strip — wraps to two lines when needed (no ellipsis). */
+export function GuideBanner({
+  step,
+  totalSteps = 5,
+  title,
+  body,
+  onNext,
+  nextLabel = "Next",
+  className,
+}: {
+  step?: number;
+  totalSteps?: number;
   title: string;
-  body: ReactNode;
-  cta: string;
-};
-
-const STEPS: Step[] = [
-  {
-    title: "1 · Enemy Wards & Intent",
-    body: (
-      <>
-        Look at the glowing intent badge above the enemy and the English Ward locks. The intent
-        telegraphs the next strike. Wards are meanings you must counter — forge the matching Arabic
-        word to shatter them before that Heavy Strike lands.
-      </>
-    ),
-    cta: "Next — Craft & Cast",
-  },
-  {
-    title: "2 · Craft & Cast",
-    body: (
-      <>
-        <p className="mb-2">{TUTORIAL_DIALOGUE.craftMetaphor}</p>
-        <p>
-          Tap root <ArabicText className="inline text-emerald-200">د-ر-س</ArabicText> then pattern{" "}
-          <ArabicText className="inline text-amber-200">مَفْعَل</ArabicText> to forge{" "}
-          <ArabicText className="inline text-amber-100">مَدْرَسَة</ArabicText> (a place of learning).
-          Cast it to break the ward “A place of learning.”
-        </p>
-      </>
-    ),
-    cta: "I’ll forge it",
-  },
-  {
-    title: "3 · Stagger Phase",
-    body: (
-      <>
-        When every Ward falls, the enemy staggers. Forge an aggressive Form I strike — tap{" "}
-        <ArabicText className="inline text-emerald-200">ض-ر-ب</ArabicText> +{" "}
-        <ArabicText className="inline text-amber-200">فَعَلَ</ArabicText> for{" "}
-        <ArabicText className="inline text-amber-100">ضَرَبَ</ArabicText> — and deal critical damage
-        while they’re exposed.
-      </>
-    ),
-    cta: "Next — Tafsīr",
-  },
-  {
-    title: "4 · Tafsīr safety valve",
-    body: (
-      <>
-        Mastery 3 cards hide English. Tap the Eye (Tafsīr) if you forget — you’ll see the meaning,
-        but that root deals <span className="font-semibold text-amber-200">half damage</span> for
-        the rest of the battle. A fair trade when you’re stuck.
-      </>
-    ),
-    cta: "Got it — fight!",
-  },
-];
-
-export function TutorialOverlay() {
-  const tutorialMode = useBattleStore((s) => s.tutorialMode);
-  const tutorialStep = useBattleStore((s) => s.tutorialStep);
-  const advanceTutorial = useBattleStore((s) => s.advanceTutorial);
-  const skipTutorial = useBattleStore((s) => s.skipTutorial);
-
-  if (!tutorialMode) return null;
-
-  const step = STEPS[Math.min(tutorialStep, STEPS.length - 1)]!;
-  const isLast = tutorialStep >= STEPS.length - 1;
+  body: string;
+  onNext?: () => void;
+  nextLabel?: string;
+  className?: string;
+}) {
+  const line = body?.trim() ? body : title;
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-40 flex items-end justify-center p-3 sm:items-center sm:p-6">
-      <div className="pointer-events-none absolute inset-0 bg-black/55" aria-hidden />
-      <motion.div
-        key={tutorialStep}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="pointer-events-auto relative z-10 w-full max-w-md rounded-2xl border border-amber-400/30 bg-[#12141c] p-5 shadow-2xl"
-        role="dialog"
-        aria-labelledby="arena-tutorial-title"
-      >
-        <div className="mb-3 flex items-start justify-between gap-2">
-          <p
-            id="arena-tutorial-title"
-            className="text-sm font-semibold tracking-wide text-amber-200 uppercase"
-          >
-            {step.title}
-          </p>
-          <button
-            type="button"
-            onClick={() => skipTutorial()}
-            className="rounded-lg p-1 text-white/40 hover:bg-white/5 hover:text-white"
-            aria-label="Skip tutorial"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-        <div className="space-y-2 text-sm leading-relaxed text-white/75">{step.body}</div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex gap-1">
-            {STEPS.map((_, i) => (
-              <span
-                key={i}
-                className={cn(
-                  "size-1.5 rounded-full",
-                  i === tutorialStep ? "bg-amber-400" : "bg-white/20",
-                )}
-              />
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-white/50"
-              onClick={() => skipTutorial()}
-            >
-              Skip
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="bg-amber-500 font-semibold text-black hover:bg-amber-400"
-              onClick={() => advanceTutorial()}
-            >
-              {isLast ? "Got it — fight!" : step.cta}
-            </Button>
-          </div>
-        </div>
-      </motion.div>
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn(
+        "flex h-auto w-full max-w-2xl flex-row items-center justify-between gap-3 rounded-xl border border-amber-500/50 bg-slate-900/90 py-3 px-3 md:gap-4 md:px-4",
+        className,
+      )}
+      title={title}
+    >
+      <div className="flex min-w-0 flex-1 items-start gap-2 md:gap-3">
+        {step != null ? (
+          <span className="mt-0.5 shrink-0 rounded-md bg-amber-500/15 px-2 py-0.5 text-[clamp(0.55rem,1.2vh,0.65rem)] font-bold tracking-wide text-amber-300/80 uppercase">
+            {step}/{totalSteps}
+          </span>
+        ) : null}
+        <p className="min-w-0 flex-1 whitespace-normal break-words text-[clamp(0.8rem,1.8vh,1rem)] leading-snug text-amber-50">
+          {line}
+        </p>
+      </div>
+      {onNext ? (
+        <button
+          type="button"
+          onClick={onNext}
+          className="bg-celestial-amber inline-flex h-8 shrink-0 items-center justify-center rounded-lg px-3 text-xs font-semibold text-obsidian hover:bg-amber-400"
+        >
+          {nextLabel}
+        </button>
+      ) : null}
+    </motion.div>
+  );
+}
+
+/** Fixed dimmer — pointer-events none so HUD stays clickable; targets use SpotlightElevate. */
+export function TutorialBlackout({ active }: { active: boolean }) {
+  if (!active) return null;
+  return (
+    <div
+      className="pointer-events-none fixed inset-0 z-30 bg-black/50"
+      aria-hidden
+    />
+  );
+}
+
+/**
+ * Elevate a tutorial target above the z-50 blackout.
+ * Use when spotlighting syntax / hand / cast / redraw.
+ */
+export function SpotlightElevate({
+  active,
+  children,
+  className,
+}: {
+  active: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "relative",
+        active &&
+          "z-[60] rounded-2xl bg-slate-900 p-1 ring-4 ring-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.55)]",
+        className,
+      )}
+    >
+      {children}
     </div>
   );
 }
 
-export function HowToPlayButton({ className }: { className?: string }) {
-  const startTutorial = useBattleStore((s) => s.startTutorial);
+/** Pulse ring applied directly to the active target (no overlay mask). */
+export function targetPulse(active: boolean) {
+  return active
+    ? "relative z-[60] ring-4 ring-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.6)] animate-pulse"
+    : "";
+}
+
+export function TargetArrow({ show }: { show: boolean }) {
+  if (!show) return null;
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className={cn("border-white/15 bg-white/5 text-white/80", className)}
-      onClick={() => startTutorial()}
+    <motion.div
+      className="pointer-events-none absolute -top-8 inset-x-0 z-30 flex justify-center"
+      animate={{ y: [0, 6, 0] }}
+      transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
     >
-      <HelpCircle className="size-3.5" />
-      How to play
-    </Button>
+      <ChevronDown className="size-8 text-amber-300 drop-shadow-[0_0_12px_rgba(245,158,11,0.9)]" />
+    </motion.div>
   );
 }
 
 export function resetArenaTutorialProgress() {
   try {
     localStorage.removeItem(TUTORIAL_STORAGE_KEY);
-    // Also clear legacy key from earlier builds
+    localStorage.removeItem("nawa-ward-tutorial-v2");
     localStorage.removeItem("nawa-ward-tutorial-v1");
   } catch {
     /* ignore */
   }
 }
 
-export function useShouldAutoStartTutorial(): boolean {
-  const [ready, setReady] = useState(false);
-  const [should, setShould] = useState(false);
-
+export function useShouldAutoStartTutorial() {
+  const [auto, setAuto] = useState(false);
   useEffect(() => {
     try {
-      const done =
-        localStorage.getItem(TUTORIAL_STORAGE_KEY) === "1" ||
-        localStorage.getItem("nawa-ward-tutorial-v1") === "1";
-      setShould(!done);
+      setAuto(localStorage.getItem(TUTORIAL_STORAGE_KEY) !== "1");
     } catch {
-      setShould(true);
+      setAuto(true);
     }
-    setReady(true);
   }, []);
-
-  return ready && should;
+  return auto;
 }
 
 export function markArenaTutorialDone() {
@@ -196,3 +150,60 @@ export function markArenaTutorialDone() {
     /* ignore */
   }
 }
+
+export function TutorialOverlay() {
+  return null;
+}
+
+export function HowToPlayButton({ className }: { className?: string }) {
+  void className;
+  return null;
+}
+
+/** @deprecated Prefer TutorialBlackout */
+export function TutorialBackdrop({ active }: { active: boolean }) {
+  return <TutorialBlackout active={active} />;
+}
+
+export function CompanionGuide({
+  step,
+  target,
+}: {
+  step: number;
+  target: TutorialSpotlightTarget;
+}) {
+  void step;
+  void target;
+  return null;
+}
+
+export function GlowShell({
+  elevated,
+  children,
+  className,
+}: {
+  elevated?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative", targetPulse(Boolean(elevated)), className)}>{children}</div>
+  );
+}
+
+export function spotlightPop(active: boolean) {
+  return targetPulse(active);
+}
+
+export function spotlightRing(active: boolean) {
+  return targetPulse(active);
+}
+
+export function TutorialSpotlight(_props: {
+  step: number | string;
+  target: TutorialSpotlightTarget;
+}) {
+  return null;
+}
+
+export type InSituStep = RailStep | "done";

@@ -8,7 +8,7 @@ import {
   hasArabicScript,
   normalizeForSpeech,
   orthographyToIpa,
-  type NormalizedUtterance,
+  type NormalizedSpeech,
   FATHA,
   KASRA,
   DAMMA,
@@ -22,7 +22,7 @@ export type PreparedTts = {
 };
 
 export function prepareArabicForTts(raw: string): PreparedTts {
-  const n: NormalizedUtterance = normalizeForSpeech(raw);
+  const n: NormalizedSpeech = normalizeForSpeech(raw);
   return {
     display: n.display || n.spoken,
     spoken: n.spoken,

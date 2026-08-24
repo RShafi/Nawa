@@ -1,6 +1,5 @@
 /**
  * Shared domain types for Nawā V1 pillars (Path → Arena → Passports → Review).
- * Column names mirror Supabase tables in `supabase/migrations/20260823_v1_mvp_pillars.sql`.
  */
 
 /** 1 = Beginner, 2 = Familiar, 3 = Mastered */
@@ -47,13 +46,16 @@ export type UserProfileRow = {
   created_at: string;
 };
 
-/** Client-friendly unlocked vocab entry (combat deck ammo). */
+/**
+ * Client unlocked Word Card entry.
+ * `wordId` is the WordCard.id (e.g. ktb-form-1).
+ * rootId/patternId retained for Path forge recipes + DB rows.
+ */
 export type UnlockedVocab = {
   rootId: string;
   patternId: string;
   unlockedAt: string;
   sourceNodeId: string | null;
-  /** Canonical word id: `${rootId}:${patternId}` */
   wordId: string;
 };
 
@@ -72,12 +74,14 @@ export type AppHydrationPayload = {
   email: string | null;
   hibrBalance: number;
   unlockedVocab: UnlockedVocab[];
+  /** Convenience: Word Card IDs for the Arena deck */
+  unlockedDeck: string[];
   fsrsItems: FsrsItem[];
   unlockedCities: string[];
   completedLessonIds: string[];
 };
 
-/** Build the shared word_id key used across vocab + FSRS + combat. */
+/** Build legacy FSRS key root:pattern — prefer WordCard.id for deck. */
 export function makeWordId(rootId: string, patternId: string): string {
   return `${rootId}:${patternId}`;
 }

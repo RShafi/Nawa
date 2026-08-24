@@ -6,6 +6,7 @@ import {
   getPathNodeIndex,
   isPathNodeAvailable,
   LEARNING_PATH_NODES,
+  unlocksToPairs,
 } from "@/data/learningPath";
 import { createClient } from "@/utils/supabase/server";
 
@@ -15,6 +16,7 @@ export type PathActionResult = {
   alreadyCompleted?: boolean;
   insertedVocab?: number;
   unlockedPairs?: Array<{ rootId: string; patternId: string }>;
+  unlockedWordIds?: string[];
   completedNodeIds?: string[];
 };
 
@@ -45,12 +47,6 @@ async function fetchCompletedNodeIds(
   return (data ?? []).map((r) => r.lesson_id as string);
 }
 
-/**
- * Complete a Learning Path node:
- * 1. Enforce linear lock (previous node must be done)
- * 2. Record completion in `user_lesson_progress`
- * 3. Unlock combat vocab via `unlock_vocab_batch` RPC
- */
 export async function completePathNodeAction(nodeId: string): Promise<PathActionResult> {
   const { supabase, user } = await requireUser();
   if (!user) return { ok: false, error: "Not authenticated." };
@@ -59,13 +55,15 @@ export async function completePathNodeAction(nodeId: string): Promise<PathAction
   if (!node) return { ok: false, error: "Unknown path node." };
 
   const completed = await fetchCompletedNodeIds(supabase, user.id);
+  const pairs = unlocksToPairs(node.unlocks);
 
   if (completed.includes(nodeId)) {
     return {
       ok: true,
       alreadyCompleted: true,
       insertedVocab: 0,
-      unlockedPairs: node.unlocks.map((u) => ({ rootId: u.rootId, patternId: u.patternId })),
+      unlockedPairs: pairs,
+      unlockedWordIds: [...node.unlocks],
       completedNodeIds: completed,
     };
   }
@@ -75,9 +73,7 @@ export async function completePathNodeAction(nodeId: string): Promise<PathAction
     const prev = idx > 0 ? LEARNING_PATH_NODES[idx - 1] : null;
     return {
       ok: false,
-      error: prev
-        ? `Complete “${prev.title}” first.`
-        : "This node is locked.",
+      error: prev ? `Complete “${prev.title}” first.` : "This node is locked.",
     };
   }
 
@@ -92,6 +88,7 @@ export async function completePathNodeAction(nodeId: string): Promise<PathAction
         ok: true,
         alreadyCompleted: true,
         insertedVocab: 0,
+        unlockedWordIds: [...node.unlocks],
         completedNodeIds: [...completed, nodeId],
       };
     }
@@ -99,19 +96,16 @@ export async function completePathNodeAction(nodeId: string): Promise<PathAction
   }
 
   let insertedVocab = 0;
-  if (node.unlocks.length > 0) {
-    const pairs = node.unlocks.map((u) => ({
-      root_id: u.rootId,
-      pattern_id: u.patternId,
-    }));
-
+  if (pairs.length > 0) {
     const { data, error: rpcError } = await supabase.rpc("unlock_vocab_batch", {
-      p_pairs: pairs,
+      p_pairs: pairs.map((u) => ({
+        root_id: u.rootId,
+        pattern_id: u.patternId,
+      })),
       p_source_node_id: nodeId,
     });
 
     if (rpcError) {
-      // Completion is recorded; surface RPC failure so the client can retry unlock
       return {
         ok: false,
         error: `Node saved, but vocab unlock failed: ${rpcError.message}`,
@@ -132,12 +126,12 @@ export async function completePathNodeAction(nodeId: string): Promise<PathAction
   return {
     ok: true,
     insertedVocab,
-    unlockedPairs: node.unlocks.map((u) => ({ rootId: u.rootId, patternId: u.patternId })),
+    unlockedPairs: pairs,
+    unlockedWordIds: [...node.unlocks],
     completedNodeIds: nextCompleted,
   };
 }
 
-/** Server snapshot for the /path page. */
 export async function getPathProgress(): Promise<{
   completedNodeIds: string[];
   unlockedVocabCount: number;

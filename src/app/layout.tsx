@@ -28,7 +28,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${notoNaskh.variable} min-h-screen antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
-          <TooltipProvider>{children}</TooltipProvider>
+          <TooltipProvider>
+            {/* Desktop Stage — centers the game on wide monitors without stretching */}
+            <div className="bg-obsidian min-h-[100dvh] lg:flex lg:min-h-[100dvh] lg:items-center lg:justify-center">
+              <div className="game-stage">{children}</div>
+            </div>
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>

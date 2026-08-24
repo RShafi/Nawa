@@ -1,23 +1,35 @@
 /**
- * Strict morphological combat dictionary.
- * Only listed (root × pattern) weaves resolve; everything else fizzles.
+ * Nawā combat lexicon — fully formed Word Cards with elemental schools + semantic tags.
+ * Path forging unlocks these IDs into the player's deck; Arena plays them as syntax chains.
  */
 
-export type SpellArchetype = "dps" | "tank" | "control";
+import type { SemanticTag } from "@/types/cards";
 
-export type SpellEffectType = "damage" | "shield" | "heal" | "control" | "focus";
+export type PartOfSpeech = "VERB" | "NOUN" | "ADJECTIVE";
 
-export type ValidSpell = {
+/** Elemental schools — semantic combat effects */
+export type ElementSchool = "FLAME" | "FROST" | "MIND" | "KINETIC";
+
+export type WordCard = {
   id: string;
-  root: string;
-  pattern: string;
-  arabicWord: string;
-  englishTranslation: string;
+  word: string;
+  translation: string;
   transliteration: string;
-  archetype: SpellArchetype;
-  effectType: SpellEffectType;
-  baseValue: number;
-  inkCost: number;
+  partOfSpeech: PartOfSpeech;
+  school: ElementSchool;
+  /** Base power before syntax multipliers */
+  basePower: number;
+  /** Forge recipe (Path Card Forge) */
+  rootId: string;
+  patternId: string;
+  /** What this word *is* (nouns especially). */
+  tags: SemanticTag[];
+  /** Verbs/adjectives: required partner tags. */
+  validTargets?: SemanticTag[];
+  /** Definiteness for natural English rules. */
+  definite?: boolean;
+  /** Clean English lemma for natural phrasing. */
+  lemmaEn?: string;
 };
 
 export type CombatRoot = {
@@ -33,7 +45,37 @@ export type CombatPattern = {
   gloss: string;
 };
 
-/** Roots available in the battle hand pool */
+export const SCHOOL_META: Record<
+  ElementSchool,
+  { label: string; effect: string; color: string; glow: string }
+> = {
+  FLAME: {
+    label: "Flame",
+    effect: "Burn — damage over time",
+    color: "text-amber-300",
+    glow: "border-amber-400/60 bg-amber-500/15 shadow-[0_0_20px_-6px_rgba(245,158,11,0.65)]",
+  },
+  FROST: {
+    label: "Frost",
+    effect: "Frost — delays the enemy’s next turn",
+    color: "text-cyan-300",
+    glow: "border-cyan-400/60 bg-cyan-500/15 shadow-[0_0_20px_-6px_rgba(56,189,248,0.65)]",
+  },
+  MIND: {
+    label: "Mind",
+    effect: "Mind — pierces shields / reveals intent",
+    color: "text-violet-300",
+    glow: "border-violet-400/50 bg-violet-500/15",
+  },
+  KINETIC: {
+    label: "Kinetic",
+    effect: "Kinetic — raw damage",
+    color: "text-amber-200",
+    glow: "border-amber-400/50 bg-amber-500/15",
+  },
+};
+
+/** Roots available in the Path Card Forge */
 export const COMBAT_ROOTS: CombatRoot[] = [
   { id: "ktb", letters: "ك-ت-ب", gloss: "writing" },
   { id: "slm", letters: "س-ل-م", gloss: "peace / safety" },
@@ -45,7 +87,7 @@ export const COMBAT_ROOTS: CombatRoot[] = [
   { id: "kshf", letters: "ك-ش-ف", gloss: "uncovering / revealing" },
 ];
 
-/** Patterns on the crucible board */
+/** Patterns on the Path Card Forge */
 export const COMBAT_PATTERNS: CombatPattern[] = [
   { id: "form-1", name: "Form I", template: "فَعَلَ", gloss: "basic action" },
   { id: "form-2", name: "Form II", template: "فَعَّلَ", gloss: "intensify / cause" },
@@ -66,415 +108,635 @@ export const COMBAT_PATTERNS: CombatPattern[] = [
   },
 ];
 
+const HUMAN: SemanticTag[] = ["human", "male", "animate"];
+const OBJECT: SemanticTag[] = ["object", "inanimate"];
+const TOOL: SemanticTag[] = ["object", "tool", "inanimate"];
+const PLACE: SemanticTag[] = ["place", "inanimate"];
+const TEXT: SemanticTag[] = ["object", "text", "inanimate"];
+const ANIMATE_T: SemanticTag[] = ["animate", "human"];
+const OBJECT_T: SemanticTag[] = ["object", "inanimate", "tool", "text", "place"];
+
 /**
- * Curated valid weaves only — sparse on purpose so invalid drops fizzle.
+ * Fully formed Word Cards — the only combat ammo.
+ * School is assigned by semantic meaning; tags enable logical sentences.
  */
-export const VALID_SPELLS: ValidSpell[] = [
-  // ن ص ر
+export const WORD_CARDS: WordCard[] = [
+  // ——— Kinetic (aid / writing force) ———
   {
     id: "nsr-form-1",
-    root: "nsr",
-    pattern: "form-1",
-    arabicWord: "نَصَرَ",
-    englishTranslation: "He helped / granted victory",
+    word: "نَصَرَ",
+    translation: "He helped / granted victory",
+    lemmaEn: "helped",
     transliteration: "naṣara",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 18,
-    inkCost: 2,
+    partOfSpeech: "VERB",
+    school: "KINETIC",
+    basePower: 18,
+    rootId: "nsr",
+    patternId: "form-1",
+    tags: ["action"],
+    validTargets: ANIMATE_T,
   },
   {
     id: "nsr-form-2",
-    root: "nsr",
-    pattern: "form-2",
-    arabicWord: "نَصَّرَ",
-    englishTranslation: "He made victorious (intensified)",
+    word: "نَصَّرَ",
+    translation: "He made victorious",
+    lemmaEn: "made victorious",
     transliteration: "naṣṣara",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 26,
-    inkCost: 3,
+    partOfSpeech: "VERB",
+    school: "KINETIC",
+    basePower: 26,
+    rootId: "nsr",
+    patternId: "form-2",
+    tags: ["action"],
+    validTargets: ANIMATE_T,
   },
   {
     id: "nsr-active-participle",
-    root: "nsr",
-    pattern: "active-participle",
-    arabicWord: "نَاصِر",
-    englishTranslation: "Helper / supporter",
+    word: "نَاصِر",
+    translation: "Helper / supporter",
+    lemmaEn: "helper",
     transliteration: "nāṣir",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 14,
-    inkCost: 2,
+    partOfSpeech: "NOUN",
+    school: "KINETIC",
+    basePower: 14,
+    rootId: "nsr",
+    patternId: "active-participle",
+    tags: HUMAN,
+    definite: true,
   },
   {
     id: "nsr-passive-participle",
-    root: "nsr",
-    pattern: "passive-participle",
-    arabicWord: "مَنْصُور",
-    englishTranslation: "The aided one",
+    word: "مَنْصُور",
+    translation: "The aided one",
+    lemmaEn: "aided",
     transliteration: "manṣūr",
-    archetype: "tank",
-    effectType: "shield",
-    baseValue: 12,
-    inkCost: 2,
+    partOfSpeech: "ADJECTIVE",
+    school: "KINETIC",
+    basePower: 12,
+    rootId: "nsr",
+    patternId: "passive-participle",
+    tags: ["abstract"],
+    validTargets: ANIMATE_T,
+    definite: false,
   },
-
-  // س ل م
-  {
-    id: "slm-form-1",
-    root: "slm",
-    pattern: "form-1",
-    arabicWord: "سَلِمَ",
-    englishTranslation: "He was safe / unharmed",
-    transliteration: "salima",
-    archetype: "tank",
-    effectType: "heal",
-    baseValue: 12,
-    inkCost: 2,
-  },
-  {
-    id: "slm-form-2",
-    root: "slm",
-    pattern: "form-2",
-    arabicWord: "سَلَّمَ",
-    englishTranslation: "He greeted / handed over",
-    transliteration: "sallama",
-    archetype: "tank",
-    effectType: "shield",
-    baseValue: 20,
-    inkCost: 2,
-  },
-  {
-    id: "slm-active-participle",
-    root: "slm",
-    pattern: "active-participle",
-    arabicWord: "سَالِم",
-    englishTranslation: "Safe / sound one",
-    transliteration: "sālim",
-    archetype: "tank",
-    effectType: "heal",
-    baseValue: 14,
-    inkCost: 2,
-  },
-
-  // ك ت ب
   {
     id: "ktb-form-1",
-    root: "ktb",
-    pattern: "form-1",
-    arabicWord: "كَتَبَ",
-    englishTranslation: "He wrote",
+    word: "كَتَبَ",
+    translation: "He wrote",
+    lemmaEn: "wrote",
     transliteration: "kataba",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 12,
-    inkCost: 1,
-  },
-  {
-    id: "ktb-form-2",
-    root: "ktb",
-    pattern: "form-2",
-    arabicWord: "كَتَّبَ",
-    englishTranslation: "He made (someone) write",
-    transliteration: "kattaba",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 22,
-    inkCost: 3,
-  },
-  {
-    id: "ktb-form-10",
-    root: "ktb",
-    pattern: "form-10",
-    arabicWord: "اِسْتَكْتَبَ",
-    englishTranslation: "He asked to write / dictated",
-    transliteration: "istaktaba",
-    archetype: "control",
-    effectType: "control",
-    baseValue: 8,
-    inkCost: 3,
-  },
-  {
-    id: "ktb-active-participle",
-    root: "ktb",
-    pattern: "active-participle",
-    arabicWord: "كَاتِب",
-    englishTranslation: "Writer / scribe",
-    transliteration: "kātib",
-    archetype: "control",
-    effectType: "focus",
-    baseValue: 2,
-    inkCost: 2,
-  },
-  {
-    id: "ktb-passive-participle",
-    root: "ktb",
-    pattern: "passive-participle",
-    arabicWord: "مَكْتُوب",
-    englishTranslation: "That which is written",
-    transliteration: "maktūb",
-    archetype: "tank",
-    effectType: "shield",
-    baseValue: 10,
-    inkCost: 1,
+    partOfSpeech: "VERB",
+    school: "KINETIC",
+    basePower: 12,
+    rootId: "ktb",
+    patternId: "form-1",
+    tags: ["action"],
+    validTargets: [...TEXT, "object"],
   },
   {
     id: "ktb-noun-of-instrument",
-    root: "ktb",
-    pattern: "noun-of-instrument",
-    arabicWord: "مِكْتَاب",
-    englishTranslation: "Writing instrument (typewriter)",
+    word: "مِكْتَاب",
+    translation: "Writing instrument",
+    lemmaEn: "pen",
     transliteration: "miktāb",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 16,
-    inkCost: 2,
+    partOfSpeech: "NOUN",
+    school: "KINETIC",
+    basePower: 16,
+    rootId: "ktb",
+    patternId: "noun-of-instrument",
+    tags: TOOL,
+    definite: false,
   },
 
-  // د ر س
-  {
-    id: "drs-form-1",
-    root: "drs",
-    pattern: "form-1",
-    arabicWord: "دَرَسَ",
-    englishTranslation: "He studied",
-    transliteration: "darasa",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 11,
-    inkCost: 1,
-  },
-  {
-    id: "drs-form-2",
-    root: "drs",
-    pattern: "form-2",
-    arabicWord: "دَرَّسَ",
-    englishTranslation: "He taught",
-    transliteration: "darrasa",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 20,
-    inkCost: 2,
-  },
-  {
-    id: "drs-active-participle",
-    root: "drs",
-    pattern: "active-participle",
-    arabicWord: "دَارِس",
-    englishTranslation: "Student / one who studies",
-    transliteration: "dāris",
-    archetype: "control",
-    effectType: "focus",
-    baseValue: 1,
-    inkCost: 1,
-  },
-  {
-    id: "drs-noun-of-place",
-    root: "drs",
-    pattern: "noun-of-place",
-    arabicWord: "مَدْرَسَة",
-    englishTranslation: "A place of learning / school",
-    transliteration: "madrasa",
-    archetype: "control",
-    effectType: "control",
-    baseValue: 8,
-    inkCost: 2,
-  },
-
-  // ح ك م
-  {
-    id: "hkm-form-1",
-    root: "hkm",
-    pattern: "form-1",
-    arabicWord: "حَكَمَ",
-    englishTranslation: "He judged / ruled",
-    transliteration: "ḥakama",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 16,
-    inkCost: 2,
-  },
-  {
-    id: "hkm-active-participle",
-    root: "hkm",
-    pattern: "active-participle",
-    arabicWord: "حَاكِم",
-    englishTranslation: "Ruler / judge",
-    transliteration: "ḥākim",
-    archetype: "tank",
-    effectType: "shield",
-    baseValue: 14,
-    inkCost: 2,
-  },
-
-  // ض ر ب — strike
+  // ——— Flame (strike / intensify) ———
   {
     id: "drb-form-1",
-    root: "drb",
-    pattern: "form-1",
-    arabicWord: "ضَرَبَ",
-    englishTranslation: "He struck",
+    word: "ضَرَبَ",
+    translation: "He struck",
+    lemmaEn: "struck",
     transliteration: "ḍaraba",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 20,
-    inkCost: 2,
+    partOfSpeech: "VERB",
+    school: "FLAME",
+    basePower: 20,
+    rootId: "drb",
+    patternId: "form-1",
+    tags: ["action"],
+    validTargets: [...ANIMATE_T, ...OBJECT_T],
   },
   {
     id: "drb-form-2",
-    root: "drb",
-    pattern: "form-2",
-    arabicWord: "ضَرَّبَ",
-    englishTranslation: "He struck repeatedly",
+    word: "ضَرَّبَ",
+    translation: "He struck repeatedly",
+    lemmaEn: "struck repeatedly",
     transliteration: "ḍarraba",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 28,
-    inkCost: 3,
+    partOfSpeech: "VERB",
+    school: "FLAME",
+    basePower: 28,
+    rootId: "drb",
+    patternId: "form-2",
+    tags: ["action"],
+    validTargets: [...ANIMATE_T, ...OBJECT_T],
   },
   {
     id: "drb-active-participle",
-    root: "drb",
-    pattern: "active-participle",
-    arabicWord: "ضَارِب",
-    englishTranslation: "Striker",
+    word: "ضَارِب",
+    translation: "Striker",
+    lemmaEn: "striker",
     transliteration: "ḍārib",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 15,
-    inkCost: 2,
+    partOfSpeech: "NOUN",
+    school: "FLAME",
+    basePower: 15,
+    rootId: "drb",
+    patternId: "active-participle",
+    tags: HUMAN,
+    definite: true,
   },
   {
     id: "drb-noun-of-instrument",
-    root: "drb",
-    pattern: "noun-of-instrument",
-    arabicWord: "مِضْرَاب",
-    englishTranslation: "Bat / striking tool",
+    word: "مِضْرَاب",
+    translation: "Bat / striking tool",
+    lemmaEn: "bat",
     transliteration: "miḍrāb",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 18,
-    inkCost: 2,
+    partOfSpeech: "NOUN",
+    school: "FLAME",
+    basePower: 18,
+    rootId: "drb",
+    patternId: "noun-of-instrument",
+    tags: TOOL,
+    definite: false,
+  },
+  {
+    id: "ktb-form-2",
+    word: "كَتَّبَ",
+    translation: "He made (someone) write",
+    lemmaEn: "made write",
+    transliteration: "kattaba",
+    partOfSpeech: "VERB",
+    school: "FLAME",
+    basePower: 22,
+    rootId: "ktb",
+    patternId: "form-2",
+    tags: ["action"],
+    validTargets: ANIMATE_T,
   },
 
-  // ح ف ظ — protect
+  // ——— Frost (peace / guard) ———
+  {
+    id: "slm-form-1",
+    word: "سَلِمَ",
+    translation: "He was safe",
+    lemmaEn: "was safe",
+    transliteration: "salima",
+    partOfSpeech: "VERB",
+    school: "FROST",
+    basePower: 12,
+    rootId: "slm",
+    patternId: "form-1",
+    tags: ["action"],
+    validTargets: ANIMATE_T,
+  },
+  {
+    id: "slm-form-2",
+    word: "سَلَّمَ",
+    translation: "He greeted / handed over",
+    lemmaEn: "greeted",
+    transliteration: "sallama",
+    partOfSpeech: "VERB",
+    school: "FROST",
+    basePower: 16,
+    rootId: "slm",
+    patternId: "form-2",
+    tags: ["action"],
+    validTargets: [...ANIMATE_T, ...OBJECT_T],
+  },
+  {
+    id: "slm-active-participle",
+    word: "سَالِم",
+    translation: "Safe / sound one",
+    lemmaEn: "safe",
+    transliteration: "sālim",
+    partOfSpeech: "ADJECTIVE",
+    school: "FROST",
+    basePower: 14,
+    rootId: "slm",
+    patternId: "active-participle",
+    tags: ["abstract"],
+    validTargets: ANIMATE_T,
+    definite: false,
+  },
   {
     id: "hfz-form-1",
-    root: "hfz",
-    pattern: "form-1",
-    arabicWord: "حَفِظَ",
-    englishTranslation: "He preserved / memorized",
+    word: "حَفِظَ",
+    translation: "He preserved / memorized",
+    lemmaEn: "preserved",
     transliteration: "ḥafiẓa",
-    archetype: "tank",
-    effectType: "shield",
-    baseValue: 14,
-    inkCost: 2,
+    partOfSpeech: "VERB",
+    school: "FROST",
+    basePower: 14,
+    rootId: "hfz",
+    patternId: "form-1",
+    tags: ["action"],
+    validTargets: [...OBJECT_T, "text", "abstract"],
   },
   {
     id: "hfz-active-participle",
-    root: "hfz",
-    pattern: "active-participle",
-    arabicWord: "حَافِظ",
-    englishTranslation: "Protector / guardian",
+    word: "حَافِظ",
+    translation: "Protector / guardian",
+    lemmaEn: "guardian",
     transliteration: "ḥāfiẓ",
-    archetype: "tank",
-    effectType: "shield",
-    baseValue: 22,
-    inkCost: 2,
+    partOfSpeech: "NOUN",
+    school: "FROST",
+    basePower: 18,
+    rootId: "hfz",
+    patternId: "active-participle",
+    tags: HUMAN,
+    definite: true,
   },
   {
     id: "hfz-passive-participle",
-    root: "hfz",
-    pattern: "passive-participle",
-    arabicWord: "مَحْفُوظ",
-    englishTranslation: "That which is preserved",
+    word: "مَحْفُوظ",
+    translation: "That which is preserved",
+    lemmaEn: "preserved",
     transliteration: "maḥfūẓ",
-    archetype: "tank",
-    effectType: "heal",
-    baseValue: 12,
-    inkCost: 2,
+    partOfSpeech: "ADJECTIVE",
+    school: "FROST",
+    basePower: 12,
+    rootId: "hfz",
+    patternId: "passive-participle",
+    tags: ["abstract"],
+    validTargets: OBJECT_T,
+    definite: false,
+  },
+  {
+    id: "ktb-passive-participle",
+    word: "مَكْتُوب",
+    translation: "That which is written",
+    lemmaEn: "written",
+    transliteration: "maktūb",
+    partOfSpeech: "ADJECTIVE",
+    school: "FROST",
+    basePower: 10,
+    rootId: "ktb",
+    patternId: "passive-participle",
+    tags: ["abstract"],
+    validTargets: TEXT,
+    definite: false,
   },
 
-  // ك ش ف — reveal / explore
+  // ——— Mind (study / reveal / wisdom) ———
+  {
+    id: "drs-form-1",
+    word: "دَرَسَ",
+    translation: "He studied",
+    lemmaEn: "studied",
+    transliteration: "darasa",
+    partOfSpeech: "VERB",
+    school: "MIND",
+    basePower: 11,
+    rootId: "drs",
+    patternId: "form-1",
+    tags: ["action"],
+    validTargets: [...TEXT, "abstract", "place"],
+  },
+  {
+    id: "drs-form-2",
+    word: "دَرَّسَ",
+    translation: "He taught",
+    lemmaEn: "taught",
+    transliteration: "darrasa",
+    partOfSpeech: "VERB",
+    school: "MIND",
+    basePower: 20,
+    rootId: "drs",
+    patternId: "form-2",
+    tags: ["action"],
+    validTargets: ANIMATE_T,
+  },
+  {
+    id: "drs-active-participle",
+    word: "دَارِس",
+    translation: "Student / one who studies",
+    lemmaEn: "student",
+    transliteration: "dāris",
+    partOfSpeech: "NOUN",
+    school: "MIND",
+    basePower: 10,
+    rootId: "drs",
+    patternId: "active-participle",
+    tags: HUMAN,
+    definite: true,
+  },
+  {
+    id: "drs-noun-of-place",
+    word: "مَدْرَسَة",
+    translation: "School / place of learning",
+    lemmaEn: "school",
+    transliteration: "madrasa",
+    partOfSpeech: "NOUN",
+    school: "MIND",
+    basePower: 14,
+    rootId: "drs",
+    patternId: "noun-of-place",
+    tags: PLACE,
+    definite: true,
+  },
   {
     id: "kshf-form-1",
-    root: "kshf",
-    pattern: "form-1",
-    arabicWord: "كَشَفَ",
-    englishTranslation: "He uncovered / revealed",
+    word: "كَشَفَ",
+    translation: "He uncovered / revealed",
+    lemmaEn: "uncovered",
     transliteration: "kashafa",
-    archetype: "control",
-    effectType: "control",
-    baseValue: 10,
-    inkCost: 2,
+    partOfSpeech: "VERB",
+    school: "MIND",
+    basePower: 16,
+    rootId: "kshf",
+    patternId: "form-1",
+    tags: ["action"],
+    validTargets: OBJECT_T,
   },
   {
     id: "kshf-form-10",
-    root: "kshf",
-    pattern: "form-10",
-    arabicWord: "اِسْتَكْشَفَ",
-    englishTranslation: "He explored / sought to uncover",
+    word: "اِسْتَكْشَفَ",
+    translation: "He explored",
+    lemmaEn: "explored",
     transliteration: "istakshafa",
-    archetype: "control",
-    effectType: "control",
-    baseValue: 16,
-    inkCost: 3,
+    partOfSpeech: "VERB",
+    school: "MIND",
+    basePower: 18,
+    rootId: "kshf",
+    patternId: "form-10",
+    tags: ["action"],
+    validTargets: [...PLACE, ...OBJECT_T],
   },
   {
     id: "kshf-active-participle",
-    root: "kshf",
-    pattern: "active-participle",
-    arabicWord: "كَاشِف",
-    englishTranslation: "Revealer",
+    word: "كَاشِف",
+    translation: "Revealer",
+    lemmaEn: "revealer",
     transliteration: "kāshif",
-    archetype: "dps",
-    effectType: "damage",
-    baseValue: 13,
-    inkCost: 2,
+    partOfSpeech: "NOUN",
+    school: "MIND",
+    basePower: 13,
+    rootId: "kshf",
+    patternId: "active-participle",
+    tags: HUMAN,
+    definite: true,
+  },
+  {
+    id: "hkm-form-1",
+    word: "حَكَمَ",
+    translation: "He judged / ruled",
+    lemmaEn: "judged",
+    transliteration: "ḥakama",
+    partOfSpeech: "VERB",
+    school: "MIND",
+    basePower: 16,
+    rootId: "hkm",
+    patternId: "form-1",
+    tags: ["action"],
+    validTargets: ANIMATE_T,
+  },
+  {
+    id: "hkm-active-participle",
+    word: "حَاكِم",
+    translation: "Ruler / judge",
+    lemmaEn: "judge",
+    transliteration: "ḥākim",
+    partOfSpeech: "NOUN",
+    school: "MIND",
+    basePower: 14,
+    rootId: "hkm",
+    patternId: "active-participle",
+    tags: HUMAN,
+    definite: true,
+  },
+  {
+    id: "ktb-form-10",
+    word: "اِسْتَكْتَبَ",
+    translation: "He asked to write",
+    lemmaEn: "asked to write",
+    transliteration: "istaktaba",
+    partOfSpeech: "VERB",
+    school: "MIND",
+    basePower: 14,
+    rootId: "ktb",
+    patternId: "form-10",
+    tags: ["action"],
+    validTargets: ANIMATE_T,
+  },
+  {
+    id: "ktb-active-participle",
+    word: "كَاتِب",
+    translation: "Writer / scribe",
+    lemmaEn: "writer",
+    transliteration: "kātib",
+    partOfSpeech: "NOUN",
+    school: "MIND",
+    basePower: 11,
+    rootId: "ktb",
+    patternId: "active-participle",
+    tags: HUMAN,
+    definite: true,
+  },
+
+  // Extra nouns / adjectives for syntax + semantic drills
+  {
+    id: "ktb-place-noun",
+    word: "مَكْتَب",
+    translation: "Office / desk",
+    lemmaEn: "desk",
+    transliteration: "maktab",
+    partOfSpeech: "NOUN",
+    school: "KINETIC",
+    basePower: 12,
+    rootId: "ktb",
+    patternId: "noun-of-place",
+    tags: [...PLACE, ...OBJECT],
+    definite: false,
+  },
+  {
+    id: "ktb-noun-book",
+    word: "كِتَاب",
+    translation: "Book",
+    lemmaEn: "book",
+    transliteration: "kitāb",
+    partOfSpeech: "NOUN",
+    school: "KINETIC",
+    basePower: 14,
+    rootId: "ktb",
+    patternId: "noun-book",
+    tags: TEXT,
+    definite: false,
+  },
+  {
+    id: "kbr-adjective",
+    word: "كَبِير",
+    translation: "Big",
+    lemmaEn: "big",
+    transliteration: "kabīr",
+    partOfSpeech: "ADJECTIVE",
+    school: "FLAME",
+    basePower: 12,
+    rootId: "kbr",
+    patternId: "adjective-basic",
+    tags: ["abstract"],
+    validTargets: OBJECT_T,
+    definite: false,
+  },
+  // Early-game logical pairings
+  {
+    id: "jhd-adjective",
+    word: "مُجْتَهِد",
+    translation: "Diligent",
+    lemmaEn: "diligent",
+    transliteration: "mujtahid",
+    partOfSpeech: "ADJECTIVE",
+    school: "MIND",
+    basePower: 11,
+    rootId: "jhd",
+    patternId: "adjective-basic",
+    tags: ["abstract"],
+    validTargets: ANIMATE_T,
+    definite: false,
+  },
+  {
+    id: "thql-adjective",
+    word: "ثَقِيل",
+    translation: "Heavy",
+    lemmaEn: "heavy",
+    transliteration: "thaqīl",
+    partOfSpeech: "ADJECTIVE",
+    school: "KINETIC",
+    basePower: 11,
+    rootId: "thql",
+    patternId: "adjective-basic",
+    tags: ["abstract"],
+    validTargets: OBJECT_T,
+    definite: false,
+  },
+  {
+    id: "bab-noun-door",
+    word: "بَاب",
+    translation: "Door",
+    lemmaEn: "door",
+    transliteration: "bāb",
+    partOfSpeech: "NOUN",
+    school: "KINETIC",
+    basePower: 10,
+    rootId: "bab",
+    patternId: "noun-basic",
+    tags: OBJECT,
+    definite: true,
   },
 ];
 
-const SPELL_INDEX = new Map(
-  VALID_SPELLS.map((s) => [`${s.root}::${s.pattern}`, s] as const),
-);
+const BY_ID = new Map(WORD_CARDS.map((c) => [c.id, c] as const));
+const BY_RECIPE = new Map(WORD_CARDS.map((c) => [`${c.rootId}::${c.patternId}`, c] as const));
 
-/** Return the ValidSpell for a weave, or null if morphologically invalid. */
-export function validateWeave(root: string, pattern: string): ValidSpell | null {
-  return SPELL_INDEX.get(`${root}::${pattern}`) ?? null;
+export function getWordCard(id: string): WordCard | undefined {
+  return BY_ID.get(id);
 }
 
-/** Flat fizzle tax when the weave is not in the dictionary. */
-export const FIZZLE_INK_COST = 1;
+export function getWordCards(ids: string[]): WordCard[] {
+  return ids.map((id) => BY_ID.get(id)).filter((c): c is WordCard => Boolean(c));
+}
 
-/** Ink regenerated at end of enemy turn (unused ink carries over). */
-export const INK_REGEN_PER_TURN = 2;
-
-/**
- * Strict Path → Arena lock: only weaves present in `user_unlocked_vocab`.
- */
-export function spellIdsFromPathVocab(
-  pairs: Array<{ rootId: string; patternId: string }>,
-): string[] {
-  const unlocked = new Set<string>();
-  for (const pair of pairs) {
-    const spell = validateWeave(pair.rootId, pair.patternId);
-    if (spell) unlocked.add(spell.id);
-  }
-  return [...unlocked];
+/** Forge a Word Card from root × pattern (Path Card Forge). */
+export function forgeWordCard(rootId: string, patternId: string): WordCard | null {
+  return BY_RECIPE.get(`${rootId}::${patternId}`) ?? null;
 }
 
 export function getPatternById(id: string): CombatPattern | undefined {
   return COMBAT_PATTERNS.find((p) => p.id === id);
 }
 
-export function catalogRootId(instanceId: string): string {
-  // Prefer longest matching root id (kshf before k)
-  const sorted = [...COMBAT_ROOTS].sort((a, b) => b.id.length - a.id.length);
-  for (const root of sorted) {
-    if (instanceId === root.id || instanceId.startsWith(`${root.id}-`)) {
-      return root.id;
-    }
-  }
-  return instanceId.split("-")[0] ?? instanceId;
+export function getRootById(id: string): CombatRoot | undefined {
+  return COMBAT_ROOTS.find((r) => r.id === id);
 }
+
+/** Syntax combo multipliers by chain length */
+export const SYNTAX_MULTIPLIERS: Record<number, number> = {
+  1: 1,
+  2: 2.5,
+  3: 5,
+  4: 7,
+};
+
+export function syntaxMultiplier(length: number): number {
+  if (length <= 0) return 0;
+  if (length >= 4) return SYNTAX_MULTIPLIERS[4] ?? 7;
+  return SYNTAX_MULTIPLIERS[length] ?? 1;
+}
+
+/** Burn DoT ticks after a Flame cast */
+export const FLAME_BURN_TICKS = 2;
+export const FLAME_BURN_RATIO = 0.25;
+
+// ——— Legacy aliases (bridge during Path unlock migration) ———
+
+/** @deprecated Prefer WordCard — kept for FSRS / review population */
+export type ValidSpell = {
+  id: string;
+  root: string;
+  pattern: string;
+  arabicWord: string;
+  englishTranslation: string;
+  transliteration: string;
+  baseValue: number;
+  archetype?: string;
+  effectType?: string;
+  inkCost?: number;
+};
+
+export function validateWeave(root: string, pattern: string): ValidSpell | null {
+  const card = forgeWordCard(root, pattern);
+  if (!card) return null;
+  return {
+    id: card.id,
+    root: card.rootId,
+    pattern: card.patternId,
+    arabicWord: card.word,
+    englishTranslation: card.translation,
+    transliteration: card.transliteration,
+    baseValue: card.basePower,
+    archetype: card.school,
+    effectType: "damage",
+    inkCost: 1,
+  };
+}
+
+/** Convert Path unlock pairs / legacy vocab into deck word IDs */
+export function wordIdsFromUnlocks(
+  pairs: Array<{ rootId: string; patternId: string } | string>,
+): string[] {
+  const ids: string[] = [];
+  for (const p of pairs) {
+    if (typeof p === "string") {
+      if (BY_ID.has(p)) ids.push(p);
+      continue;
+    }
+    const card = forgeWordCard(p.rootId, p.patternId);
+    if (card) ids.push(card.id);
+  }
+  return [...new Set(ids)];
+}
+
+export function spellIdsFromPathVocab(
+  pairs: Array<{ rootId: string; patternId: string }>,
+): string[] {
+  return wordIdsFromUnlocks(pairs);
+}
+
+/** @deprecated Compatibility alias for review / economy helpers */
+export const VALID_SPELLS = WORD_CARDS.map((c) => ({
+  id: c.id,
+  root: c.rootId,
+  pattern: c.patternId,
+  arabicWord: c.word,
+  englishTranslation: c.translation,
+  transliteration: c.transliteration,
+  baseValue: c.basePower,
+  archetype: "dps" as const,
+  effectType: "damage" as const,
+  inkCost: 1,
+}));

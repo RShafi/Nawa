@@ -1,53 +1,49 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { BookOpen, Check, ChevronDown, Lock, Play, Sparkles } from "lucide-react";
-import { completePathNodeAction } from "@/app/actions/path";
-import { ArabicText } from "@/components/common/ArabicText";
+import { BookOpen, Check, ChevronRight, Lock, Play, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  areNodeLessonsComplete,
-  describeUnlock,
-  getNextLessonForNode,
-  isPathNodeAvailable,
-  isPathNodeComplete,
-  LEARNING_PATH_NODES,
-  lessonHref,
-  type PathNode,
-} from "@/data/learningPath";
+  CURRICULUM,
+  firstIncompleteLesson,
+  isLessonComplete,
+  isModuleUnlocked,
+  lessonPathHref,
+  type CurriculumUnit,
+} from "@/data/curriculum";
+import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
 
 const ACCENT: Record<
-  PathNode["accent"],
-  { ring: string; fill: string; soft: string; badge: string }
+  CurriculumUnit["accent"],
+  { bar: string; soft: string; badge: string; line: string }
 > = {
   sky: {
-    ring: "ring-sky-400/50",
-    fill: "bg-sky-500",
-    soft: "border-sky-400/30 bg-sky-500/10",
-    badge: "bg-sky-400 text-sky-950",
+    bar: "from-astral-cyan/80 to-astral-cyan/30",
+    soft: "border-cyan-400/25 bg-cyan-500/10",
+    badge: "bg-cyan-400 text-slate-950",
+    line: "bg-gradient-to-b from-cyan-400/50 to-cyan-400/5",
   },
   emerald: {
-    ring: "ring-emerald-400/50",
-    fill: "bg-emerald-500",
-    soft: "border-emerald-400/30 bg-emerald-500/10",
+    bar: "from-muted-emerald/80 to-muted-emerald/30",
+    soft: "border-emerald-400/25 bg-emerald-500/10",
     badge: "bg-emerald-400 text-emerald-950",
+    line: "bg-gradient-to-b from-emerald-400/50 to-emerald-400/5",
   },
   amber: {
-    ring: "ring-amber-400/50",
-    fill: "bg-amber-500",
-    soft: "border-amber-400/30 bg-amber-500/10",
+    bar: "from-celestial-amber/80 to-celestial-gold/30",
+    soft: "border-amber-400/25 bg-amber-500/10",
     badge: "bg-amber-400 text-amber-950",
+    line: "bg-gradient-to-b from-amber-400/50 to-amber-400/5",
   },
   violet: {
-    ring: "ring-violet-400/50",
-    fill: "bg-violet-500",
-    soft: "border-violet-400/30 bg-violet-500/10",
+    bar: "from-violet-500/80 to-violet-400/30",
+    soft: "border-violet-400/25 bg-violet-500/10",
     badge: "bg-violet-400 text-violet-950",
+    line: "bg-gradient-to-b from-violet-400/50 to-violet-400/5",
   },
 };
 
@@ -56,355 +52,197 @@ type PathMapProps = {
 };
 
 export function PathMap({ initialCompletedIds = [] }: PathMapProps) {
-  const router = useRouter();
   const storeCompleted = useAppStore((s) => s.completedLessonIds);
-  const unlockVocabOptimistic = useAppStore((s) => s.unlockVocabOptimistic);
-  const markLessonCompleteOptimistic = useAppStore((s) => s.markLessonCompleteOptimistic);
   const hydrate = useAppStore((s) => s.hydrate);
   const status = useAppStore((s) => s.status);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { playTap } = useSoundEffects();
+
+  useEffect(() => {
+    if (status === "idle") void hydrate();
+  }, [status, hydrate]);
 
   const completedIds = useMemo(() => {
-    const set = new Set([...initialCompletedIds, ...storeCompleted]);
-    return [...set];
+    return [...new Set([...initialCompletedIds, ...storeCompleted])];
   }, [initialCompletedIds, storeCompleted]);
 
-  const completedLessonIds = completedIds;
-
-  const currentNode = useMemo(() => {
-    return (
-      LEARNING_PATH_NODES.find(
-        (n) =>
-          isPathNodeAvailable(n.id, completedIds) && !isPathNodeComplete(n.id, completedIds),
-      ) ?? LEARNING_PATH_NODES.find((n) => !isPathNodeComplete(n.id, completedIds))
-      ?? LEARNING_PATH_NODES[LEARNING_PATH_NODES.length - 1]
-      ?? null
-    );
-  }, [completedIds]);
-
-  const [expandedId, setExpandedId] = useState<string | null>(currentNode?.id ?? null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-  useEffect(() => {
-    if (currentNode && !expandedId) setExpandedId(currentNode.id);
-  }, [currentNode, expandedId]);
-
-  const doneCount = LEARNING_PATH_NODES.filter((n) =>
-    isPathNodeComplete(n.id, completedIds),
-  ).length;
-
-  const continueLesson =
-    currentNode && !isPathNodeComplete(currentNode.id, completedIds)
-      ? getNextLessonForNode(currentNode, completedLessonIds)
-      : null;
-
-  function claimNode(node: PathNode) {
-    setMessage(null);
-    startTransition(async () => {
-      const result = await completePathNodeAction(node.id);
-      if (!result.ok) {
-        setMessage(result.error ?? "Could not finish this stop.");
-        return;
-      }
-
-      markLessonCompleteOptimistic(node.id);
-      if (result.unlockedPairs?.length) {
-        unlockVocabOptimistic(
-          result.unlockedPairs.map((p) => ({
-            rootId: p.rootId,
-            patternId: p.patternId,
-            sourceNodeId: node.id,
-          })),
-        );
-      }
-      void hydrate();
-
-      if (result.alreadyCompleted) {
-        setMessage("Already finished — pick the next stop.");
-      } else if (node.unlocks.length > 0) {
-        setMessage(
-          `Nice work. Bonus: ${node.unlocks.length} word${
-            node.unlocks.length === 1 ? "" : "s"
-          } ready for the Arena.`,
-        );
-      } else {
-        setMessage("Stop complete — keep going.");
-      }
-
-      const next = LEARNING_PATH_NODES.find(
-        (n) =>
-          n.id !== node.id &&
-          isPathNodeAvailable(n.id, result.completedNodeIds ?? [...completedIds, node.id]) &&
-          !isPathNodeComplete(n.id, result.completedNodeIds ?? [...completedIds, node.id]),
-      );
-      if (next) setExpandedId(next.id);
-    });
-  }
-
-  function openNode(node: PathNode, available: boolean, done: boolean) {
-    if (!available && !done) return;
-    setExpandedId(node.id);
-    requestAnimationFrame(() => {
-      document
-        .getElementById(`path-panel-${node.id}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-  }
-
-  function startNode(node: PathNode) {
-    const next = getNextLessonForNode(node, completedLessonIds);
-    if (next) {
-      router.push(lessonHref(next.id, node.id));
-      return;
-    }
-    openNode(node, true, false);
-  }
+  const continueLesson = firstIncompleteLesson(completedIds);
+  const totalLessons = CURRICULUM.units.reduce(
+    (n, u) => n + u.modules.reduce((m, mod) => m + mod.lessons.length, 0),
+    0,
+  );
+  const doneCount = CURRICULUM.units.reduce(
+    (n, u) =>
+      n +
+      u.modules.reduce(
+        (m, mod) => m + mod.lessons.filter((l) => isLessonComplete(l.id, completedIds)).length,
+        0,
+      ),
+    0,
+  );
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-6 px-4 pb-24 pt-6 sm:px-6">
-      <header className="space-y-2 text-center">
-        <p className="text-[11px] tracking-[0.22em] text-emerald-300/70 uppercase">
-          Learning Path
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-          Learn Arabic, one stop at a time
-        </h1>
-        <p className="mx-auto max-w-md text-sm leading-relaxed text-white/55">
-          Open a stop, tap a lesson, play. Arena words are a bonus when you finish.
-        </p>
-        <p className="text-xs text-white/40">
-          {doneCount} / {LEARNING_PATH_NODES.length} stops finished
-        </p>
-        {status === "error" ? (
-          <p className="text-xs text-rose-300">Progress sync issue — try refreshing.</p>
-        ) : null}
-      </header>
-
-      {continueLesson && currentNode ? (
-        <div className="sticky top-[4.5rem] z-20 -mx-1">
-          <Button
-            asChild
-            size="lg"
-            className="h-12 w-full bg-emerald-500 text-base font-semibold text-black shadow-lg shadow-emerald-500/20 hover:bg-emerald-400"
-          >
-            <Link href={lessonHref(continueLesson.id, currentNode.id)}>
-              <Play className="size-5" />
-              {currentNode.lessons.some((l) => completedLessonIds.includes(l.id))
-                ? `Continue: ${continueLesson.title}`
-                : `Start: ${continueLesson.title}`}
-            </Link>
-          </Button>
+    <div className="flex h-[100dvh] flex-col overflow-hidden lg:h-full">
+      <div className="shrink-0 border-b border-amber-500/10 px-4 py-3 sm:px-6">
+        <div className="mx-auto max-w-2xl">
+          <div className="flex items-center gap-2">
+            <Sparkles className="text-celestial-amber size-5" />
+            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              Constellation Path
+            </h1>
+          </div>
+          <p className="mt-1 text-sm text-white/55">
+            A vertical celestial journey — letters, meanings, and sentences under desert twilight.
+          </p>
+          <p className="text-celestial-amber/70 mt-2 font-mono text-[11px]">
+            {doneCount}/{totalLessons} stars lit
+          </p>
         </div>
-      ) : null}
+      </div>
 
-      <ol className="flex flex-col gap-3">
-        {LEARNING_PATH_NODES.map((node, index) => {
-          const done = isPathNodeComplete(node.id, completedIds);
-          const available = isPathNodeAvailable(node.id, completedIds);
-          const locked = !available && !done;
-          const expanded = expandedId === node.id;
-          const accent = ACCENT[node.accent];
-          const nextLesson = getNextLessonForNode(node, completedLessonIds);
-          const lessonsDone = areNodeLessonsComplete(node, completedLessonIds);
-
-          return (
-            <li key={node.id} className="relative">
-              <div
-                className={cn(
-                  "overflow-hidden rounded-2xl border transition",
-                  expanded ? cn("glass-panel-strong ring-2", accent.ring) : "glass-panel",
-                  locked && "opacity-50",
-                )}
-              >
-                <div className="flex items-stretch gap-0">
-                  <button
-                    type="button"
-                    disabled={locked}
-                    onClick={() => {
-                      if (locked) return;
-                      if (available && !done && nextLesson && !expanded) {
-                        // First tap on current stop → open lesson immediately
-                        startNode(node);
-                        return;
-                      }
-                      openNode(node, available, done);
-                    }}
-                    className={cn(
-                      "flex min-w-0 flex-1 items-center gap-3 px-3 py-3.5 text-start",
-                      locked && "cursor-not-allowed",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "relative flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white",
-                        done ? "bg-emerald-500" : locked ? "bg-white/10" : accent.fill,
-                      )}
-                    >
-                      {done ? (
-                        <Check className="size-5" />
-                      ) : locked ? (
-                        <Lock className="size-4 text-white/50" />
-                      ) : (
-                        index + 1
-                      )}
-                      {available && !done ? (
-                        <span className="absolute inset-0 animate-ping rounded-full bg-white/15" />
-                      ) : null}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[10px] tracking-wide text-white/40 uppercase">
-                        {node.unit}
-                      </span>
-                      <span className="block truncate text-sm font-semibold text-white">
-                        {node.title}
-                      </span>
-                      <span className="mt-0.5 block text-[11px] text-white/45">
-                        {done
-                          ? "Finished — tap to replay"
-                          : locked
-                            ? "Locked"
-                            : nextLesson
-                              ? "Tap to open lesson"
-                              : "Lessons done — finish stop"}
-                      </span>
-                    </span>
-                  </button>
-
-                  {!locked ? (
-                    <button
-                      type="button"
-                      aria-label={expanded ? "Collapse" : "Show lessons"}
-                      aria-expanded={expanded}
-                      onClick={() =>
-                        setExpandedId((id) => (id === node.id ? null : node.id))
-                      }
-                      className="flex w-11 shrink-0 items-center justify-center border-s border-white/10 text-white/50 hover:bg-white/5 hover:text-white"
-                    >
-                      <ChevronDown
-                        className={cn(
-                          "size-5 transition-transform",
-                          expanded && "rotate-180",
-                        )}
-                      />
-                    </button>
-                  ) : null}
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto max-w-2xl space-y-10 px-4 py-6 pb-28 sm:px-6">
+          {CURRICULUM.units.map((unit, ui) => {
+            const accent = ACCENT[unit.accent];
+            return (
+              <section key={unit.id} className="scroll-mt-4">
+                <div
+                  className={cn(
+                    "sticky top-0 z-20 mb-5 rounded-2xl border px-4 py-3 backdrop-blur-xl",
+                    "supports-[backdrop-filter]:bg-obsidian/90",
+                    accent.soft,
+                  )}
+                >
+                  <div className={cn("mb-2 h-1 w-16 rounded-full bg-gradient-to-r", accent.bar)} />
+                  <h2 className="text-lg font-semibold text-white sm:text-xl">{unit.title}</h2>
+                  <p className="mt-0.5 text-sm text-white/55">{unit.summary}</p>
                 </div>
 
-                <AnimatePresence initial={false}>
-                  {expanded && !locked ? (
-                    <motion.div
-                      id={`path-panel-${node.id}`}
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden border-t border-white/10"
-                    >
-                      <div className={cn("space-y-3 px-3 py-3 sm:px-4", accent.soft)}>
-                        <p className="text-sm leading-relaxed text-white/60">{node.description}</p>
-
-                        {!done && available && nextLesson ? (
-                          <Button
-                            asChild
-                            className="w-full bg-emerald-500 font-semibold text-black hover:bg-emerald-400"
-                          >
-                            <Link href={lessonHref(nextLesson.id, node.id)}>
-                              <Play className="size-4" />
-                              {node.lessons.some((l) => completedLessonIds.includes(l.id))
-                                ? "Continue lesson"
-                                : "Start lesson"}
-                            </Link>
-                          </Button>
-                        ) : null}
-
-                        <div className="space-y-1.5">
-                          <p className="text-[10px] tracking-wide text-white/40 uppercase">
-                            Lessons — tap any to open
-                          </p>
-                          {node.lessons.map((lesson, i) => {
-                            const lessonDone = completedLessonIds.includes(lesson.id);
-                            return (
-                              <Link
-                                key={lesson.id}
-                                href={lessonHref(lesson.id, node.id)}
-                                className={cn(
-                                  "flex items-center gap-3 rounded-xl border px-3 py-3 transition",
-                                  lessonDone
-                                    ? "border-emerald-400/25 bg-emerald-500/10"
-                                    : "border-white/12 bg-black/30 hover:border-emerald-400/40 hover:bg-emerald-500/10",
-                                )}
-                              >
-                                <span
-                                  className={cn(
-                                    "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold",
-                                    lessonDone
-                                      ? "bg-emerald-500 text-white"
-                                      : "bg-white/10 text-white/70",
-                                  )}
-                                >
-                                  {lessonDone ? <Check className="size-4" /> : i + 1}
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                  <span className="block text-sm font-medium text-white">
-                                    {lesson.title}
-                                  </span>
-                                  <span className="text-[11px] text-emerald-300/80">
-                                    {lessonDone ? "Replay" : "Open lesson →"}
-                                  </span>
-                                </span>
-                                <BookOpen className="size-4 shrink-0 text-white/35" />
-                              </Link>
-                            );
-                          })}
+                <div className="space-y-6">
+                  {unit.modules.map((mod, mi) => {
+                    const unlocked = isModuleUnlocked(ui, mi, completedIds);
+                    return (
+                      <div key={mod.id} className="space-y-3">
+                        <div className="flex items-center gap-2 px-1">
+                          <BookOpen className="size-3.5 text-white/35" />
+                          <h3 className="text-sm font-medium text-white/80">{mod.title}</h3>
+                          <span className="text-[11px] text-white/35">— {mod.summary}</span>
                         </div>
 
-                        {node.unlocks.length > 0 ? (
-                          <div className="rounded-xl border border-white/8 bg-black/20 px-3 py-2.5">
-                            <p className="text-[10px] tracking-wide text-white/35 uppercase">
-                              Arena bonus on finish
-                            </p>
-                            <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                              {node.unlocks.map((u) => {
-                                const d = describeUnlock(u);
-                                return (
-                                  <li
-                                    key={`${u.rootId}:${u.patternId}`}
-                                    className="rounded-lg border border-white/10 bg-white/5 px-2 py-1"
+                        <ul className="relative space-y-3 ps-2">
+                          <div
+                            className={cn(
+                              "absolute top-3 bottom-3 start-[1.35rem] w-px",
+                              accent.line,
+                            )}
+                            aria-hidden
+                          />
+                          {mod.lessons.map((lesson) => {
+                            const done = isLessonComplete(lesson.id, completedIds);
+                            const locked = !unlocked;
+                            const isContinue = continueLesson?.id === lesson.id;
+
+                            return (
+                              <li key={lesson.id} className="relative flex items-stretch gap-3">
+                                <span
+                                  className={cn(
+                                    "constellation-node z-10 mt-2",
+                                    done && "constellation-node-done",
+                                    isContinue && !done && "constellation-node-active",
+                                    locked && "opacity-40",
+                                  )}
+                                >
+                                  {locked ? (
+                                    <Lock className="size-3.5 text-white/40" />
+                                  ) : done ? (
+                                    <Check className="size-3.5 text-emerald-200" />
+                                  ) : (
+                                    <Play className="size-3 fill-current text-amber-200" />
+                                  )}
+                                </span>
+
+                                {locked ? (
+                                  <div className="glass-tablet flex flex-1 items-center gap-3 px-4 py-3 opacity-45">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-medium text-white/70">{lesson.title}</p>
+                                      <p className="truncate text-xs text-white/35">{lesson.summary}</p>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <motion.div
+                                    whileTap={{ scale: 0.96 }}
+                                    className="flex-1"
                                   >
-                                    <ArabicText className="battle-arabic text-sm text-amber-50/90">
-                                      {d.arabic}
-                                    </ArabicText>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </div>
-                        ) : null}
-
-                        {!done && available && lessonsDone ? (
-                          <Button
-                            disabled={pending}
-                            className="w-full bg-emerald-500 font-semibold text-black hover:bg-emerald-400"
-                            onClick={() => claimNode(node)}
-                          >
-                            <Sparkles className="size-4" />
-                            {pending ? "Saving…" : "Finish this stop"}
-                          </Button>
-                        ) : null}
-
-                        {message && expandedId === node.id ? (
-                          <p className="text-sm text-emerald-200/90" role="status">
-                            {message}
-                          </p>
-                        ) : null}
+                                    <Link
+                                      href={lessonPathHref(lesson.id)}
+                                      onClick={() => playTap()}
+                                      className={cn(
+                                        "glass-tablet group flex items-center gap-3 px-4 py-3 transition hover:bg-slate-800/70",
+                                        isContinue &&
+                                          "ring-celestial-amber/40 border-amber-400/40 ring-1",
+                                        done && "border-emerald-400/25",
+                                      )}
+                                    >
+                                      <div className="min-w-0 flex-1">
+                                        <p className="font-semibold text-white">{lesson.title}</p>
+                                        <p className="truncate text-xs text-white/45">
+                                          {lesson.summary}
+                                        </p>
+                                      </div>
+                                      <ChevronRight className="size-4 shrink-0 text-white/30 transition group-hover:text-amber-300/80" />
+                                    </Link>
+                                  </motion.div>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
                       </div>
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      </div>
+
+      <footer className="glass-panel-strong shrink-0 border-t border-amber-500/15 px-4 py-3">
+        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3">
+          <AnimatePresence mode="wait">
+            {continueLesson ? (
+              <motion.p
+                key={continueLesson.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-sm text-white/55"
+              >
+                Next star:{" "}
+                <span className="text-celestial-amber font-medium">{continueLesson.title}</span>
+              </motion.p>
+            ) : (
+              <p className="text-sm text-emerald-200/80">Constellation complete — revisit anytime.</p>
+            )}
+          </AnimatePresence>
+          {continueLesson ? (
+            <Button
+              asChild
+              size="lg"
+              className="bg-celestial-amber font-semibold text-obsidian hover:bg-amber-400"
+              onClick={() => playTap()}
+            >
+              <Link href={lessonPathHref(continueLesson.id)}>
+                <Play className="size-4 fill-current" />
+                Continue
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild variant="outline" className="border-amber-500/25">
+              <Link href="/arena">Visit Arena</Link>
+            </Button>
+          )}
+        </div>
+      </footer>
     </div>
   );
 }

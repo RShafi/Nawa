@@ -1,381 +1,131 @@
-import { Communicate } from "edge-tts-universal";
+/**
+ * Strict ElevenLabs Arabic TTS — GET /api/tts?text=...
+ * Cache key: hash(voiceId + "_" + text)
+ */
+
+import { createHash } from "crypto";
+import { promises as fs } from "fs";
+import path from "path";
 import { NextRequest, NextResponse } from "next/server";
-import { prepareArabicForTts, type PreparedTts } from "@/lib/arabic-tts";
 
 export const runtime = "nodejs";
 
-/** Bump when synthesis strategy changes so stale bad clips are not reused. */
-const CACHE_VERSION = "v7-phonetic-anchor";
-const cache = new Map<
-  string,
-  { bytes: ArrayBuffer; contentType: string; at: number; provider: string }
->();
-const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
-const MAX_CHARS = 120;
-
-const EDGE_VOICES = {
-  msa: "ar-SA-ZariyahNeural",
-  msaMale: "ar-SA-HamedNeural",
-  egyptian: "ar-EG-SalmaNeural",
-  levantine: "ar-SY-AmanyNeural",
-} as const;
+const MAX_CHARS = 200;
+const CACHE_DIR = path.join(process.cwd(), "public", "tts");
 
 function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
-type TtsRequest = { prepared: PreparedTts; lang: string; voiceHint: string };
-
-function parseRequest(
-  req: NextRequest,
-  body?: { text?: string; lang?: string; voice?: string },
-): TtsRequest | NextResponse {
-  const textRaw = (body?.text ?? req.nextUrl.searchParams.get("text") ?? "").trim();
-  const lang = (body?.lang ?? req.nextUrl.searchParams.get("lang") ?? "ar").trim() || "ar";
-  const voiceHint = (body?.voice ?? req.nextUrl.searchParams.get("voice") ?? "").trim().toLowerCase();
-
-  if (!textRaw) return badRequest("Missing text");
-  if (textRaw.length > MAX_CHARS) return badRequest(`Text too long (max ${MAX_CHARS} chars)`);
-
-  return { prepared: prepareArabicForTts(textRaw), lang, voiceHint };
+function hashVoiceText(voiceId: string, text: string): string {
+  return createHash("sha256").update(`${voiceId}_${text}`).digest("hex");
 }
 
-/**
- * Provider order (production):
- * 1. Azure Neural with IPA phonemes for short drills
- * 2. Google Cloud WaveNet
- * 3. OpenAI
- * 4. Edge neural (expanded spoken form for drills)
- * 5. Google Translate TTS
- */
+async function ensureCacheDir() {
+  await fs.mkdir(CACHE_DIR, { recursive: true });
+}
+
+function cachePath(hash: string) {
+  return path.join(CACHE_DIR, `${hash}.mp3`);
+}
+
 export async function GET(req: NextRequest) {
-  return handleTts(req);
+  const text = (req.nextUrl.searchParams.get("text") ?? "").trim();
+  if (!text) return badRequest("Missing text");
+  if (text.length > MAX_CHARS) return badRequest(`Text too long (max ${MAX_CHARS} chars)`);
+
+  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
+  const voiceId = process.env.ELEVENLABS_VOICE_ID?.trim();
+
+  if (!apiKey || !voiceId) {
+    console.error("[TTS] Missing ElevenLabs env keys");
+    return NextResponse.json(
+      {
+        error: "ElevenLabs is not configured",
+        detail: "Set ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID in .env.local, then restart.",
+      },
+      { status: 503 },
+    );
+  }
+
+  const hash = hashVoiceText(voiceId, text);
+  const file = cachePath(hash);
+
+  try {
+    await ensureCacheDir();
+    const cached = await fs.readFile(file);
+    console.log("[TTS] Cache hit", hash.slice(0, 10));
+    return audioResponse(cached, "hit", hash);
+  } catch {
+    /* miss */
+  }
+
+  console.log("[TTS] Requesting ElevenLabs audio for:", text, "with voiceId:", voiceId);
+
+  try {
+    const bytes = await synthesizeElevenLabs(text, apiKey, voiceId);
+    await fs.writeFile(file, Buffer.from(bytes));
+    return audioResponse(Buffer.from(bytes), "miss", hash);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[TTS] ElevenLabs failed:", message);
+    return NextResponse.json({ error: "ElevenLabs TTS failed", detail: message }, { status: 502 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  let body: { text?: string; lang?: string; voice?: string } = {};
+  let body: { text?: string } = {};
   try {
     body = (await req.json()) as typeof body;
   } catch {
     return badRequest("Invalid JSON body");
   }
-  return handleTts(req, body);
+  const url = req.nextUrl.clone();
+  url.searchParams.set("text", (body.text ?? "").trim());
+  return GET(new NextRequest(url, { method: "GET" }));
 }
 
-async function handleTts(
-  req: NextRequest,
-  body?: { text?: string; lang?: string; voice?: string },
-) {
-  const parsed = parseRequest(req, body);
-  if (parsed instanceof NextResponse) return parsed;
-
-  const { prepared, lang, voiceHint } = parsed;
-  const edgeVoice = pickEdgeVoice(lang, voiceHint);
-  const cacheKey = `${CACHE_VERSION}:${lang}:${edgeVoice}:${prepared.display}:${prepared.ipa ?? ""}`;
-  const hit = cache.get(cacheKey);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
-    return audioResponse(hit.bytes, hit.contentType, hit.provider, edgeVoice, prepared.display, "hit");
-  }
-
-  const errors: string[] = [];
-  const attempts: Array<() => Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }>> =
-    [];
-
-  if (process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION) {
-    attempts.push(() => synthesizeAzure(prepared, edgeVoice));
-  }
-  if (process.env.GOOGLE_TTS_API_KEY || process.env.GOOGLE_CLOUD_API_KEY) {
-    attempts.push(() => synthesizeGoogleCloud(prepared));
-  }
-  if (process.env.OPENAI_API_KEY) {
-    attempts.push(() => synthesizeOpenAI(prepared));
-  }
-  attempts.push(() => synthesizeEdgeNeural(prepared, edgeVoice));
-  attempts.push(() => synthesizeGoogleTranslate(prepared, lang));
-
-  let audio: { bytes: ArrayBuffer; contentType: string; provider: string } | null = null;
-
-  for (const attempt of attempts) {
-    try {
-      audio = await attempt();
-      break;
-    } catch (err) {
-      errors.push(err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  if (!audio) {
-    return NextResponse.json(
-      { error: "All TTS providers failed", detail: errors.slice(0, 3) },
-      { status: 502 },
-    );
-  }
-
-  cache.set(cacheKey, { ...audio, at: Date.now() });
-  return audioResponse(audio.bytes, audio.contentType, audio.provider, edgeVoice, prepared.display, "miss");
-}
-
-function audioResponse(
-  bytes: ArrayBuffer,
-  contentType: string,
-  provider: string,
-  voice: string,
-  text: string,
-  cacheStatus: string,
-) {
-  return new NextResponse(bytes, {
+function audioResponse(buf: Buffer, cacheStatus: "hit" | "miss", hash: string) {
+  return new NextResponse(new Uint8Array(buf), {
+    status: 200,
     headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=86400, immutable",
-      "X-TTS-Provider": provider,
-      "X-TTS-Voice": voice,
-      "X-TTS-Text": encodeURIComponent(text),
+      "Content-Type": "audio/mpeg",
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "X-TTS-Provider": "elevenlabs:eleven_multilingual_v2",
       "X-TTS-Cache": cacheStatus,
+      "X-TTS-Hash": hash,
     },
   });
 }
 
-function pickEdgeVoice(lang: string, hint: string): string {
-  const key = `${lang} ${hint}`.toLowerCase();
-  if (key.includes("eg") || key.includes("egypt") || key.includes("cairo")) {
-    return EDGE_VOICES.egyptian;
-  }
-  if (
-    key.includes("lev") ||
-    key.includes("sy") ||
-    key.includes("damasc") ||
-    key.includes("leb") ||
-    key.includes("beirut") ||
-    key.includes("jordan") ||
-    key.includes("amman")
-  ) {
-    return EDGE_VOICES.levantine;
-  }
-  if (hint === "male" || hint === "hamed") return EDGE_VOICES.msaMale;
-  return EDGE_VOICES.msa;
-}
-
-/**
- * Azure Neural — IPA phonemes for short drills (Microsoft ar-SA phone set),
- * plain Arabic for full words.
- */
-async function synthesizeAzure(
-  prepared: PreparedTts,
-  voiceName: string,
-): Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }> {
-  const key = process.env.AZURE_SPEECH_KEY!;
-  const region = process.env.AZURE_SPEECH_REGION!;
-  const locale = voiceName.split("-").slice(0, 2).join("-");
-  const rate = prepared.short ? "-25%" : "-8%";
-
-  let body: string;
-  if (prepared.ipa) {
-    const ph = `<phoneme alphabet="ipa" ph="${escapeXml(prepared.ipa)}">${escapeXml(prepared.spoken)}</phoneme>`;
-    // Repeat short drills; for longer words still echo once so final vowels aren't clipped by pause-form
-    body = prepared.short
-      ? `${ph}<break time="300ms"/>${ph}<break time="140ms"/>`
-      : `${ph}<break time="180ms"/>`;
-  } else if (prepared.short) {
-    body = `${escapeXml(prepared.spoken)}<break time="280ms"/>`;
-  } else {
-    body = `${escapeXml(prepared.spoken)}<break time="140ms"/>`;
-  }
-
-  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="${locale}">
-  <voice name="${voiceName}">
-    <prosody rate="${rate}">${body}</prosody>
-  </voice>
-</speak>`;
-
-  const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+async function synthesizeElevenLabs(
+  text: string,
+  apiKey: string,
+  voiceId: string,
+): Promise<ArrayBuffer> {
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: "POST",
     headers: {
-      "Ocp-Apim-Subscription-Key": key,
-      "Content-Type": "application/ssml+xml",
-      "X-Microsoft-OutputFormat": "audio-24khz-96kbitrate-mono-mp3",
-      "User-Agent": "NawaArabicMVP",
-    },
-    body: ssml,
-  });
-
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`Azure TTS ${res.status}: ${detail.slice(0, 200)}`);
-  }
-
-  const bytes = await res.arrayBuffer();
-  if (bytes.byteLength < 200) throw new Error("Azure TTS empty audio");
-
-  return {
-    bytes,
-    contentType: "audio/mpeg",
-    provider: prepared.ipa
-      ? `azure-ipa:${voiceName}`
-      : `azure-neural:${voiceName}`,
-  };
-}
-
-async function synthesizeGoogleCloud(
-  prepared: PreparedTts,
-): Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }> {
-  const apiKey = process.env.GOOGLE_TTS_API_KEY || process.env.GOOGLE_CLOUD_API_KEY;
-  if (!apiKey) throw new Error("Missing GOOGLE_TTS_API_KEY");
-
-  const spoken = prepared.short ? `${prepared.spoken} ${prepared.spoken}` : prepared.display;
-
-  const res = await fetch(
-    `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        input: { text: spoken },
-        voice: {
-          languageCode: "ar-XA",
-          name: process.env.GOOGLE_TTS_VOICE || "ar-XA-Wavenet-B",
-        },
-        audioConfig: {
-          audioEncoding: "MP3",
-          speakingRate: prepared.short ? 0.75 : 0.9,
-          pitch: 0,
-        },
-      }),
-    },
-  );
-
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(`Google Cloud TTS ${res.status}: ${detail.slice(0, 200)}`);
-  }
-
-  const json = (await res.json()) as { audioContent?: string };
-  if (!json.audioContent) throw new Error("Google Cloud TTS missing audioContent");
-
-  const bytes = Buffer.from(json.audioContent, "base64");
-  return {
-    bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
-    contentType: "audio/mpeg",
-    provider: "google-wavenet:ar-XA-Wavenet-B",
-  };
-}
-
-async function synthesizeOpenAI(
-  prepared: PreparedTts,
-): Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }> {
-  const input = prepared.short ? `${prepared.spoken}… ${prepared.spoken}` : prepared.display;
-
-  const res = await fetch("https://api.openai.com/v1/audio/speech", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      "xi-api-key": apiKey,
       "Content-Type": "application/json",
+      Accept: "audio/mpeg",
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini-tts",
-      voice: "coral",
-      input,
-      instructions:
-        "Speak Modern Standard Arabic only. Pronounce the Arabic exactly. Emphatic ص ط ض ظ must sound darker than س ت د ذ. Throat letters ع ح خ غ must be distinct. Never say English letter names.",
-      response_format: "mp3",
-      speed: prepared.short ? 0.8 : 0.9,
+      text,
+      model_id: "eleven_multilingual_v2",
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.8,
+      },
     }),
   });
 
   if (!res.ok) {
-    const fallback = await fetch("https://api.openai.com/v1/audio/speech", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "tts-1-hd",
-        voice: "nova",
-        input,
-        response_format: "mp3",
-        speed: 0.85,
-      }),
-    });
-    if (!fallback.ok) {
-      const detail = await res.text();
-      throw new Error(`OpenAI TTS ${res.status}: ${detail.slice(0, 200)}`);
-    }
-    return {
-      bytes: await fallback.arrayBuffer(),
-      contentType: "audio/mpeg",
-      provider: "openai-hd",
-    };
+    const detail = await res.text();
+    throw new Error(`ElevenLabs ${res.status}: ${detail.slice(0, 240)}`);
   }
 
-  return {
-    bytes: await res.arrayBuffer(),
-    contentType: "audio/mpeg",
-    provider: "openai-gpt4o-mini-tts",
-  };
-}
-
-async function synthesizeEdgeNeural(
-  prepared: PreparedTts,
-  voiceName: string,
-): Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }> {
-  const spoken = prepared.short ? `${prepared.spoken}، ${prepared.spoken}` : prepared.display;
-  const chunks: Buffer[] = [];
-  const communicate = new Communicate(spoken, {
-    voice: voiceName,
-    rate: prepared.short ? "-20%" : "-8%",
-    pitch: "+0Hz",
-    volume: "+0%",
-  });
-
-  for await (const chunk of communicate.stream()) {
-    if (chunk.type === "audio" && chunk.data) {
-      chunks.push(Buffer.from(chunk.data));
-    }
-  }
-
-  const buf = Buffer.concat(chunks);
-  if (buf.byteLength < 200) throw new Error("Edge TTS empty audio");
-
-  return {
-    bytes: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength),
-    contentType: "audio/mpeg",
-    provider: `edge-neural:${voiceName}`,
-  };
-}
-
-async function synthesizeGoogleTranslate(
-  prepared: PreparedTts,
-  lang: string,
-): Promise<{ bytes: ArrayBuffer; contentType: string; provider: string }> {
-  const tl = lang.startsWith("ar") ? "ar" : lang;
-  const q = prepared.short ? `${prepared.spoken} ${prepared.spoken}` : prepared.display;
-  const url = new URL("https://translate.google.com/translate_tts");
-  url.searchParams.set("ie", "UTF-8");
-  url.searchParams.set("client", "tw-ob");
-  url.searchParams.set("tl", tl);
-  url.searchParams.set("q", q);
-
-  const res = await fetch(url.toString(), {
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      Accept: "*/*",
-      Referer: "https://translate.google.com/",
-    },
-  });
-
-  if (!res.ok) throw new Error(`Google TTS error ${res.status}`);
   const bytes = await res.arrayBuffer();
-  if (bytes.byteLength < 200) throw new Error("Google TTS returned empty audio");
-
-  return { bytes, contentType: "audio/mpeg", provider: "gtts" };
-}
-
-function escapeXml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+  if (bytes.byteLength < 200) throw new Error("ElevenLabs empty audio");
+  return bytes;
 }

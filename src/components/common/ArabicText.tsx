@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { stripDiacritics } from "@/lib/arabic-utils";
 import { useNawaStore } from "@/store/nawa-store";
+import { Fragment } from "react";
 
 type ArabicTextProps = {
   children: string;
@@ -27,6 +28,7 @@ const SIZE: Record<Exclude<ArabicTextProps["size"], undefined>, string> = {
 
 /**
  * Dedicated Arabic typography — Naskh, large defaults, loose leading for diacritics.
+ * Underscores (`_`) render as a clear blank slot for ShapeSlide fill-ins.
  */
 export function ArabicText({
   children,
@@ -37,6 +39,7 @@ export function ArabicText({
 }: ArabicTextProps) {
   const mode = useNawaStore((s) => s.tashkeelMode);
   const text = forceFull ? children : stripDiacritics(children, mode);
+  const hasBlank = text.includes("_");
 
   return (
     <Tag
@@ -48,7 +51,21 @@ export function ArabicText({
         className,
       )}
     >
-      {text}
+      {hasBlank
+        ? text.split("").map((ch, i) =>
+            ch === "_" ? (
+              <span
+                key={`blank-${i}`}
+                className="mx-0.5 inline-block min-w-[0.65em] border-b-2 border-amber-300/90 pb-0.5 text-center font-sans text-[0.85em] leading-none text-amber-200/90"
+                aria-label="blank"
+              >
+                _
+              </span>
+            ) : (
+              <Fragment key={`c-${i}`}>{ch}</Fragment>
+            ),
+          )
+        : text}
     </Tag>
   );
 }

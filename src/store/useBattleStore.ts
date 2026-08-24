@@ -2,679 +2,749 @@
 
 import { create } from "zustand";
 import {
-  COMBAT_PATTERNS,
-  COMBAT_ROOTS,
-  catalogRootId,
-  type CombatPattern,
-  type CombatRoot,
-  type ValidSpell,
+  FLAME_BURN_RATIO,
+  FLAME_BURN_TICKS,
+  getWordCard,
+  getWordCards,
+  syntaxMultiplier,
+  type ElementSchool,
+  type WordCard,
 } from "@/data/combatDictionary";
-import {
-  TUTORIAL_OPENING_INTENT,
-  TUTORIAL_PATTERNS,
-  TUTORIAL_ROOTS,
-  TUTORIAL_SECOND_WARD,
-  TUTORIAL_TARGET_WARD,
-  findTutorialSpell,
-  type EnemyIntent,
-} from "@/data/tutorialDeck";
-import {
-  BATTLE_WIN_HIBR,
-  RUST_DAMAGE_MULT,
-  STAGGER_DAMAGE_MULT,
-  WARD_CHIP_DAMAGE,
-  dealWardEncounter,
-  findSpell,
-  type Ward,
-} from "@/lib/wardDealer";
-import type { MasteryLevel } from "@/types/app-progress";
+import { type CombatState, delay, RESONANCE_CRIT_MULT } from "@/lib/combatPacing";
+import { validateSyntax } from "@/lib/syntax";
+import { findSemanticPair, generateNaturalTranslation } from "@/utils/grammarEngine";
 
-export type MasteryMap = Record<string, MasteryLevel>;
+/**
+ * Deal up to `count` cards, guaranteeing at least one noun↔modifier semantic pair when possible.
+ */
+function dealGuidedHand(
+  poolIds: string[],
+  count: number,
+): { handIds: string[]; restIds: string[] } {
+  const pool = shuffle([...poolIds]);
+  const n = Math.min(count, pool.length);
+  if (n <= 0) return { handIds: [], restIds: pool };
 
-export type LoadedForge = {
-  root: CombatRoot;
-  pattern: CombatPattern;
-  spell: ValidSpell | null;
+  const cards = getWordCards(pool);
+  const pair = findSemanticPair(cards);
+
+  const handIds: string[] = [];
+  const used = new Set<string>();
+
+  if (pair && n >= 2) {
+    handIds.push(pair.noun.id, pair.partner.id);
+    used.add(pair.noun.id);
+    used.add(pair.partner.id);
+  }
+
+  for (const id of pool) {
+    if (handIds.length >= n) break;
+    if (used.has(id)) continue;
+    handIds.push(id);
+    used.add(id);
+  }
+
+  const restIds = pool.filter((id) => !used.has(id));
+  // Keep deal order slightly shuffled so the pair isn’t always first two slots
+  return { handIds: shuffle(handIds), restIds };
+}
+
+export type EnemyIntent = {
+  kind: "heavy-strike" | "probe" | "ward-shield";
+  label: string;
+  damage: number;
+  turnsUntil: number;
+  icon: "sword" | "shield" | "eye";
 };
 
-export type CastResult = {
-  ok: boolean;
-  error?: string;
-  kind?: "ward-shatter" | "stagger-hit" | "fizzle" | "miss";
-  damage?: number;
-  english?: string;
-  arabic?: string;
-  wardId?: string;
+export type CastResultKind = "hit" | "syntax-fail" | "shield-break" | "fizzle" | "block";
+
+export type LastCastResult = {
+  kind: CastResultKind;
+  arabic: string;
+  english: string;
+  damage: number;
+  multiplier: number;
+  schools: ElementSchool[];
+  /** True when Resonance Check scored a Critical Strike */
+  critical?: boolean;
 };
 
-export type TurnBanner = {
-  id: number;
-  title: string;
-  detail: string;
-  tone: "enemy" | "player" | "system";
-};
+/** Battle-turn Ink (حِبْر) — spent to play cards / redraw; refills each turn. */
+export const MAX_BATTLE_INK = 5;
+export const CARD_INK_COST = 1;
+export const REDRAW_INK_COST = 1;
 
-type BattleState = {
+type BattleStore = {
   started: boolean;
   victory: boolean;
   defeat: boolean;
-  isTutorialEncounter: boolean;
-
+  combatState: CombatState;
+  /** Pending sentence awaiting Resonance Check before resolveTurn */
+  pendingCastCards: WordCard[];
+  isCriticalStrike: boolean;
   playerHp: number;
   playerMaxHp: number;
+  playerShield: number;
   enemyHp: number;
   enemyMaxHp: number;
   enemyName: string;
   enemyNameAr: string;
   enemyIntent: EnemyIntent | null;
-
+  enemyShield: number;
+  burnTicks: number;
+  burnDamage: number;
+  frostSkip: boolean;
+  weakTo: ElementSchool | null;
+  ink: number;
   maxInk: number;
-  currentInk: number;
-
-  wards: Ward[];
-  isStaggered: boolean;
-
-  handRoots: CombatRoot[];
-  handPatterns: CombatPattern[];
-  selectedRootId: string | null;
-  loaded: LoadedForge | null;
-
-  masteryByWordId: MasteryMap;
-  tafsirHalvedRoots: string[];
+  hand: WordCard[];
+  deckPool: string[];
+  currentSentence: WordCard[];
+  syntaxValid: boolean;
+  syntaxError: string | null;
+  log: string[];
+  lastResult: LastCastResult | null;
+  lastEnemyHit: number | null;
+  turnBanner: {
+    id: number;
+    title: string;
+    detail: string;
+    tone: "player" | "enemy" | "system";
+  } | null;
+  screenShake: boolean;
+  hibrAwarded: number | null;
   rustActive: boolean;
 
-  recentRootIds: string[];
-  log: string[];
-  lastResult: CastResult | null;
-  screenShake: number;
-  hibrAwarded: number | null;
-  turnBanner: TurnBanner | null;
-
-  tutorialMode: boolean;
-  tutorialStep: number;
-
   startEncounter: (opts: {
-    vocab: Array<{ rootId: string; patternId: string }>;
-    masteryByWordId: MasteryMap;
-    rustActive: boolean;
-    withTutorial?: boolean;
+    deck: string[];
+    rustActive?: boolean;
   }) => { ok: boolean; error?: string };
-  selectRoot: (rootInstanceId: string) => void;
-  selectPattern: (patternId: string) => void;
-  clearLoaded: () => void;
-  castLoaded: () => CastResult;
-  revealTafsir: (rootId: string) => void;
-  enemyTurn: () => void;
   resetBattle: () => void;
+  drawHand: (count?: number) => void;
+  playCard: (cardId: string) => { ok: boolean; error?: string };
+  removeFromSentence: (index: number) => void;
+  clearSentence: () => void;
+  redrawHand: () => { ok: boolean; error?: string };
+  castSentence: () => { ok: boolean; error?: string };
+  /** Answer the Resonance Check; resumes combat into player_attacking */
+  resolveResonance: (success: boolean) => void;
+  resolveTurn: (cards: WordCard[]) => Promise<void>;
   clearLastResult: () => void;
   clearTurnBanner: () => void;
-  startTutorial: () => void;
-  advanceTutorial: () => void;
-  skipTutorial: () => void;
-  redrawHand: () => { ok: boolean; error?: string };
-  flickInk: () => { ok: boolean; error?: string; damage?: number };
 };
 
-export const TUTORIAL_STORAGE_KEY = "nawa-ward-tutorial-v2";
-export const TUTORIAL_STEP_COUNT = 4;
-
-function markTutorialDone() {
-  try {
-    localStorage.setItem(TUTORIAL_STORAGE_KEY, "1");
-  } catch {
-    /* ignore */
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j]!, a[i]!];
   }
+  return a;
 }
 
-function stampRoot(root: CombatRoot, i: number): CombatRoot {
-  return { ...root, id: `${root.id}-${i}-${Math.random().toString(36).slice(2, 6)}` };
+function sumBase(cards: WordCard[]): number {
+  return cards.reduce((n, c) => n + c.basePower, 0);
 }
 
-function masteryFor(map: MasteryMap, rootId: string, patternId: string): MasteryLevel {
-  return map[`${rootId}:${patternId}`] ?? 1;
-}
+function applyElemental(
+  schools: ElementSchool[],
+  damage: number,
+  state: {
+    enemyShield: number;
+    burnTicks: number;
+    burnDamage: number;
+    frostSkip: boolean;
+    playerShield: number;
+  },
+): {
+  enemyShield: number;
+  burnTicks: number;
+  burnDamage: number;
+  frostSkip: boolean;
+  playerShield: number;
+  pierce: boolean;
+  logs: string[];
+} {
+  const logs: string[] = [];
+  let { enemyShield, burnTicks, burnDamage, frostSkip, playerShield } = state;
+  let pierce = false;
 
-function resolveSpell(
-  rootId: string,
-  patternId: string,
-  isTutorialEncounter: boolean,
-): ValidSpell | null {
-  if (isTutorialEncounter) {
-    return findTutorialSpell(rootId, patternId) ?? findSpell(rootId, patternId);
+  for (const school of [...new Set(schools)]) {
+    if (school === "FLAME") {
+      burnTicks = FLAME_BURN_TICKS;
+      burnDamage = Math.max(2, Math.round(damage * FLAME_BURN_RATIO));
+      logs.push(`Flame Burn: ${burnDamage} dmg × ${burnTicks} turns`);
+    }
+    if (school === "FROST") {
+      const gain = Math.max(18, Math.round(damage * 1.1));
+      playerShield += gain;
+      frostSkip = false;
+      logs.push(`Frost Ward: +${gain} player shield`);
+    }
+    if (school === "MIND") {
+      pierce = true;
+      if (enemyShield > 0) {
+        logs.push(`Mind: pierced shield (${enemyShield} → 0)`);
+        enemyShield = 0;
+      } else {
+        logs.push("Mind: intent revealed");
+      }
+    }
+    if (school === "KINETIC") {
+      logs.push("Kinetic: raw force");
+    }
   }
-  return findSpell(rootId, patternId);
+
+  return {
+    enemyShield,
+    burnTicks,
+    burnDamage,
+    frostSkip,
+    playerShield,
+    pierce,
+    logs,
+  };
 }
 
-function nextIntent(prev: EnemyIntent | null, isStaggered: boolean): EnemyIntent {
-  if (isStaggered) {
-    return {
-      kind: "probe",
-      label: "Weakened Probe",
-      damage: 6,
-      turnsUntil: 1,
-      icon: "eye",
-    };
-  }
-  const cycle: EnemyIntent[] = [
-    {
-      kind: "heavy-strike",
-      label: "Preparing Heavy Strike",
-      damage: 20,
-      turnsUntil: 1,
-      icon: "sword",
-    },
-    {
-      kind: "ward-shield",
-      label: "Channeling Ward Shield",
-      damage: 0,
-      turnsUntil: 2,
-      icon: "shield",
-    },
-    {
-      kind: "probe",
-      label: "Scanning Weaknesses",
-      damage: 10,
-      turnsUntil: 1,
-      icon: "eye",
-    },
-  ];
-  if (!prev) return cycle[0]!;
-  const idx = cycle.findIndex((c) => c.kind === prev.kind);
-  return cycle[(idx + 1) % cycle.length]!;
-}
-
-let bannerSeq = 0;
-
-export const useBattleStore = create<BattleState>((set, get) => ({
+const initialBattle = {
   started: false,
   victory: false,
   defeat: false,
-  isTutorialEncounter: false,
+  combatState: "idle" as CombatState,
+  pendingCastCards: [] as WordCard[],
+  isCriticalStrike: false,
   playerHp: 40,
   playerMaxHp: 40,
-  enemyHp: 60,
-  enemyMaxHp: 60,
+  playerShield: 0,
+  enemyHp: 70,
+  enemyMaxHp: 70,
   enemyName: "Shadow of Ignorance",
   enemyNameAr: "ظِلُّ الْجَهْل",
-  enemyIntent: null,
-  maxInk: 10,
-  currentInk: 10,
-  wards: [],
-  isStaggered: false,
-  handRoots: [],
-  handPatterns: [],
-  selectedRootId: null,
-  loaded: null,
-  masteryByWordId: {},
-  tafsirHalvedRoots: [],
+  enemyIntent: null as EnemyIntent | null,
+  enemyShield: 0,
+  burnTicks: 0,
+  burnDamage: 0,
+  frostSkip: false,
+  weakTo: null as ElementSchool | null,
+  ink: MAX_BATTLE_INK,
+  maxInk: MAX_BATTLE_INK,
+  hand: [] as WordCard[],
+  deckPool: [] as string[],
+  currentSentence: [] as WordCard[],
+  syntaxValid: true,
+  syntaxError: null as string | null,
+  log: [] as string[],
+  lastResult: null as LastCastResult | null,
+  lastEnemyHit: null as number | null,
+  turnBanner: null as BattleStore["turnBanner"],
+  screenShake: false,
+  hibrAwarded: null as number | null,
   rustActive: false,
-  recentRootIds: [],
-  log: [],
-  lastResult: null,
-  screenShake: 0,
-  hibrAwarded: null,
-  turnBanner: null,
-  tutorialMode: false,
-  tutorialStep: 0,
+};
 
-  startEncounter: ({ vocab, masteryByWordId, rustActive, withTutorial }) => {
-    if (withTutorial) {
-      const roots = TUTORIAL_ROOTS.map((r, i) => stampRoot(r, i));
-      const wards = [
-        { ...TUTORIAL_TARGET_WARD },
-        { ...TUTORIAL_SECOND_WARD },
-      ];
-      set({
-        started: true,
-        victory: false,
-        defeat: false,
-        isTutorialEncounter: true,
-        playerHp: 40,
-        playerMaxHp: 40,
-        enemyHp: 80,
-        enemyMaxHp: 80,
-        enemyName: "Shadow of Ignorance",
-        enemyNameAr: "ظِلُّ الْجَهْل",
-        enemyIntent: { ...TUTORIAL_OPENING_INTENT },
-        maxInk: 10,
-        currentInk: 10,
-        wards,
-        isStaggered: false,
-        handRoots: roots,
-        handPatterns: [...TUTORIAL_PATTERNS],
-        selectedRootId: null,
-        loaded: null,
-        masteryByWordId: {
-          ...masteryByWordId,
-          // Force one Level-3 card so Tafsīr step is demonstrable
-          "slm:form-1": 3,
-          "drs:noun-of-place": 1,
-          "drb:form-1": 1,
-        },
-        tafsirHalvedRoots: [],
-        rustActive: false,
-        log: [
-          "Tutorial deck loaded — powerful roots ready.",
-          "Enemy raised Concept Locks. Study their intent badge above.",
-        ],
-        lastResult: null,
-        screenShake: 0,
-        hibrAwarded: null,
-        turnBanner: null,
-        tutorialMode: true,
-        tutorialStep: 0,
-      });
-      return { ok: true };
+let bannerId = 0;
+let resolveLock = false;
+
+export const useBattleStore = create<BattleStore>((set, get) => ({
+  ...initialBattle,
+
+  startEncounter: ({ deck, rustActive = false }) => {
+    const unique = [...new Set(deck)].filter((id) => getWordCard(id));
+    if (unique.length === 0) {
+      return { ok: false, error: "Forge Word Cards on the Learning Path first." };
     }
 
-    const dealt = dealWardEncounter(vocab, get().recentRootIds);
-    if (dealt.wards.length === 0) {
-      return {
-        ok: false,
-        error: "No words in your Arena deck yet — finish a Learning Path stop to unlock some.",
-      };
-    }
+    const pool = shuffle(unique);
+    const { handIds, restIds } = dealGuidedHand(pool, Math.min(5, pool.length));
 
-    const roots = dealt.rootIds
-      .map((id, i) => {
-        const base = COMBAT_ROOTS.find((r) => r.id === id);
-        return base ? stampRoot(base, i) : null;
-      })
-      .filter((r): r is CombatRoot => !!r);
-
-    const patterns = dealt.patternIds
-      .map((id) => COMBAT_PATTERNS.find((p) => p.id === id))
-      .filter((p): p is CombatPattern => !!p);
-
+    resolveLock = false;
     set({
+      ...initialBattle,
       started: true,
-      victory: false,
-      defeat: false,
-      isTutorialEncounter: false,
-      playerHp: 40,
-      playerMaxHp: 40,
-      enemyHp: 60,
-      enemyMaxHp: 60,
-      enemyIntent: nextIntent(null, false),
-      maxInk: 10,
-      currentInk: 10,
-      wards: dealt.wards,
-      isStaggered: false,
-      handRoots: roots,
-      handPatterns: patterns.length ? patterns : COMBAT_PATTERNS.slice(0, 3),
-      selectedRootId: null,
-      loaded: null,
-      masteryByWordId,
-      tafsirHalvedRoots: [],
+      combatState: "idle",
       rustActive,
-      log: [
-        "Enemy raised Concept Locks — shatter every English Ward.",
-        rustActive ? "Rust debuff active — overdue reviews weaken your strikes." : "",
-      ].filter(Boolean),
-      lastResult: null,
-      screenShake: 0,
-      hibrAwarded: null,
-      turnBanner: null,
-      tutorialMode: false,
-      tutorialStep: 0,
+      deckPool: restIds,
+      hand: getWordCards(handIds),
+      enemyShield: unique.length >= 4 ? 18 : 0,
+      weakTo: "FLAME",
+      enemyIntent: {
+        kind: "heavy-strike",
+        label: "Preparing Heavy Strike",
+        damage: 14,
+        turnsUntil: 1,
+        icon: "sword",
+      },
+      log: ["Battle start — chain Word Cards into a sentence, then Cast."],
+      turnBanner: {
+        id: ++bannerId,
+        title: "Your turn",
+        detail: "Build a sentence in the Syntax Bar",
+        tone: "player",
+      },
     });
     return { ok: true };
   },
 
-  selectRoot: (rootInstanceId) => {
-    const { handRoots, started, victory, defeat } = get();
-    if (!started || victory || defeat) return;
-    if (!handRoots.some((r) => r.id === rootInstanceId)) return;
-    set({ selectedRootId: rootInstanceId, loaded: null });
+  resetBattle: () => {
+    resolveLock = false;
+    set({ ...initialBattle });
   },
 
-  selectPattern: (patternId) => {
-    const {
-      selectedRootId,
-      handRoots,
-      handPatterns,
-      started,
-      victory,
-      defeat,
-      isTutorialEncounter,
-    } = get();
-    if (!started || victory || defeat || !selectedRootId) return;
-    const root = handRoots.find((r) => r.id === selectedRootId);
-    const pattern = handPatterns.find((p) => p.id === patternId);
-    if (!root || !pattern) return;
-    const spell = resolveSpell(catalogRootId(root.id), pattern.id, isTutorialEncounter);
+  drawHand: (count = 5) => {
+    const { deckPool, hand } = get();
+    const need = Math.max(0, count - hand.length);
+    if (need === 0 || deckPool.length === 0) return;
+    // When refilling a whole hand, use guided deal; otherwise top up randomly
+    if (hand.length === 0) {
+      const { handIds, restIds } = dealGuidedHand(deckPool, need);
+      set({
+        hand: getWordCards(handIds),
+        deckPool: restIds,
+      });
+      return;
+    }
+    const take = deckPool.slice(0, need);
+    const rest = deckPool.slice(need);
     set({
-      loaded: { root, pattern, spell },
-      selectedRootId: null,
+      hand: [...hand, ...getWordCards(take)],
+      deckPool: rest,
     });
   },
 
-  clearLoaded: () => set({ loaded: null, selectedRootId: null }),
+  playCard: (cardId) => {
+    const { hand, currentSentence, victory, defeat, ink, combatState } = get();
+    if (victory || defeat) return { ok: false, error: "Battle over." };
+    if (combatState !== "idle") return { ok: false, error: "Wait for combat to resolve." };
+    const idx = hand.findIndex((c) => c.id === cardId);
+    if (idx < 0) return { ok: false, error: "Card not in hand." };
+    if (currentSentence.length >= 4) return { ok: false, error: "Syntax chamber full." };
+    if (ink < CARD_INK_COST) return { ok: false, error: "Not enough Ink." };
+    const card = hand[idx]!;
+    const nextHand = [...hand];
+    nextHand.splice(idx, 1);
+    const nextSentence = [...currentSentence, card];
+    const syntax = validateSyntax(nextSentence);
+    set({
+      hand: nextHand,
+      currentSentence: nextSentence,
+      ink: ink - CARD_INK_COST,
+      syntaxValid: syntax.ok,
+      syntaxError: syntax.error ?? null,
+    });
+    return { ok: true };
+  },
 
-  castLoaded: () => {
-    const state = get();
-    const { loaded, wards, isStaggered, tafsirHalvedRoots, rustActive, tutorialMode, tutorialStep } =
-      state;
-    if (!loaded) {
-      return { ok: false, error: "Forge a word first (Root → Pattern)." };
+  removeFromSentence: (index) => {
+    const { currentSentence, hand, ink, maxInk, combatState } = get();
+    if (combatState !== "idle") return;
+    const card = currentSentence[index];
+    if (!card) return;
+    const nextSentence = currentSentence.filter((_, i) => i !== index);
+    const syntax = validateSyntax(nextSentence);
+    set({
+      currentSentence: nextSentence,
+      hand: [...hand, card],
+      ink: Math.min(maxInk, ink + CARD_INK_COST),
+      syntaxValid: nextSentence.length === 0 ? true : syntax.ok,
+      syntaxError: nextSentence.length === 0 ? null : (syntax.error ?? null),
+    });
+  },
+
+  clearSentence: () => {
+    const { currentSentence, hand, ink, maxInk, combatState } = get();
+    if (combatState !== "idle") return;
+    const refund = currentSentence.length * CARD_INK_COST;
+    set({
+      hand: [...hand, ...currentSentence],
+      currentSentence: [],
+      ink: Math.min(maxInk, ink + refund),
+      syntaxValid: true,
+      syntaxError: null,
+    });
+  },
+
+  redrawHand: () => {
+    const s = get();
+    if (!s.started || s.victory || s.defeat) return { ok: false, error: "Not in battle." };
+    if (s.combatState !== "idle") return { ok: false, error: "Wait for combat to resolve." };
+    if (s.ink < REDRAW_INK_COST) return { ok: false, error: "Not enough Ink to redraw." };
+
+    const returned = [
+      ...s.hand.map((c) => c.id),
+      ...s.currentSentence.map((c) => c.id),
+      ...s.deckPool,
+    ];
+    const pool = shuffle(returned);
+    const { handIds, restIds } = dealGuidedHand(pool, Math.min(5, pool.length));
+    set({
+      ink: s.ink - REDRAW_INK_COST,
+      hand: getWordCards(handIds),
+      deckPool: restIds,
+      currentSentence: [],
+      syntaxValid: true,
+      syntaxError: null,
+      log: [...s.log, `Redraw (−${REDRAW_INK_COST} Ink)`].slice(-24),
+    });
+    return { ok: true };
+  },
+
+  castSentence: () => {
+    const s = get();
+    if (!s.started || s.victory || s.defeat) return { ok: false, error: "Not in battle." };
+    if (s.combatState !== "idle" || resolveLock) {
+      return { ok: false, error: "Combat is resolving." };
+    }
+    if (s.currentSentence.length === 0) {
+      return { ok: false, error: "Play cards into the Syntax Bar." };
     }
 
-    const rootId = catalogRootId(loaded.root.id);
-    const spell = loaded.spell;
-
-    if (!spell) {
-      const result: CastResult = {
-        ok: true,
-        kind: "fizzle",
-        damage: 0,
-        arabic: "؟؟؟",
-        english: "Invalid morphology",
-      };
+    const cards = [...s.currentSentence];
+    const syntax = validateSyntax(cards);
+    if (!syntax.ok) {
       set({
-        loaded: null,
-        lastResult: result,
-        log: [...state.log, "Fizzle — that root×pattern is not a real weave."].slice(-24),
+        syntaxValid: false,
+        syntaxError: syntax.error ?? "Invalid grammar",
+        lastResult: {
+          kind: "syntax-fail",
+          arabic: cards.map((c) => c.word).join(" "),
+          english: syntax.error ?? "Broken chain",
+          damage: 0,
+          multiplier: 0,
+          schools: cards.map((c) => c.school),
+        },
+        screenShake: true,
+        log: [...s.log, `Syntax fail — ${syntax.error}`].slice(-24),
       });
-      queueMicrotask(() => get().enemyTurn());
-      return result;
+      window.setTimeout(() => set({ screenShake: false }), 400);
+      return { ok: false, error: syntax.error };
     }
 
-    const matchingWard = wards.find(
-      (w) => !w.shattered && w.rootId === spell.root && w.patternId === spell.pattern,
-    );
+    set({
+      currentSentence: [],
+      syntaxValid: true,
+      syntaxError: null,
+      pendingCastCards: cards,
+      isCriticalStrike: false,
+      combatState: "resonance_check",
+      turnBanner: {
+        id: ++bannerId,
+        title: "Resonance Check",
+        detail: "Channel the meaning of your spell",
+        tone: "system",
+      },
+    });
+    return { ok: true };
+  },
 
-    let damage = 0;
-    let kind: CastResult["kind"] = "miss";
-    let wardId: string | undefined;
-    const nextWards = wards.map((w) => ({ ...w }));
+  resolveResonance: (success) => {
+    const s = get();
+    if (s.combatState !== "resonance_check" || s.pendingCastCards.length === 0) return;
+    const cards = [...s.pendingCastCards];
+    set({
+      isCriticalStrike: success,
+      pendingCastCards: [],
+      log: [
+        ...s.log,
+        success
+          ? "Resonance aligned — Critical Strike!"
+          : "Meaning slipped — base damage only.",
+      ].slice(-24),
+    });
+    void get().resolveTurn(cards);
+  },
 
-    if (matchingWard) {
-      kind = "ward-shatter";
-      wardId = matchingWard.id;
-      damage = WARD_CHIP_DAMAGE;
-      const idx = nextWards.findIndex((w) => w.id === matchingWard.id);
-      if (idx >= 0) nextWards[idx] = { ...nextWards[idx]!, shattered: true };
-    } else if (isStaggered) {
-      kind = "stagger-hit";
-      damage = Math.round(spell.baseValue * STAGGER_DAMAGE_MULT);
-    } else {
-      kind = "miss";
-      damage = Math.max(2, Math.round(spell.baseValue * 0.25));
+  resolveTurn: async (cards) => {
+    if (resolveLock) return;
+    resolveLock = true;
+
+    const s0 = get();
+    const mult = syntaxMultiplier(cards.length);
+    const crit = s0.isCriticalStrike;
+    const critMult = crit ? RESONANCE_CRIT_MULT : 1;
+    let base = sumBase(cards);
+    if (s0.rustActive) base = Math.round(base * 0.7);
+
+    const schools = cards.map((c) => c.school);
+    const arabic = cards.map((c) => c.word).join(" · ");
+    const english = generateNaturalTranslation(cards);
+
+    // Preview cast result before HP lands (for VFX)
+    let previewDamage = Math.round(base * mult * critMult);
+    if (s0.weakTo && schools.includes(s0.weakTo)) {
+      previewDamage = Math.round(previewDamage * 1.35);
     }
 
-    if (tafsirHalvedRoots.includes(rootId)) {
-      damage = Math.round(damage * 0.5);
-    }
-    if (rustActive) {
-      damage = Math.round(damage * RUST_DAMAGE_MULT);
+    set({
+      combatState: "player_attacking",
+      lastResult: {
+        kind: "hit",
+        arabic,
+        english,
+        damage: previewDamage,
+        multiplier: mult * critMult,
+        schools,
+        critical: crit,
+      },
+      turnBanner: {
+        id: ++bannerId,
+        title: crit ? "CRITICAL STRIKE!" : `${mult}× Combo!`,
+        detail: crit ? "Meaning channeled — full power" : "Spell in flight",
+        tone: "player",
+      },
+      lastEnemyHit: null,
+    });
+
+    await delay(1000);
+
+    const s = get();
+    if (!s.started) {
+      resolveLock = false;
+      set({ isCriticalStrike: false });
+      return;
     }
 
-    const allShattered = nextWards.every((w) => w.shattered);
-    const nowStaggered = allShattered;
-    const enemyHp = Math.max(0, state.enemyHp - damage);
+    const elemental = applyElemental(schools, Math.round(base * mult * critMult), {
+      enemyShield: s.enemyShield,
+      burnTicks: s.burnTicks,
+      burnDamage: s.burnDamage,
+      frostSkip: s.frostSkip,
+      playerShield: s.playerShield,
+    });
+
+    let damage = Math.round(base * mult * critMult);
+    if (s.weakTo && schools.includes(s.weakTo)) {
+      damage = Math.round(damage * 1.35);
+      elemental.logs.push(`Weakness (${s.weakTo}) ×1.35`);
+    }
+    if (crit) {
+      elemental.logs.push(`Critical Resonance ×${RESONANCE_CRIT_MULT}`);
+    }
+
+    let enemyShield = elemental.enemyShield;
+    let dealt = damage;
+    let kind: CastResultKind = "hit";
+
+    if (!elemental.pierce && enemyShield > 0) {
+      const absorbed = Math.min(enemyShield, damage);
+      enemyShield -= absorbed;
+      dealt = damage - absorbed;
+      if (dealt <= 0) {
+        kind = "shield-break";
+        dealt = 0;
+      }
+      elemental.logs.push(`Shield absorbed ${absorbed}`);
+    }
+
+    const enemyHp = Math.max(0, s.enemyHp - dealt);
     const victory = enemyHp <= 0;
 
-    const lines = [
-      kind === "ward-shatter"
-        ? `You shattered the ward “${matchingWard!.english}” (−${damage}).`
-        : kind === "stagger-hit"
-          ? `Stagger strike with ${spell.arabicWord} (−${damage}).`
-          : `Glance hit (−${damage}) — match a Ward for a full shatter.`,
-    ];
-    if (nowStaggered && !isStaggered) {
-      lines.push("All wards down — enemy is Staggered! Form I strikes hit critically.");
-    }
+    set({
+      enemyHp,
+      enemyShield,
+      burnTicks: elemental.burnTicks,
+      burnDamage: elemental.burnDamage,
+      frostSkip: elemental.frostSkip,
+      playerShield: elemental.playerShield,
+      lastResult: {
+        kind,
+        arabic,
+        english,
+        damage: dealt,
+        multiplier: mult * critMult,
+        schools,
+        critical: crit,
+      },
+      log: [
+        ...s.log,
+        `Cast (${mult}×${crit ? ` Crit×${RESONANCE_CRIT_MULT}` : ""}): ${arabic} → −${dealt}`,
+        ...elemental.logs,
+      ].slice(-24),
+      victory,
+      hibrAwarded: victory ? 25 + cards.length * 5 + (crit ? 10 : 0) : null,
+      screenShake: dealt > 0 || crit,
+      isCriticalStrike: false,
+    });
+    window.setTimeout(() => set({ screenShake: false }), crit ? 550 : 400);
+
     if (victory) {
-      lines.push(`Victory — earned ${BATTLE_WIN_HIBR} Hibr.`);
+      set({
+        combatState: "idle",
+        turnBanner: {
+          id: ++bannerId,
+          title: "Victory",
+          detail: "Sentence power wins",
+          tone: "player",
+        },
+      });
+      resolveLock = false;
+      return;
     }
 
-    let nextTutStep = tutorialStep;
-    if (tutorialMode) {
-      if (tutorialStep === 1 && kind === "ward-shatter" && spell.id.includes("noun-of-place")) {
-        nextTutStep = 2;
-      } else if (tutorialStep === 2 && (kind === "stagger-hit" || nowStaggered)) {
-        nextTutStep = 3;
+    // Burn tick between player strike and enemy turn
+    let nextBurn = get().burnTicks;
+    let nextHp = get().enemyHp;
+    const burnLogs: string[] = [];
+    if (nextBurn > 0 && get().burnDamage > 0) {
+      nextHp = Math.max(0, nextHp - get().burnDamage);
+      nextBurn -= 1;
+      burnLogs.push(`Burn tick −${get().burnDamage}`);
+      set({ enemyHp: nextHp, burnTicks: nextBurn });
+      if (nextHp <= 0) {
+        set({
+          victory: true,
+          hibrAwarded: 30,
+          combatState: "idle",
+          log: [...get().log, ...burnLogs, "Burn finished the enemy."].slice(-24),
+        });
+        resolveLock = false;
+        return;
       }
     }
 
-    const result: CastResult = {
-      ok: true,
-      kind,
-      damage,
-      english: spell.englishTranslation,
-      arabic: spell.arabicWord,
-      wardId,
-    };
+    const cur = get();
+    if (cur.frostSkip) {
+      set({
+        frostSkip: false,
+        ink: cur.maxInk,
+        combatState: "idle",
+        log: [...cur.log, ...burnLogs, "Enemy turn skipped (Frost).", "Ink restored."].slice(-24),
+        turnBanner: {
+          id: ++bannerId,
+          title: "Enemy delayed",
+          detail: "Frost holds them back",
+          tone: "system",
+        },
+      });
+      get().drawHand(5);
+      resolveLock = false;
+      return;
+    }
+
+    // Enemy turn transition banner
+    set({
+      combatState: "enemy_turn_transition",
+      turnBanner: {
+        id: ++bannerId,
+        title: "ENEMY TURN",
+        detail: cur.enemyIntent?.label ?? "Attack incoming",
+        tone: "enemy",
+      },
+    });
+    await delay(1500);
+
+    const livePre = get();
+    const intent = livePre.enemyIntent;
+    let rawHit = intent?.damage ?? 10;
+    let shieldPre = livePre.playerShield;
+    let blocked = false;
+    let finalHit = rawHit;
+    if (shieldPre > 0) {
+      const absorbed = Math.min(shieldPre, rawHit);
+      shieldPre -= absorbed;
+      finalHit = rawHit - absorbed;
+      blocked = absorbed > 0;
+    }
 
     set({
-      loaded: null,
-      wards: nextWards,
-      isStaggered: nowStaggered || isStaggered,
-      enemyHp,
-      victory,
-      lastResult: result,
-      recentRootIds: [...state.recentRootIds, rootId].slice(-8),
-      log: [...state.log, ...lines].slice(-24),
-      screenShake: kind === "ward-shatter" || kind === "stagger-hit" ? Date.now() : 0,
-      hibrAwarded: victory ? BATTLE_WIN_HIBR : null,
-      handRoots: state.handRoots.filter((r) => r.id !== loaded.root.id),
-      tutorialStep: nextTutStep,
+      combatState: "enemy_attacking",
+      lastEnemyHit: blocked && finalHit === 0 ? 0 : finalHit,
+    });
+    await delay(1000);
+
+    const live = get();
+    const playerHp = Math.max(0, live.playerHp - finalHit);
+    const defeat = playerHp <= 0;
+
+    const spentIds = cards.map((c) => c.id);
+    const pool = shuffle([
+      ...live.deckPool,
+      ...spentIds,
+      ...live.hand.map((h) => h.id),
+    ]);
+    const { handIds, restIds } = dealGuidedHand(pool, Math.min(5, pool.length));
+    const newHand = getWordCards(handIds);
+    const newPool = restIds;
+
+    set({
+      playerHp,
+      playerShield: shieldPre,
+      defeat,
+      screenShake: finalHit > 0,
+      log: [
+        ...live.log,
+        ...burnLogs,
+        blocked && finalHit === 0
+          ? "BLOCKED! Frost Ward held."
+          : blocked
+            ? `Enemy hits −${finalHit} (partial block)`
+            : `Enemy hits −${finalHit}`,
+        ...(defeat ? [] : ["Ink restored."]),
+      ].slice(-24),
+      turnBanner: defeat
+        ? {
+            id: ++bannerId,
+            title: "Defeat",
+            detail: "Forge more cards on the Path",
+            tone: "enemy",
+          }
+        : blocked && finalHit === 0
+          ? {
+              id: ++bannerId,
+              title: "BLOCKED!",
+              detail: "Your Frost Ward absorbed the blow",
+              tone: "system",
+            }
+          : {
+              id: ++bannerId,
+              title: "Enemy strike",
+              detail: `−${finalHit} HP`,
+              tone: "enemy",
+            },
+      enemyIntent: {
+        kind: "probe",
+        label: "Preparing Strike",
+        damage: 10 + Math.floor(Math.random() * 6),
+        turnsUntil: 1,
+        icon: "sword",
+      },
+    });
+    window.setTimeout(() => set({ screenShake: false }), 450);
+
+    await delay(1000);
+
+    if (get().defeat) {
+      set({ combatState: "idle" });
+      resolveLock = false;
+      return;
+    }
+
+    set({
+      combatState: "idle",
+      hand: newHand,
+      deckPool: newPool,
+      ink: get().maxInk,
+      lastEnemyHit: null,
       turnBanner: {
-        id: ++bannerSeq,
-        title: kind === "ward-shatter" ? "Ward shattered!" : "You cast",
-        detail: `${spell.arabicWord} — ${lines[0]}`,
+        id: ++bannerId,
+        title: "Your turn",
+        detail: "Ink restored — weave another sentence",
         tone: "player",
       },
     });
-
-    if (!victory) {
-      queueMicrotask(() => get().enemyTurn());
-    }
-    return result;
-  },
-
-  revealTafsir: (rootId) => {
-    set((s) => ({
-      tafsirHalvedRoots: s.tafsirHalvedRoots.includes(rootId)
-        ? s.tafsirHalvedRoots
-        : [...s.tafsirHalvedRoots, rootId],
-      log: [
-        ...s.log,
-        "Tafsīr used — English revealed; that root deals half damage this battle.",
-      ].slice(-24),
-      tutorialStep: s.tutorialMode && s.tutorialStep === 3 ? 3 : s.tutorialStep,
-    }));
-  },
-
-  enemyTurn: () => {
-    const { victory, defeat, playerHp, wards, isStaggered, handRoots, enemyIntent, isTutorialEncounter } =
-      get();
-    if (victory || defeat) return;
-
-    let intent = enemyIntent ?? nextIntent(null, isStaggered);
-    let dealt = 0;
-    let logLine = "";
-    let banner: TurnBanner | null = null;
-
-    if (intent.turnsUntil <= 1) {
-      if (intent.kind === "ward-shield") {
-        dealt = 0;
-        logLine = "Enemy channels a Ward Shield — no damage this beat, but locks harden.";
-        banner = {
-          id: ++bannerSeq,
-          title: "Enemy channels shield",
-          detail: "Ward Shield raised — shatter locks before the next heavy strike.",
-          tone: "enemy",
-        };
-      } else {
-        const intact = wards.filter((w) => !w.shattered).length;
-        dealt = Math.min(
-          playerHp,
-          intent.damage || (isStaggered ? 6 : 8 + intact * 2),
-        );
-        logLine = `Enemy strikes for ${dealt} damage!`;
-        banner = {
-          id: ++bannerSeq,
-          title: "Enemy strikes!",
-          detail: `${intent.label} lands for ${dealt} damage.`,
-          tone: "enemy",
-        };
-      }
-      intent = nextIntent(intent, isStaggered);
-    } else {
-      intent = { ...intent, turnsUntil: intent.turnsUntil - 1 };
-      logLine = `Enemy winds up — ${intent.label} in ${intent.turnsUntil} turn${intent.turnsUntil === 1 ? "" : "s"}.`;
-      banner = {
-        id: ++bannerSeq,
-        title: "Enemy preparing…",
-        detail: logLine,
-        tone: "system",
-      };
-    }
-
-    const nextHp = playerHp - dealt;
-    const isDefeat = nextHp <= 0;
-
-    let nextRoots = handRoots;
-    if (nextRoots.length === 0 && !isDefeat) {
-      const source = isTutorialEncounter ? TUTORIAL_ROOTS : COMBAT_ROOTS;
-      const ids = isTutorialEncounter
-        ? TUTORIAL_ROOTS.map((r) => r.id)
-        : [...new Set(wards.map((w) => w.rootId))];
-      nextRoots = ids
-        .map((id, i) => {
-          const baseRoot = source.find((r) => r.id === id) ?? COMBAT_ROOTS.find((r) => r.id === id);
-          return baseRoot ? stampRoot(baseRoot, i) : null;
-        })
-        .filter((r): r is CombatRoot => !!r);
-    }
-
-    set((s) => ({
-      playerHp: Math.max(0, nextHp),
-      defeat: isDefeat,
-      handRoots: nextRoots,
-      enemyIntent: intent,
-      currentInk: Math.min(s.maxInk, s.currentInk + 1),
-      log: [
-        ...s.log,
-        isDefeat ? "Defeat — revisit the Learning Path, then try again." : logLine,
-        !isDefeat ? "Ink +1." : "",
-      ]
-        .filter(Boolean)
-        .slice(-24),
-      screenShake: dealt > 0 ? Date.now() : s.screenShake,
-      turnBanner: banner,
-    }));
+    resolveLock = false;
   },
 
   clearLastResult: () => set({ lastResult: null }),
   clearTurnBanner: () => set({ turnBanner: null }),
-
-  startTutorial: () => set({ tutorialMode: true, tutorialStep: 0 }),
-
-  advanceTutorial: () => {
-    const { tutorialStep } = get();
-    if (tutorialStep >= TUTORIAL_STEP_COUNT - 1) {
-      markTutorialDone();
-      set({ tutorialMode: false, tutorialStep: 0 });
-      return;
-    }
-    set({ tutorialStep: tutorialStep + 1 });
-  },
-
-  skipTutorial: () => {
-    markTutorialDone();
-    set({ tutorialMode: false, tutorialStep: 0 });
-  },
-
-  redrawHand: () => {
-    const { currentInk, started, victory, defeat, isTutorialEncounter, wards } = get();
-    if (!started || victory || defeat) return { ok: false, error: "Not in battle." };
-    if (currentInk < 2) return { ok: false, error: "Need 2 Ink to redraw." };
-
-    const source = isTutorialEncounter ? TUTORIAL_ROOTS : COMBAT_ROOTS;
-    const ids = isTutorialEncounter
-      ? TUTORIAL_ROOTS.map((r) => r.id)
-      : [...new Set(wards.map((w) => w.rootId))];
-    const shuffled = [...ids].sort(() => Math.random() - 0.5);
-    const nextRoots = shuffled
-      .slice(0, Math.min(4, shuffled.length))
-      .map((id, i) => {
-        const base = source.find((r) => r.id === id) ?? COMBAT_ROOTS.find((r) => r.id === id);
-        return base ? stampRoot(base, i) : null;
-      })
-      .filter((r): r is CombatRoot => !!r);
-
-    set((s) => ({
-      currentInk: s.currentInk - 2,
-      handRoots: nextRoots,
-      selectedRootId: null,
-      loaded: null,
-      log: [...s.log, "Redraw — spent 2 Ink for a fresh Thread hand."].slice(-24),
-    }));
-    return { ok: true };
-  },
-
-  flickInk: () => {
-    const { started, victory, defeat, enemyHp } = get();
-    if (!started || victory || defeat) return { ok: false, error: "Not in battle." };
-    const damage = 2;
-    const nextHp = Math.max(0, enemyHp - damage);
-    const won = nextHp <= 0;
-    set((s) => ({
-      enemyHp: nextHp,
-      victory: won,
-      hibrAwarded: won ? BATTLE_WIN_HIBR : s.hibrAwarded,
-      log: [...s.log, `Flick Ink — chip damage (−${damage}).`].slice(-24),
-      lastResult: {
-        ok: true,
-        kind: "miss",
-        damage,
-        english: "Ink flick",
-        arabic: "حِبْر",
-      },
-      turnBanner: {
-        id: ++bannerSeq,
-        title: "Ink flick!",
-        detail: `Chip damage −${damage}.`,
-        tone: "player",
-      },
-      screenShake: Date.now(),
-    }));
-    if (!won) queueMicrotask(() => get().enemyTurn());
-    return { ok: true, damage };
-  },
-
-  resetBattle: () =>
-    set({
-      started: false,
-      victory: false,
-      defeat: false,
-      isTutorialEncounter: false,
-      wards: [],
-      isStaggered: false,
-      handRoots: [],
-      handPatterns: [],
-      selectedRootId: null,
-      loaded: null,
-      lastResult: null,
-      log: [],
-      hibrAwarded: null,
-      enemyIntent: null,
-      turnBanner: null,
-      tutorialMode: false,
-      tutorialStep: 0,
-      maxInk: 10,
-      currentInk: 10,
-    }),
 }));
 
 export function getMasteryLevel(
-  map: MasteryMap,
+  map: Record<string, 1 | 2 | 3>,
   rootId: string,
   patternId: string,
-): MasteryLevel {
-  return masteryFor(map, rootId, patternId);
+): 1 | 2 | 3 {
+  return map[`${rootId}:${patternId}`] ?? 1;
 }
 
-export const TUTORIAL_TARGET = { rootId: "drs", patternId: "noun-of-place" } as const;
+export const TUTORIAL_STORAGE_KEY = "nawa-syntax-tutorial-v1";

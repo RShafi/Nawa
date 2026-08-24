@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { forgeWordCard, getWordCard, wordIdsFromUnlocks } from "@/data/combatDictionary";
 import {
   makeWordId,
   type AppHydrationPayload,
@@ -17,6 +18,8 @@ type AppStore = {
   email: string | null;
   hibrBalance: number;
   unlockedVocab: UnlockedVocab[];
+  /** Word Card IDs in the player's deck */
+  unlockedDeck: string[];
   fsrsItems: FsrsItem[];
   unlockedCities: string[];
   completedLessonIds: string[];
@@ -25,29 +28,27 @@ type AppStore = {
   error: string | null;
   hydratedAt: number | null;
 
-  /** Fetch profile + vocab + FSRS + cities + lessons for the signed-in user. */
   hydrate: () => Promise<boolean>;
-  /** Apply a full server/client snapshot (e.g. after a server action). */
   applyHydration: (payload: AppHydrationPayload) => void;
   reset: () => void;
 
-  // ——— Optimistic mutations (server actions confirm / reconcile later) ———
   setHibrBalance: (amount: number) => void;
   addHibrOptimistic: (delta: number) => void;
   unlockCityOptimistic: (cityId: string) => void;
+  /** Unlock Word Cards by recipe pairs and/or direct card IDs */
   unlockVocabOptimistic: (
-    pairs: Array<{ rootId: string; patternId: string; sourceNodeId?: string | null }>,
+    pairs: Array<{ rootId: string; patternId: string; sourceNodeId?: string | null } | string>,
   ) => void;
+  unlockDeckOptimistic: (wordIds: string[], sourceNodeId?: string | null) => void;
   setMasteryOptimistic: (wordId: string, masteryLevel: MasteryLevel, dueDate?: string) => void;
   markLessonCompleteOptimistic: (lessonId: string) => void;
 
-  // ——— Selectors as methods (battle / path / review consumers) ———
   isRootUnlocked: (rootId: string) => boolean;
   isVocabUnlocked: (rootId: string, patternId: string) => boolean;
+  isCardUnlocked: (wordId: string) => boolean;
   getMastery: (wordId: string) => MasteryLevel | null;
   getMasteryForPair: (rootId: string, patternId: string) => MasteryLevel | null;
   dueReviewCount: (now?: Date) => number;
-  /** True when any due card has mastery dropped / overdue long enough to imply Rust. */
   hasRustDebuff: (now?: Date) => boolean;
 };
 
@@ -56,6 +57,7 @@ const initialState = {
   email: null as string | null,
   hibrBalance: 0,
   unlockedVocab: [] as UnlockedVocab[],
+  unlockedDeck: [] as string[],
   fsrsItems: [] as FsrsItem[],
   unlockedCities: [] as string[],
   completedLessonIds: [] as string[],
@@ -63,6 +65,10 @@ const initialState = {
   error: null as string | null,
   hydratedAt: null as number | null,
 };
+
+function deckFromVocab(vocab: UnlockedVocab[]): string[] {
+  return wordIdsFromUnlocks(vocab.map((v) => ({ rootId: v.rootId, patternId: v.patternId })));
+}
 
 function mapVocabRows(
   rows: Array<{
@@ -72,13 +78,16 @@ function mapVocabRows(
     source_node_id: string | null;
   }>,
 ): UnlockedVocab[] {
-  return rows.map((r) => ({
-    rootId: r.root_id,
-    patternId: r.pattern_id,
-    unlockedAt: r.unlocked_at,
-    sourceNodeId: r.source_node_id,
-    wordId: makeWordId(r.root_id, r.pattern_id),
-  }));
+  return rows.map((r) => {
+    const card = forgeWordCard(r.root_id, r.pattern_id);
+    return {
+      rootId: r.root_id,
+      patternId: r.pattern_id,
+      unlockedAt: r.unlocked_at,
+      sourceNodeId: r.source_node_id,
+      wordId: card?.id ?? makeWordId(r.root_id, r.pattern_id),
+    };
+  });
 }
 
 function mapFsrsRows(
@@ -107,7 +116,6 @@ function clampMastery(n: number): MasteryLevel {
   return 2;
 }
 
-/** Overdue by more than 3 days → Arena "Rust" debuff signal. */
 const RUST_OVERDUE_MS = 3 * 24 * 60 * 60 * 1000;
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -146,7 +154,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
         supabase.from("user_lesson_progress").select("lesson_id").eq("user_id", user.id),
       ]);
 
-      // Ensure profile row exists (users created before trigger / rename)
       let hibrBalance = profileRes.data?.hibr_balance ?? 0;
       let email = profileRes.data?.email ?? user.email ?? null;
 
@@ -168,11 +175,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (citiesRes.error) throw new Error(citiesRes.error.message);
       if (lessonsRes.error) throw new Error(lessonsRes.error.message);
 
+      const unlockedVocab = mapVocabRows(vocabRes.data ?? []);
+
       set({
         userId: user.id,
         email,
         hibrBalance,
-        unlockedVocab: mapVocabRows(vocabRes.data ?? []),
+        unlockedVocab,
+        unlockedDeck: deckFromVocab(unlockedVocab),
         fsrsItems: mapFsrsRows(fsrsRes.data ?? []),
         unlockedCities: (citiesRes.data ?? []).map((r) => r.city_id as string),
         completedLessonIds: (lessonsRes.data ?? []).map((r) => r.lesson_id as string),
@@ -194,6 +204,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
       email: payload.email,
       hibrBalance: payload.hibrBalance,
       unlockedVocab: payload.unlockedVocab,
+      unlockedDeck: payload.unlockedDeck?.length
+        ? payload.unlockedDeck
+        : deckFromVocab(payload.unlockedVocab),
       fsrsItems: payload.fsrsItems,
       unlockedCities: payload.unlockedCities,
       completedLessonIds: payload.completedLessonIds,
@@ -216,30 +229,38 @@ export const useAppStore = create<AppStore>((set, get) => ({
         : { unlockedCities: [...s.unlockedCities, cityId] },
     ),
 
-  unlockVocabOptimistic: (pairs) =>
+  unlockDeckOptimistic: (wordIds, sourceNodeId = null) =>
     set((s) => {
-      const existing = new Set(s.unlockedVocab.map((v) => v.wordId));
+      const existingDeck = new Set(s.unlockedDeck);
+      const existingVocab = new Set(s.unlockedVocab.map((v) => v.wordId));
+      const nextDeck = [...s.unlockedDeck];
       const nextVocab = [...s.unlockedVocab];
       const nextFsrs = [...s.fsrsItems];
       const fsrsIds = new Set(nextFsrs.map((f) => f.wordId));
       const now = new Date().toISOString();
 
-      for (const pair of pairs) {
-        const wordId = makeWordId(pair.rootId, pair.patternId);
-        if (!existing.has(wordId)) {
-          existing.add(wordId);
+      for (const id of wordIds) {
+        const card = getWordCard(id);
+        if (!card) continue;
+        if (!existingDeck.has(card.id)) {
+          existingDeck.add(card.id);
+          nextDeck.push(card.id);
+        }
+        if (!existingVocab.has(card.id)) {
+          existingVocab.add(card.id);
           nextVocab.push({
-            rootId: pair.rootId,
-            patternId: pair.patternId,
+            rootId: card.rootId,
+            patternId: card.patternId,
             unlockedAt: now,
-            sourceNodeId: pair.sourceNodeId ?? null,
-            wordId,
+            sourceNodeId,
+            wordId: card.id,
           });
         }
-        if (!fsrsIds.has(wordId)) {
-          fsrsIds.add(wordId);
+        const fsrsKey = makeWordId(card.rootId, card.patternId);
+        if (!fsrsIds.has(fsrsKey) && !fsrsIds.has(card.id)) {
+          fsrsIds.add(fsrsKey);
           nextFsrs.push({
-            wordId,
+            wordId: fsrsKey,
             masteryLevel: 1,
             dueDate: now,
             reps: 0,
@@ -249,8 +270,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
         }
       }
 
-      return { unlockedVocab: nextVocab, fsrsItems: nextFsrs };
+      return { unlockedDeck: nextDeck, unlockedVocab: nextVocab, fsrsItems: nextFsrs };
     }),
+
+  unlockVocabOptimistic: (pairs) => {
+    const wordIds: string[] = [];
+    const recipes: Array<{ rootId: string; patternId: string; sourceNodeId?: string | null }> =
+      [];
+    for (const p of pairs) {
+      if (typeof p === "string") wordIds.push(p);
+      else recipes.push(p);
+    }
+    const fromRecipes = wordIdsFromUnlocks(recipes);
+    const source = recipes[0]?.sourceNodeId ?? null;
+    get().unlockDeckOptimistic([...wordIds, ...fromRecipes], source);
+  },
 
   setMasteryOptimistic: (wordId, masteryLevel, dueDate) =>
     set((s) => {
@@ -293,12 +327,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
   isVocabUnlocked: (rootId, patternId) =>
     get().unlockedVocab.some((v) => v.rootId === rootId && v.patternId === patternId),
 
+  isCardUnlocked: (wordId) => get().unlockedDeck.includes(wordId),
+
   getMastery: (wordId) => {
     const item = get().fsrsItems.find((f) => f.wordId === wordId);
     return item?.masteryLevel ?? null;
   },
 
-  getMasteryForPair: (rootId, patternId) => get().getMastery(makeWordId(rootId, patternId)),
+  getMasteryForPair: (rootId, patternId) => {
+    const card = forgeWordCard(rootId, patternId);
+    return get().getMastery(card?.id ?? makeWordId(rootId, patternId));
+  },
 
   dueReviewCount: (now = new Date()) => {
     const t = now.getTime();

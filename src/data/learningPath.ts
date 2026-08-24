@@ -1,36 +1,34 @@
 import {
   COMBAT_PATTERNS,
   COMBAT_ROOTS,
-  validateWeave,
+  forgeWordCard,
+  getWordCard,
 } from "@/data/combatDictionary";
 
-export type PathVocabUnlock = {
-  rootId: string;
-  patternId: string;
-};
+/** Word Card IDs unlocked when a path node is finished */
+export type PathVocabUnlock = string;
 
 export type PathLessonRef = {
   id: string;
   title: string;
+  /** Optional lesson mode override on the path map */
+  kind?: "forge" | "syntax" | "default";
 };
 
 export type PathNode = {
-  /** Stable id — also stored in `user_lesson_progress.lesson_id` when the node is cleared */
   id: string;
   unit: string;
   title: string;
-  /** Learning-first blurb (fun / curiosity — not combat marketing) */
   description: string;
   accent: "sky" | "emerald" | "amber" | "violet";
-  /** Curriculum lessons the learner plays for this node */
   lessons: PathLessonRef[];
-  /** Optional Arena bonus when the node is finished */
+  /** Word Card IDs added to the player's deck */
   unlocks: PathVocabUnlock[];
 };
 
 /**
- * Linear Learning Path — play lessons in order.
- * Finishing a node’s lessons also unlocks optional Arena vocabulary.
+ * Linear Learning Path — Card Forge + syntax bridges.
+ * Finishing a node unlocks Word Cards for the Arena deck.
  */
 export const LEARNING_PATH_NODES: PathNode[] = [
   {
@@ -48,122 +46,120 @@ export const LEARNING_PATH_NODES: PathNode[] = [
   },
   {
     id: "path-node-form-i-ktb",
-    unit: "Unit 1 · Form I Verbs",
-    title: "Build “he wrote”",
+    unit: "Unit 1 · The Card Forge",
+    title: "Forge “he wrote”",
     description:
-      "Three letters — ك ت ب — carry the idea of writing. Slot them into Form I and watch كَتَبَ appear.",
+      "Combine Thread ك-ت-ب with Frame Form I to forge the Word Card كَتَبَ — then it joins your deck.",
     accent: "emerald",
     lessons: [
-      { id: "s1-u0-l1", title: "What is a root?" },
-      { id: "s1-u0-l2", title: "Build kataba" },
+      { id: "s1-u0-l1", title: "What is a root?", kind: "forge" },
+      { id: "s1-u0-l2", title: "Forge kataba", kind: "forge" },
     ],
-    unlocks: [{ rootId: "ktb", patternId: "form-1" }],
+    unlocks: ["ktb-form-1"],
   },
   {
     id: "path-node-form-i-drs",
-    unit: "Unit 1 · Form I Verbs",
-    title: "Same Frame, new Thread",
-    description:
-      "Reuse Form I with د ر س (studying). Feel how the Frame stays while the meaning changes.",
+    unit: "Unit 1 · The Card Forge",
+    title: "Forge “he studied”",
+    description: "Same Frame, new Thread — forge دَرَسَ (Mind school) for your deck.",
     accent: "emerald",
-    lessons: [{ id: "s1-u0-l3", title: "Build darasa" }],
-    unlocks: [{ rootId: "drs", patternId: "form-1" }],
+    lessons: [{ id: "s1-u0-l3", title: "Forge darasa", kind: "forge" }],
+    unlocks: ["drs-form-1"],
   },
   {
     id: "path-node-form-i-slm",
-    unit: "Unit 1 · Form I Verbs",
-    title: "Peace & safety",
-    description:
-      "س ل م opens doors to “peace” and “safety.” Learn the Form I shape سَلِمَ.",
+    unit: "Unit 1 · The Card Forge",
+    title: "Forge peace",
+    description: "Forge سَلِمَ — a Frost card about safety.",
     accent: "emerald",
-    lessons: [{ id: "s1-u1-l2", title: "Peace root: salima" }],
-    unlocks: [{ rootId: "slm", patternId: "form-1" }],
+    lessons: [{ id: "s1-u1-l2", title: "Forge salima", kind: "forge" }],
+    unlocks: ["slm-form-1"],
+  },
+  {
+    id: "path-node-syntax-intro",
+    unit: "Unit 1 · Syntax Bridge",
+    title: "Noun before adjective",
+    description:
+      "In Arabic, adjectives follow nouns. Line up Word Cards in the right order to pass.",
+    accent: "amber",
+    lessons: [{ id: "syntax-na-1", title: "Order: Noun → Adjective", kind: "syntax" }],
+    unlocks: ["slm-active-participle"],
   },
   {
     id: "path-node-form-i-nsr",
-    unit: "Unit 1 · Form I Verbs",
-    title: "Past tense quiz",
-    description:
-      "Lock in Form I past — including ن ص ر (help / victory) — with a short matching game.",
+    unit: "Unit 1 · The Card Forge",
+    title: "Forge victory",
+    description: "Forge نَصَرَ — Kinetic aid — and lock Form I with a short quiz.",
     accent: "amber",
     lessons: [{ id: "s1-u1-l3", title: "Past tense quiz" }],
-    unlocks: [{ rootId: "nsr", patternId: "form-1" }],
+    unlocks: ["nsr-form-1"],
   },
   {
     id: "path-node-participle-ktb",
     unit: "Unit 2 · Doer & done",
-    title: "The done: maktūb",
-    description:
-      "Turn writing into “what is written” — مَكْتُوب, the passive participle from ك ت ب.",
+    title: "Forge maktūb",
+    description: "Forge مَكْتُوب — the written thing — as an Adjective card.",
     accent: "violet",
-    lessons: [{ id: "s1-u3-l1", title: "The done: maktūb" }],
-    unlocks: [{ rootId: "ktb", patternId: "passive-participle" }],
+    lessons: [{ id: "s1-u3-l1", title: "Forge maktūb", kind: "forge" }],
+    unlocks: ["ktb-passive-participle"],
   },
   {
     id: "path-node-participle-nsr",
     unit: "Unit 2 · Doer & done",
-    title: "Place noun: maktab",
-    description:
-      "Same Thread, new job: مَكْتَب — the place of writing. Spot how the Frame shifts meaning.",
+    title: "Forge place & doer",
+    description: "Forge مَكْتَب and نَاصِر — nouns for your syntax chains.",
     accent: "violet",
     lessons: [
-      { id: "s1-u3-l2", title: "Place noun: maktab" },
+      { id: "s1-u3-l2", title: "Forge maktab", kind: "forge" },
       { id: "s1-u3-l3", title: "Doer & done quiz" },
     ],
-    unlocks: [
-      { rootId: "ktb", patternId: "active-participle" },
-      { rootId: "nsr", patternId: "active-participle" },
-    ],
+    unlocks: ["ktb-place-noun", "nsr-active-participle"],
+  },
+  {
+    id: "path-node-syntax-vso",
+    unit: "Unit 2 · Syntax Bridge",
+    title: "Verb leads the sentence",
+    description:
+      "Arabic often puts the Verb first (VSO). Chain Verb → Noun → Adjective for massive Arena power.",
+    accent: "amber",
+    lessons: [{ id: "syntax-vso-1", title: "Order: Verb → Noun → Adj", kind: "syntax" }],
+    unlocks: ["drb-form-1"],
   },
   {
     id: "path-node-form-ii",
     unit: "Unit 3 · Intensives",
-    title: "Turn up the intensity",
-    description:
-      "Form II doubles the middle letter — more force, more causation. Hear the difference from Form I.",
+    title: "Forge intensives",
+    description: "Form II intensifies meaning — forge Flame and Kinetic power cards.",
     accent: "amber",
     lessons: [
-      { id: "s2-u0-l1", title: "Form II: kattaba" },
-      { id: "s2-u0-l2", title: "Form II: ʿallama" },
+      { id: "s2-u0-l1", title: "Forge kattaba", kind: "forge" },
+      { id: "s2-u0-l2", title: "Forge ʿallama", kind: "forge" },
     ],
-    unlocks: [
-      { rootId: "ktb", patternId: "form-2" },
-      { rootId: "nsr", patternId: "form-2" },
-    ],
+    unlocks: ["ktb-form-2", "nsr-form-2"],
   },
   {
     id: "path-node-hfz-drb",
-    unit: "Unit 4 · Seeking",
-    title: "The seeking pattern",
-    description:
-      "Meet اِسْتَفْعَلَ — Form X — where استـ means “seek / request.” Play with writing and knowing.",
+    unit: "Unit 4 · Guard & strike",
+    title: "Forge frost & flame",
+    description: "Unlock حَفِظَ (Frost) and reinforce strike cards for the Arena.",
     accent: "emerald",
     lessons: [
-      { id: "s2-u1-l1", title: "Form X: istaktaba" },
-      { id: "s2-u1-l2", title: "Form X: istaʿlama" },
+      { id: "s2-u1-l1", title: "Form X: istaktaba", kind: "forge" },
+      { id: "s2-u1-l2", title: "Form X: istaʿlama", kind: "forge" },
     ],
-    unlocks: [
-      { rootId: "hfz", patternId: "form-1" },
-      { rootId: "drb", patternId: "form-1" },
-    ],
+    unlocks: ["hfz-form-1", "drb-active-participle"],
   },
   {
     id: "path-node-boss-deck",
     unit: "Unit 5 · Going further",
-    title: "Places & bare script",
-    description:
-      "Build a place noun, then practice reading as vowel marks fade — the fun part of getting fluent.",
+    title: "Mind deck & bare script",
+    description: "Forge Mind-school cards, then practice reading as vowel marks fade.",
     accent: "amber",
     lessons: [
-      { id: "s2-u2-l1", title: "School: madrasa" },
+      { id: "s2-u2-l1", title: "Forge madrasa", kind: "forge" },
       { id: "s2-u3-l1", title: "Full → Minimal" },
     ],
-    unlocks: [
-      { rootId: "hkm", patternId: "form-1" },
-      { rootId: "kshf", patternId: "form-1" },
-      { rootId: "drs", patternId: "active-participle" },
-      { rootId: "slm", patternId: "active-participle" },
-    ],
+    unlocks: ["hkm-form-1", "kshf-form-1", "drs-active-participle", "drs-noun-of-place"],
   },
 ];
 
@@ -175,10 +171,7 @@ export function getPathNodeIndex(nodeId: string): number {
   return LEARNING_PATH_NODES.findIndex((n) => n.id === nodeId);
 }
 
-export function isPathNodeAvailable(
-  nodeId: string,
-  completedNodeIds: string[],
-): boolean {
+export function isPathNodeAvailable(nodeId: string, completedNodeIds: string[]): boolean {
   const idx = getPathNodeIndex(nodeId);
   if (idx < 0) return false;
   if (idx === 0) return true;
@@ -190,7 +183,6 @@ export function isPathNodeComplete(nodeId: string, completedNodeIds: string[]): 
   return completedNodeIds.includes(nodeId);
 }
 
-/** First incomplete lesson on a node, or null if all lessons are done. */
 export function getNextLessonForNode(
   node: PathNode,
   completedLessonIds: string[],
@@ -208,28 +200,81 @@ export function areNodeLessonsComplete(
   return node.lessons.every((l) => completedLessonIds.includes(l.id));
 }
 
-/** Path node that contains this curriculum lesson (if any). */
 export function getPathNodeForLesson(lessonId: string): PathNode | undefined {
   return LEARNING_PATH_NODES.find((n) => n.lessons.some((l) => l.id === lessonId));
 }
 
-export function describeUnlock(pair: PathVocabUnlock): {
+/** Convert Word Card unlock IDs → DB root/pattern pairs */
+export function unlocksToPairs(
+  unlocks: PathVocabUnlock[],
+): Array<{ rootId: string; patternId: string }> {
+  const pairs: Array<{ rootId: string; patternId: string }> = [];
+  for (const id of unlocks) {
+    const card = getWordCard(id);
+    if (card) pairs.push({ rootId: card.rootId, patternId: card.patternId });
+  }
+  return pairs;
+}
+
+export function describeUnlock(wordId: PathVocabUnlock): {
   rootLetters: string;
   patternName: string;
   arabic: string;
   english: string;
+  school: string;
 } {
-  const root = COMBAT_ROOTS.find((r) => r.id === pair.rootId);
-  const pattern = COMBAT_PATTERNS.find((p) => p.id === pair.patternId);
-  const spell = validateWeave(pair.rootId, pair.patternId);
+  const card = getWordCard(wordId);
+  if (!card) {
+    return {
+      rootLetters: "?",
+      patternName: "?",
+      arabic: "؟؟؟",
+      english: "",
+      school: "",
+    };
+  }
+  const root = COMBAT_ROOTS.find((r) => r.id === card.rootId);
+  const pattern = COMBAT_PATTERNS.find((p) => p.id === card.patternId);
   return {
-    rootLetters: root?.letters ?? pair.rootId,
-    patternName: pattern?.name ?? pair.patternId,
-    arabic: spell?.arabicWord ?? "؟؟؟",
-    english: spell?.englishTranslation ?? "",
+    rootLetters: root?.letters ?? card.rootId,
+    patternName: pattern?.name ?? card.patternId,
+    arabic: card.word,
+    english: card.translation,
+    school: card.school,
   };
 }
 
 export function lessonHref(lessonId: string, pathNodeId: string): string {
   return `/lesson/${lessonId}?node=${encodeURIComponent(pathNodeId)}`;
 }
+
+/** Resolve a forge recipe for a morph lesson from its unlocks / ids */
+export function recipeForLesson(
+  lessonId: string,
+): { rootId: string; patternId: string; wordId: string } | null {
+  const node = getPathNodeForLesson(lessonId);
+  const first = node?.unlocks[0];
+  if (first) {
+    const card = getWordCard(first);
+    if (card) {
+      return { rootId: card.rootId, patternId: card.patternId, wordId: card.id };
+    }
+  }
+  // Fallback map for known morph lessons
+  const FALLBACK: Record<string, string> = {
+    "s1-u0-l2": "ktb-form-1",
+    "s1-u0-l3": "drs-form-1",
+    "s1-u1-l2": "slm-form-1",
+    "s1-u3-l1": "ktb-passive-participle",
+    "s1-u3-l2": "ktb-place-noun",
+    "s2-u0-l1": "ktb-form-2",
+    "s2-u2-l1": "drs-noun-of-place",
+  };
+  const id = FALLBACK[lessonId];
+  if (!id) return null;
+  const card = getWordCard(id);
+  if (!card) return null;
+  return { rootId: card.rootId, patternId: card.patternId, wordId: card.id };
+}
+
+export { forgeWordCard, getWordCard };

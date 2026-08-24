@@ -13,8 +13,6 @@ const ICON = {
 
 export function EnemyStatus() {
   const intent = useBattleStore((s) => s.enemyIntent);
-  const tutorialMode = useBattleStore((s) => s.tutorialMode);
-  const tutorialStep = useBattleStore((s) => s.tutorialStep);
 
   if (!intent) return null;
 
@@ -27,11 +25,9 @@ export function EnemyStatus() {
         : `in ${intent.turnsUntil} turns`;
 
   const detail =
-    intent.kind === "ward-shield"
-      ? `${intent.label} ${countdown}`
-      : intent.damage > 0
-        ? `${intent.label} (${intent.damage} DMG) ${countdown}`
-        : `${intent.label} ${countdown}`;
+    intent.damage > 0
+      ? `${intent.label} (${intent.damage} DMG) ${countdown}`
+      : `${intent.label} ${countdown}`;
 
   return (
     <motion.div
@@ -45,7 +41,6 @@ export function EnemyStatus() {
           : intent.kind === "ward-shield"
             ? "border-sky-400/45 bg-sky-500/15 text-sky-50"
             : "border-violet-400/45 bg-violet-500/15 text-violet-50",
-        tutorialMode && tutorialStep === 0 && "ring-2 ring-amber-300/70",
       )}
       role="status"
       aria-live="polite"

@@ -38,6 +38,26 @@ export function LessonPageClient({ id }: LessonPageClientProps) {
   const storeCompleted = useAppStore((s) => s.completedLessonIds);
 
   const found = findCurriculumLesson(id);
+  const pathLessonMeta = useMemo(() => {
+    const node = getPathNodeForLesson(id);
+    const ref = node?.lessons.find((l) => l.id === id);
+    return ref && node ? { node, ref } : null;
+  }, [id]);
+
+  const syntheticLesson =
+    !found && pathLessonMeta
+      ? ({
+          id,
+          title: pathLessonMeta.ref.title,
+          description:
+            pathLessonMeta.ref.kind === "syntax"
+              ? "Arrange Word Cards into correct Arabic order."
+              : "Forge a Word Card for your deck.",
+          type: pathLessonMeta.ref.kind === "syntax" ? "quiz" : "morph-engine",
+          isCompleted: false,
+        } as const)
+      : null;
+
   const pathNodeFromQuery = searchParams.get("node");
   const pathNode = useMemo(() => {
     if (pathNodeFromQuery) {
@@ -78,7 +98,9 @@ export function LessonPageClient({ id }: LessonPageClientProps) {
       if (!pathResult.ok) return;
 
       useAppStore.getState().markLessonCompleteOptimistic(pathNode.id);
-      if (pathResult.unlockedPairs?.length) {
+      if (pathResult.unlockedWordIds?.length) {
+        useAppStore.getState().unlockDeckOptimistic(pathResult.unlockedWordIds, pathNode.id);
+      } else if (pathResult.unlockedPairs?.length) {
         useAppStore.getState().unlockVocabOptimistic(
           pathResult.unlockedPairs.map((p) => ({
             rootId: p.rootId,
@@ -91,7 +113,7 @@ export function LessonPageClient({ id }: LessonPageClientProps) {
     })();
   }, [completeLesson, id, pathNode]);
 
-  if (!found) {
+  if (!found && !syntheticLesson) {
     return (
       <main className="flex h-[100dvh] flex-col items-center justify-center gap-4 px-4">
         <p className="text-lg font-medium">Lesson not found</p>
@@ -102,7 +124,15 @@ export function LessonPageClient({ id }: LessonPageClientProps) {
     );
   }
 
-  const { lesson, unit, stage } = found;
+  const lesson = found?.lesson ?? {
+    id: syntheticLesson!.id,
+    title: syntheticLesson!.title,
+    description: syntheticLesson!.description,
+    type: syntheticLesson!.type as "morph-engine" | "quiz",
+    isCompleted: false,
+  };
+  const unit = found?.unit ?? { title: pathNode?.unit ?? "Learning Path" };
+  const stage = found?.stage ?? { title: pathNode?.title ?? "Path" };
   const isDone =
     completed.includes(lesson.id) ||
     storeCompleted.includes(lesson.id) ||

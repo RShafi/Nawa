@@ -7,9 +7,11 @@ import { DialectBridgeCard } from "@/components/dialect/DialectBridgeCard";
 import { PhoneticsLesson } from "@/components/lessons/PhoneticsLesson";
 import { QuizLesson } from "@/components/lessons/QuizLesson";
 import { ReadingLesson } from "@/components/lessons/ReadingLesson";
-import { MorphStudio } from "@/components/morph/MorphStudio";
+import { CardForgeSlide } from "@/components/path/CardForgeSlide";
+import { SyntaxBridgeLesson } from "@/components/path/SyntaxBridgeLesson";
 import { WordAssemblyCard } from "@/components/morph/WordAssemblyCard";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+// MorphStudio retained for optional deep morph drills; forge path uses CardForgeSlide.
 
 export function LessonBody({
   lesson,
@@ -36,21 +38,18 @@ export function LessonBody({
   }, [mainDone, dialectDone, onActivitiesComplete]);
 
   if (lesson.type === "morph-engine") {
-    const teachFocus =
-      lesson.id === "s1-u0-l1"
-        ? "root"
-        : lesson.id.startsWith("s2-")
-          ? "pattern"
-          : "word";
     return (
-      <MorphStudio
+      <CardForgeSlide
         key={lesson.id}
-        teachFocus={teachFocus}
         lockedRootId={lesson.rootId}
         focusPatternId={lesson.patternId}
         onComplete={markMain}
       />
     );
+  }
+
+  if (lesson.id.startsWith("syntax-")) {
+    return <SyntaxBridgeLesson lessonId={lesson.id} onComplete={markMain} />;
   }
 
   if (lesson.type === "dialect-bridge") {
