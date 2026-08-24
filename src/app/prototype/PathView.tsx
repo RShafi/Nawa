@@ -135,7 +135,7 @@ function ConstellationNode({ node, index }: { node: PathNode; index: number }) {
 
 export function PathView() {
   return (
-    <div className="relative mx-auto h-full max-w-md overflow-y-auto pb-24">
+    <div className="relative mx-auto h-full max-w-md overflow-y-auto pb-16 lg:max-w-none lg:rounded-[1.75rem] lg:border lg:border-[rgba(56,189,248,0.14)] lg:bg-[rgba(15,23,42,0.4)] lg:shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] lg:[backdrop-filter:blur(16px)]">
       {/* faint star field */}
       <div
         aria-hidden

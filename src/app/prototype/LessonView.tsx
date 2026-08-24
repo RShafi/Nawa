@@ -39,130 +39,133 @@ export function LessonView() {
   }
 
   return (
-    <div className="mx-auto flex h-full max-w-md flex-col">
-      {/* Top bar: quit, progress, hearts */}
-      <div className="flex items-center gap-3 px-4 py-4">
-        <button
-          className="text-slate-500 transition-colors hover:text-slate-200"
-          aria-label="Leave the chamber"
-        >
-          <X className="h-6 w-6" strokeWidth={2.5} />
-        </button>
-        <div
-          className="relative h-3 flex-1 overflow-hidden rounded-full"
-          style={{ background: "rgba(148,163,184,0.14)" }}
-        >
-          <motion.div
-            className="absolute inset-y-0 left-0 rounded-full"
-            style={{
-              background: "linear-gradient(90deg, #F59E0B, #FBBF24)",
-              boxShadow: "0 0 14px rgba(245,158,11,0.6)",
-            }}
-            initial={{ width: 0 }}
-            animate={{ width: `${PROGRESS * 100}%` }}
-            transition={{ duration: 0.9, ease: "easeOut" }}
-          >
-            <span className="absolute inset-x-1 top-0.5 h-1 rounded-full bg-white/40" />
-          </motion.div>
-        </div>
-        <div className="flex items-center gap-1 font-semibold text-rose-400">
-          <Heart className="h-5 w-5 fill-current" />
-          <span className="text-sm">5</span>
-        </div>
-      </div>
-
-      {/* Inscription tablet */}
-      <div className="flex flex-1 flex-col justify-center px-4">
-        <p className="mb-4 text-xs font-medium uppercase tracking-[0.22em] text-cyan-300/80">
-          Translate the inscription
-        </p>
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative flex flex-col items-center gap-4 rounded-3xl px-6 py-10"
-          style={{
-            background:
-              "linear-gradient(160deg, rgba(30,41,59,0.75), rgba(11,15,25,0.85))",
-            backdropFilter: "blur(18px)",
-            border: "1px solid rgba(245,158,11,0.16)",
-            boxShadow:
-              "inset 0 1px 0 rgba(255,255,255,0.05), 0 20px 50px -24px rgba(0,0,0,0.8)",
-          }}
-        >
+    <div className="mx-auto flex h-full max-w-md flex-col lg:max-w-none lg:gap-4 lg:py-1">
+      {/* Stage panel (glassmorphic container on desktop) */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:rounded-[1.75rem] lg:border lg:border-[rgba(245,158,11,0.14)] lg:bg-[rgba(15,23,42,0.5)] lg:pb-2 lg:shadow-[0_30px_80px_-40px_rgba(0,0,0,0.9)] lg:[backdrop-filter:blur(20px)]">
+        {/* Top bar: quit, progress, hearts */}
+        <div className="flex items-center gap-3 px-4 py-4 lg:px-6 lg:pt-6">
           <button
-            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full text-amber-300 transition-transform active:scale-90"
-            style={{
-              background: "rgba(245,158,11,0.1)",
-              border: "1px solid rgba(245,158,11,0.35)",
-              boxShadow: "0 0 18px -4px rgba(245,158,11,0.5)",
-            }}
-            aria-label="Hear the inscription"
+            className="text-slate-500 transition-colors hover:text-slate-200"
+            aria-label="Leave the chamber"
           >
-            <Volume2 className="h-5 w-5" />
+            <X className="h-6 w-6" strokeWidth={2.5} />
           </button>
-          <span
-            dir="rtl"
-            lang="ar"
-            className="font-arabic text-6xl font-bold text-amber-200"
-            style={{ textShadow: "0 0 26px rgba(245,158,11,0.45)" }}
+          <div
+            className="relative h-3 flex-1 overflow-hidden rounded-full"
+            style={{ background: "rgba(148,163,184,0.14)" }}
           >
-            {"يَكْتُبُ"}
-          </span>
-          <span className="text-sm text-slate-400">{"he writes"}</span>
-        </motion.div>
+            <motion.div
+              className="absolute inset-y-0 left-0 rounded-full"
+              style={{
+                background: "linear-gradient(90deg, #F59E0B, #FBBF24)",
+                boxShadow: "0 0 14px rgba(245,158,11,0.6)",
+              }}
+              initial={{ width: 0 }}
+              animate={{ width: `${PROGRESS * 100}%` }}
+              transition={{ duration: 0.9, ease: "easeOut" }}
+            >
+              <span className="absolute inset-x-1 top-0.5 h-1 rounded-full bg-white/40" />
+            </motion.div>
+          </div>
+          <div className="flex items-center gap-1 font-semibold text-rose-400">
+            <Heart className="h-5 w-5 fill-current" />
+            <span className="text-sm">5</span>
+          </div>
+        </div>
 
-        {/* Word tiles */}
-        <div className="mt-8 grid grid-cols-2 gap-3">
-          {TILES.map((tile) => {
-            const isSel = selected === tile.id;
-            const showState = checked && isSel;
-            const correctState = showState && isCorrect;
-            const wrongState = showState && !isCorrect;
-            return (
-              <motion.button
-                key={tile.id}
-                disabled={checked}
-                onClick={() => setSelected(tile.id)}
-                whileTap={checked ? undefined : { scale: 0.96, y: 2 }}
-                whileHover={checked ? undefined : { y: -2 }}
-                transition={{ type: "spring", stiffness: 500, damping: 24 }}
-                className={cn(
-                  "flex flex-col items-center gap-1 rounded-2xl px-4 py-5 transition-colors",
-                  correctState && "text-[#04140D]",
-                  wrongState && "text-[#1B0606]",
-                  !showState && "text-slate-100",
-                )}
-                style={{
-                  background: correctState
-                    ? "linear-gradient(160deg, #4ADE80, #059669)"
-                    : wrongState
-                      ? "linear-gradient(160deg, #FB7185, #E11D48)"
-                      : "rgba(148,163,184,0.05)",
-                  border: isSel
-                    ? "1px solid rgba(56,189,248,0.7)"
-                    : "1px solid rgba(148,163,184,0.14)",
-                  backdropFilter: "blur(10px)",
-                  boxShadow: isSel
-                    ? "0 0 20px -4px rgba(56,189,248,0.55), inset 0 1px 0 rgba(255,255,255,0.08)"
-                    : "inset 0 1px 0 rgba(255,255,255,0.04)",
-                }}
-              >
-                <span
-                  dir="rtl"
-                  lang="ar"
-                  className="font-arabic battle-arabic text-2xl font-semibold"
+        {/* Inscription tablet */}
+        <div className="flex flex-1 flex-col justify-center px-4 lg:px-8">
+          <p className="mb-4 text-xs font-medium uppercase tracking-[0.22em] text-cyan-300/80">
+            Translate the inscription
+          </p>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative flex flex-col items-center gap-4 rounded-3xl px-6 py-10 lg:py-14"
+            style={{
+              background:
+                "linear-gradient(160deg, rgba(30,41,59,0.75), rgba(11,15,25,0.85))",
+              backdropFilter: "blur(18px)",
+              border: "1px solid rgba(245,158,11,0.16)",
+              boxShadow:
+                "inset 0 1px 0 rgba(255,255,255,0.05), 0 20px 50px -24px rgba(0,0,0,0.8)",
+            }}
+          >
+            <button
+              className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full text-amber-300 transition-transform active:scale-90"
+              style={{
+                background: "rgba(245,158,11,0.1)",
+                border: "1px solid rgba(245,158,11,0.35)",
+                boxShadow: "0 0 18px -4px rgba(245,158,11,0.5)",
+              }}
+              aria-label="Hear the inscription"
+            >
+              <Volume2 className="h-5 w-5" />
+            </button>
+            <span
+              dir="rtl"
+              lang="ar"
+              className="font-arabic text-6xl font-bold text-amber-200 lg:text-7xl"
+              style={{ textShadow: "0 0 26px rgba(245,158,11,0.45)" }}
+            >
+              {"يَكْتُبُ"}
+            </span>
+            <span className="text-sm text-slate-400">{"he writes"}</span>
+          </motion.div>
+
+          {/* Word tiles */}
+          <div className="mt-8 grid grid-cols-2 gap-3 lg:mx-auto lg:w-full lg:max-w-xl lg:gap-4">
+            {TILES.map((tile) => {
+              const isSel = selected === tile.id;
+              const showState = checked && isSel;
+              const correctState = showState && isCorrect;
+              const wrongState = showState && !isCorrect;
+              return (
+                <motion.button
+                  key={tile.id}
+                  disabled={checked}
+                  onClick={() => setSelected(tile.id)}
+                  whileTap={checked ? undefined : { scale: 0.96, y: 2 }}
+                  whileHover={checked ? undefined : { y: -2 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 24 }}
+                  className={cn(
+                    "flex flex-col items-center gap-1 rounded-2xl px-4 py-5 transition-colors lg:py-6",
+                    correctState && "text-[#04140D]",
+                    wrongState && "text-[#1B0606]",
+                    !showState && "text-slate-100",
+                  )}
+                  style={{
+                    background: correctState
+                      ? "linear-gradient(160deg, #4ADE80, #059669)"
+                      : wrongState
+                        ? "linear-gradient(160deg, #FB7185, #E11D48)"
+                        : "rgba(148,163,184,0.05)",
+                    border: isSel
+                      ? "1px solid rgba(56,189,248,0.7)"
+                      : "1px solid rgba(148,163,184,0.14)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: isSel
+                      ? "0 0 20px -4px rgba(56,189,248,0.55), inset 0 1px 0 rgba(255,255,255,0.08)"
+                      : "inset 0 1px 0 rgba(255,255,255,0.04)",
+                  }}
                 >
-                  {tile.arabic}
-                </span>
-                <span className="text-xs opacity-70">{tile.translit}</span>
-              </motion.button>
-            );
-          })}
+                  <span
+                    dir="rtl"
+                    lang="ar"
+                    className="font-arabic battle-arabic text-2xl font-semibold"
+                  >
+                    {tile.arabic}
+                  </span>
+                  <span className="text-xs opacity-70">{tile.translit}</span>
+                </motion.button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Docked footer */}
-      <div className="sticky bottom-0 mt-6">
+      {/* Footer: docked at screen bottom on mobile, below the stage on desktop */}
+      <div className="sticky bottom-0 lg:static">
         <AnimatePresence mode="wait">
           {checked ? (
             <motion.div
@@ -170,15 +173,12 @@ export function LessonView() {
               initial={{ y: 80 }}
               animate={{ y: 0 }}
               exit={{ y: 80 }}
-              className="px-4 pb-6 pt-5"
-              style={{
-                background: isCorrect
-                  ? "rgba(16,185,129,0.12)"
-                  : "rgba(225,29,72,0.12)",
-                borderTop: isCorrect
-                  ? "1px solid rgba(16,185,129,0.3)"
-                  : "1px solid rgba(225,29,72,0.3)",
-              }}
+              className={cn(
+                "px-4 pb-6 pt-5 lg:rounded-2xl lg:border lg:px-6",
+                isCorrect
+                  ? "border-t border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.12)] lg:border-[rgba(16,185,129,0.3)]"
+                  : "border-t border-[rgba(225,29,72,0.3)] bg-[rgba(225,29,72,0.12)] lg:border-[rgba(225,29,72,0.3)]",
+              )}
             >
               <p
                 className={cn(
@@ -197,7 +197,7 @@ export function LessonView() {
               </Push3DButton>
             </motion.div>
           ) : (
-            <motion.div key="check" className="px-4 pb-6 pt-5">
+            <motion.div key="check" className="px-4 pb-6 pt-5 lg:px-0 lg:pb-0 lg:pt-0">
               <Push3DButton
                 variant="primary"
                 fullWidth
