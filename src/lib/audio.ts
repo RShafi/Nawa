@@ -4,6 +4,8 @@
  * Client audio — ElevenLabs via `/api/tts` only. Web Speech removed.
  */
 
+import { fetchTtsBlob, prefetchTtsTexts } from "@/lib/ttsClient";
+
 export const FATHA = "\u064E";
 export const DAMMA = "\u064F";
 export const KASRA = "\u0650";
@@ -110,6 +112,7 @@ export function normalizeForSpeech(text: string): NormalizedSpeech {
 }
 
 let sharedAudio: HTMLAudioElement | null = null;
+let objectUrl: string | null = null;
 let playGeneration = 0;
 let lastPlayAt = 0;
 const MIN_REPLAY_GAP_MS = 180;
@@ -124,6 +127,11 @@ function stopCurrentAudio() {
     sharedAudio.load();
   } catch {
     /* ignore */
+  }
+  sharedAudio = null;
+  if (objectUrl) {
+    URL.revokeObjectURL(objectUrl);
+    objectUrl = null;
   }
 }
 
@@ -149,8 +157,11 @@ export async function speakArabic(
   stopCurrentAudio();
 
   try {
-    const url = `/api/tts?text=${encodeURIComponent(normalized.spoken)}`;
-    sharedAudio = new Audio(url);
+    const blob = await fetchTtsBlob(normalized.spoken);
+    if (gen !== playGeneration) return { mode: "silent", usedVoice: null };
+
+    objectUrl = URL.createObjectURL(blob);
+    sharedAudio = new Audio(objectUrl);
     const audio = sharedAudio;
     await new Promise<void>((resolve, reject) => {
       if (gen !== playGeneration) {
@@ -167,16 +178,11 @@ export async function speakArabic(
   }
 }
 
-/** Prefetch neural clips (browser HTTP cache + server disk cache). */
+/** Prefetch neural clips (deduped, capped — browser + server disk cache). */
 export function prefetchArabic(texts: string[]): void {
   if (!canSpeak()) return;
-  for (const raw of texts) {
-    const { spoken } = normalizeForSpeech(raw);
-    if (!spoken) continue;
-    void fetch(`/api/tts?text=${encodeURIComponent(spoken)}`, { cache: "force-cache" }).catch(
-      () => {
-        /* best-effort */
-      },
-    );
-  }
+  const spoken = texts
+    .map((raw) => normalizeForSpeech(raw).spoken)
+    .filter(Boolean);
+  prefetchTtsTexts(spoken);
 }

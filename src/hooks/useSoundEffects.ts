@@ -2,6 +2,24 @@
 
 import { useCallback, useRef } from "react";
 
+/** One Web Audio context for all procedural SFX — avoids per-component duplication. */
+let sharedCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const AC =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  if (!AC) return null;
+  if (!sharedCtx || sharedCtx.state === "closed") {
+    sharedCtx = new AC();
+  }
+  if (sharedCtx.state === "suspended") {
+    void sharedCtx.resume();
+  }
+  return sharedCtx;
+}
+
 /**
  * Zero-latency procedural SFX via Web Audio API (Desert Twilight feel).
  */
@@ -9,18 +27,9 @@ export function useSoundEffects() {
   const ctxRef = useRef<AudioContext | null>(null);
 
   const ctx = useCallback(() => {
-    if (typeof window === "undefined") return null;
-    const AC =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return null;
-    if (!ctxRef.current || ctxRef.current.state === "closed") {
-      ctxRef.current = new AC();
-    }
-    if (ctxRef.current.state === "suspended") {
-      void ctxRef.current.resume();
-    }
-    return ctxRef.current;
+    const ac = getAudioContext();
+    ctxRef.current = ac;
+    return ac;
   }, []);
 
   const playTap = useCallback(() => {

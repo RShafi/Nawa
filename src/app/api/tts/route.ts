@@ -122,6 +122,11 @@ async function synthesizeElevenLabs(
 
   if (!res.ok) {
     const detail = await res.text();
+    if (res.status === 402) {
+      throw new Error(
+        "This voice requires a paid ElevenLabs plan. Use a premade voice from Voice Lab (not a shared library voice) in ELEVENLABS_VOICE_ID.",
+      );
+    }
     throw new Error(`ElevenLabs ${res.status}: ${detail.slice(0, 240)}`);
   }
 
