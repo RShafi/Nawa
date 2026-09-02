@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * 3-round guided tutorial — Attack → Defend → Syntax Finisher.
- * Uses the same async combat pacing as free play.
+ * 4-round guided tutorial — Attack → Defend → Syntax → Resonance Crit.
  */
 
 import { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Sparkles, X } from "lucide-react";
+import { ArenaMuteButton } from "@/components/battle/ArenaMuteButton";
 import { BattleResultOverlay } from "@/components/battle/BattleResultOverlay";
 import { BattleStage, CombatPhaseBanner, HUD_BOSS, HUD_HAND, HUD_MIDDLE } from "@/components/battle/BattleStage";
 import { BossEntity, PlayerHero, type CombatFloat } from "@/components/battle/BattleEntities";
@@ -28,16 +28,16 @@ import {
   syntaxMultiplier,
   type WordCard,
 } from "@/data/combatDictionary";
+import { useBGM } from "@/hooks/useBGM";
 import { type CombatState, delay, RESONANCE_CRIT_MULT } from "@/lib/combatPacing";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { validateSyntax } from "@/lib/syntax";
-import { MAX_BATTLE_INK, REDRAW_INK_COST } from "@/store/useBattleStore";
+import { MAX_BATTLE_INK } from "@/store/useBattleStore";
 import { cn } from "@/lib/utils";
 import { SyntaxChamber } from "@/components/battle/SyntaxBoard";
 
 const FLAME_ID = "drb-noun-of-instrument";
 const FROST_ID = "hfz-active-participle";
-const VERB_ID = "drb-form-1";
 const NOUN_ID = "ktb-noun-book";
 const ADJ_ID = "kbr-adjective";
 const WEAK_A = "drs-active-participle";
@@ -47,8 +47,8 @@ type Phase =
   | "prologue"
   | "r1_cast"
   | "r2_defend"
-  | "r3_redraw"
-  | "r3_weave"
+  | "r3_syntax"
+  | "r4_resonance"
   | "victory";
 
 type Props = { onExit: () => void; onComplete: () => void };
@@ -85,6 +85,7 @@ export function TutorialArena({ onExit, onComplete }: Props) {
   const [resonanceCards, setResonanceCards] = useState<WordCard[] | null>(null);
   const resolving = useRef(false);
   const { playTap, playSnap, playCast, playSuccess, playError, playImpact } = useSoundEffects();
+  const { fadeOut } = useBGM("/sounds/battle-theme.mp3");
 
   const syntax = validateSyntax(sentence);
   const mult = sentence.length ? syntaxMultiplier(sentence.length) : 0;
@@ -95,30 +96,30 @@ export function TutorialArena({ onExit, onComplete }: Props) {
       case "r1_cast":
         return {
           step: 1,
-          total: 3,
+          total: 4,
           title: "Round 1 — The Basics",
-          body: "The Golem watches. Spend Ink to play your FLAME card into the Syntax Chamber, then Cast. Watch the combat resolve — your strike, then the enemy’s reply.",
+          body: "Spend Ink (حِبْر) to play your FLAME card into the Spell Chamber, then Cast. Watch your strike land — then the Golem’s reply.",
         };
       case "r2_defend":
         return {
           step: 2,
-          total: 3,
-          title: "Round 2 — Enemy Intent & Defense",
-          body: "The Golem is charging a devastating blow! Your Ink has regenerated. Play a FROST / SHIELD card to fortify your defenses, then Cast.",
+          total: 4,
+          title: "Round 2 — Defense",
+          body: "The Golem is charging a massive hit! Play a Frost / Shield card to raise a Ward, then Cast so you survive the blow.",
         };
-      case "r3_redraw":
+      case "r3_syntax":
         return {
           step: 3,
-          total: 3,
-          title: "Round 3 — Redraw",
-          body: "The Golem is vulnerable, but your hand lacks power. Spend 1 Ink to REDRAW.",
+          total: 4,
+          title: "Round 3 — Syntax Building",
+          body: "Combine a Noun and an Adjective in the Spell Chamber. In Arabic, the adjective follows the noun — build a phrase that makes sense.",
         };
-      case "r3_weave":
+      case "r4_resonance":
         return {
-          step: 3,
-          total: 3,
-          title: "Round 3 — Syntax Finisher",
-          body: "Your spell is woven, but to unlock its true power, you must channel its meaning. Translate your spell to land a Critical Strike!",
+          step: 4,
+          total: 4,
+          title: "Round 4 — Resonance Check",
+          body: "Your spell is woven. Cast it, then translate its meaning to channel a Critical Strike and finish the Golem!",
         };
       default:
         return null;
@@ -143,15 +144,15 @@ export function TutorialArena({ onExit, onComplete }: Props) {
   function allowedCard(c: WordCard): boolean {
     if (phase === "r1_cast") return c.id === FLAME_ID;
     if (phase === "r2_defend") return c.id === FROST_ID;
-    if (phase === "r3_weave") {
-      const order = [VERB_ID, NOUN_ID, ADJ_ID];
+    if (phase === "r3_syntax" || phase === "r4_resonance") {
+      const order = [NOUN_ID, ADJ_ID];
       return c.id === order[sentence.length];
     }
     return false;
   }
 
   function onHandTap(c: WordCard) {
-    if (busy || phase === "r3_redraw") {
+    if (busy) {
       playError();
       return;
     }
@@ -166,23 +167,12 @@ export function TutorialArena({ onExit, onComplete }: Props) {
     playSnap();
     setInk((v) => v - 1);
     setHand((h) => h.filter((x) => x.id !== c.id));
-    setSentence((s) => [...s, c]);
-  }
-
-  function onRedraw() {
-    if (phase !== "r3_redraw" || busy) {
-      playError();
-      return;
+    const next = [...sentence, c];
+    setSentence(next);
+    // Once Noun+Adj are seated, advance narrative to Round 4 (cast + resonance)
+    if (phase === "r3_syntax" && next.length === 2) {
+      setPhase("r4_resonance");
     }
-    if (ink < REDRAW_INK_COST) {
-      playError();
-      return;
-    }
-    playSnap();
-    setInk((v) => v - REDRAW_INK_COST);
-    setHand(cardsOf(VERB_ID, NOUN_ID, ADJ_ID));
-    setSentence([]);
-    setPhase("r3_weave");
   }
 
   async function runCombatLoop(opts: {
@@ -251,7 +241,9 @@ export function TutorialArena({ onExit, onComplete }: Props) {
 
     await delay(200);
     setCombatState("enemy_turn_transition");
-    await delay(1500);
+    await delay(800);
+    setCombatState("enemy_idle");
+    await delay(300);
 
     let incoming = opts.enemyDamage;
     let nextShield = ward;
@@ -328,23 +320,27 @@ export function TutorialArena({ onExit, onComplete }: Props) {
         grantPlayerShield: 36,
         enemyDamage: 30,
         afterIdle: () => {
-          setHand(cardsOf(WEAK_A, WEAK_B, "slm-form-1"));
+          setHand(cardsOf(NOUN_ID, ADJ_ID, WEAK_A));
           setIntentLabel("Staggered — vulnerable");
           setIntentDmg(12);
           setEnemyHp(72);
-          setPhase("r3_redraw");
+          setPhase("r3_syntax");
         },
       });
       return;
     }
 
-    if (phase === "r3_weave") {
-      if (sentence.length !== 3 || !syntax.ok) {
+    if (phase === "r3_syntax" || phase === "r4_resonance") {
+      if (sentence.length !== 2 || !syntax.ok) {
         playError();
         return;
       }
-      // Interrupt cast → Resonance Check before finishing blow
+      if (sentence[0]?.id !== NOUN_ID || sentence[1]?.id !== ADJ_ID) {
+        playError();
+        return;
+      }
       playCast();
+      setPhase("r4_resonance");
       setResonanceCards([...sentence]);
       setCombatState("resonance_check");
     }
@@ -368,43 +364,51 @@ export function TutorialArena({ onExit, onComplete }: Props) {
       ? FLAME_ID
       : phase === "r2_defend"
         ? FROST_ID
-        : phase === "r3_weave"
-          ? [VERB_ID, NOUN_ID, ADJ_ID][sentence.length] ?? null
+        : phase === "r3_syntax" || phase === "r4_resonance"
+          ? [NOUN_ID, ADJ_ID][sentence.length] ?? null
           : null;
 
   const pulseCast =
     !busy &&
     ((phase === "r1_cast" && sentence.length === 1) ||
       (phase === "r2_defend" && sentence.length === 1) ||
-      (phase === "r3_weave" && sentence.length === 3 && syntax.ok));
+      ((phase === "r3_syntax" || phase === "r4_resonance") &&
+        sentence.length === 2 &&
+        syntax.ok));
 
   const pulseHand =
     !busy &&
-    (phase === "r1_cast" || phase === "r2_defend" || phase === "r3_weave") &&
+    (phase === "r1_cast" ||
+      phase === "r2_defend" ||
+      phase === "r3_syntax" ||
+      phase === "r4_resonance") &&
     !pulseCast &&
-    sentence.length < (phase === "r3_weave" ? 3 : 1);
-  const pulseRedraw = phase === "r3_redraw" && !busy;
-  /** Highlight syntax whenever the chamber is part of the current teach beat */
+    sentence.length < (phase === "r3_syntax" || phase === "r4_resonance" ? 2 : 1);
+
   const pulseSyntax =
     !busy &&
-    (phase === "r1_cast" || phase === "r2_defend" || phase === "r3_weave") &&
+    (phase === "r1_cast" ||
+      phase === "r2_defend" ||
+      phase === "r3_syntax" ||
+      phase === "r4_resonance") &&
     (sentence.length > 0 || pulseHand === false);
 
-  const spotlightTarget: "syntax" | "cast" | "redraw" | null = busy
+  const spotlightTarget: "syntax" | "cast" | null = busy
     ? null
-    : pulseRedraw
-      ? "redraw"
-      : pulseCast
-        ? "cast"
-        : pulseSyntax && !pulseHand
-          ? "syntax"
-          : null;
+    : pulseCast
+      ? "cast"
+      : pulseSyntax && !pulseHand
+        ? "syntax"
+        : null;
 
   const showBlackout = phase !== "prologue" && phase !== "victory" && !busy;
+  const elevateHand = Boolean(pulseHand || spotlightTarget === "cast");
+  const elevateMiddle = spotlightTarget === "syntax";
 
   if (phase === "prologue") {
     return (
       <BattleStage className="grid-rows-[minmax(0,1fr)] place-items-center">
+        <ArenaMuteButton />
         <div className="relative z-10 flex min-h-0 w-full max-w-lg flex-col items-center justify-center px-2 lg:max-w-2xl">
           <motion.div
             initial={{ opacity: 0, y: 12 }}
@@ -415,18 +419,18 @@ export function TutorialArena({ onExit, onComplete }: Props) {
               <Sparkles className="size-7" />
             </div>
             <h1 className="mt-3 text-xl font-semibold text-white md:text-2xl">
-              Three Rounds in the Crucible
+              Four Rounds in the Crucible
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-white/75 md:text-base">
-              Learn Attack & Ink, then Defend against a charged strike, then Redraw into a Verb +
-              Noun + Adjective finisher. Combat pauses so you can read every beat.
+              Learn Attack & Ink, Defend with Frost, weave Noun + Adjective syntax, then Channel the
+              Meaning for a Critical Strike.
             </p>
             <Button
               size="lg"
               className="bg-celestial-amber mt-6 h-12 w-full font-semibold text-obsidian hover:bg-amber-400"
               onClick={begin}
             >
-              Begin 3-Round Tutorial
+              Begin 4-Round Tutorial
             </Button>
             <button
               type="button"
@@ -443,6 +447,7 @@ export function TutorialArena({ onExit, onComplete }: Props) {
 
   return (
     <BattleStage shake={shake || playerHit} combatState={combatState}>
+      <ArenaMuteButton />
       <TutorialBlackout active={showBlackout} />
       {resonanceCards ? (
         <ResonanceCheck
@@ -455,9 +460,8 @@ export function TutorialArena({ onExit, onComplete }: Props) {
       <SpellCastVFX projectile={projectile} onDone={() => setProjectile(null)} />
       <CombatPhaseBanner combatState={combatState} blocked={blockedBanner} />
 
-      {/* Row 1 — Boss Zone */}
       <div className={HUD_BOSS}>
-        <div className="relative z-40 mb-1 flex w-full items-center justify-between px-1">
+        <div className="relative z-40 mb-1 flex w-full items-center justify-between px-1 pe-12">
           <p className="text-[clamp(0.55rem,1.2vh,0.65rem)] tracking-wide text-amber-200/70 uppercase">
             Guided Tutorial
           </p>
@@ -474,7 +478,12 @@ export function TutorialArena({ onExit, onComplete }: Props) {
           </Button>
         </div>
 
-        <div className="flex w-full items-start justify-center gap-3 md:gap-6">
+        <div
+          className={cn(
+            "flex w-full items-start justify-center gap-3 md:gap-6",
+            combatState === "enemy_attacking" && "relative z-[75]",
+          )}
+        >
           <PlayerHero
             hp={playerHp}
             maxHp={40}
@@ -503,18 +512,18 @@ export function TutorialArena({ onExit, onComplete }: Props) {
           <div className={HUD_HAND} aria-hidden />
           <BattleResultOverlay
             outcome="victory"
-            maxCombo={3}
-            spellsCast={3}
+            maxCombo={2}
+            spellsCast={4}
             onRematch={onComplete}
             rematchLabel="Back to Arena"
             pathHref="/path"
             pathLabel="Return to Path"
+            onMountAudio={fadeOut}
           />
         </>
       ) : (
         <>
-          {/* Row 2 — Compact guide + Syntax */}
-          <div className={HUD_MIDDLE}>
+          <div className={cn(HUD_MIDDLE, elevateMiddle && "relative z-[70]")}>
             {guide ? (
               <GuideBanner
                 step={guide.step}
@@ -537,8 +546,7 @@ export function TutorialArena({ onExit, onComplete }: Props) {
             </SpotlightElevate>
           </div>
 
-          {/* Row 3 — Controls + Hand */}
-          <div className={HUD_HAND}>
+          <div className={cn(HUD_HAND, elevateHand && "relative z-[70]")}>
             <div className="mb-2 flex flex-row flex-wrap items-center justify-center gap-2">
               <SpotlightElevate active={spotlightTarget === "cast"}>
                 <TargetArrow show={spotlightTarget === "cast"} />
@@ -558,25 +566,19 @@ export function TutorialArena({ onExit, onComplete }: Props) {
                 </Button>
               </SpotlightElevate>
 
-              <SpotlightElevate active={spotlightTarget === "redraw"}>
-                <InkPoolBar
-                  ink={ink}
-                  maxInk={MAX_BATTLE_INK}
-                  highlight={pulseRedraw}
-                  onRedraw={onRedraw}
-                  redrawDisabled={!pulseRedraw || busy}
-                />
-              </SpotlightElevate>
+              <InkPoolBar ink={ink} maxInk={MAX_BATTLE_INK} />
             </div>
 
-            {/* ring-4 only on the target WordCardView — never the hand row */}
-            <div className="mx-auto flex w-full flex-nowrap items-end justify-center gap-0 overflow-visible md:gap-2">
+            <div
+              className={cn(
+                "mx-auto flex w-full flex-nowrap items-end justify-center gap-0 overflow-visible md:gap-2",
+                pulseHand && "relative z-[70]",
+              )}
+            >
               {hand.map((c) => {
                 const glow = Boolean(pulseHand && highlightId === c.id);
                 const lockedCard =
-                  busy ||
-                  phase === "r3_redraw" ||
-                  (highlightId != null && c.id !== highlightId);
+                  busy || (highlightId != null && c.id !== highlightId);
                 return (
                   <WordCardView
                     key={c.id}

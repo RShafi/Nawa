@@ -35,11 +35,9 @@ export function PlayerHero({
       animate={
         hit
           ? { x: [-10, 10, -10, 10, 0], filter: ["brightness(1)", "brightness(1.5)", "brightness(1)"] }
-          : { y: [0, -4, 0] }
+          : { y: 0 }
       }
-      transition={
-        hit ? { duration: 0.35 } : { duration: 3.2, repeat: Infinity, ease: "easeInOut" }
-      }
+      transition={hit ? { duration: 0.35 } : { duration: 0.2 }}
     >
       <AnimatePresence>
         {damageFloat ? (
@@ -128,7 +126,11 @@ export function BossEntity({
 
   return (
     <motion.div
-      className={cn("relative flex w-full max-w-sm flex-col items-center gap-1", className)}
+      className={cn(
+        "relative flex w-full max-w-sm flex-col items-center gap-1",
+        attacking && "z-[75]",
+        className,
+      )}
       animate={
         attacking
           ? {
@@ -142,12 +144,12 @@ export function BossEntity({
             }
           : hit
             ? { x: [-5, 5, -5, 5, 0], scale: [1, 1.04, 0.98, 1] }
-            : { y: [0, -6, 0] }
+            : { y: 0 }
       }
       transition={
         attacking || hit
           ? { duration: 0.45 }
-          : { duration: 3.8, repeat: Infinity, ease: "easeInOut" }
+          : { duration: 0.2 }
       }
     >
       <AnimatePresence>

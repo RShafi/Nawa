@@ -6,6 +6,7 @@ import confetti from "canvas-confetti";
 import { AnimatePresence, motion } from "framer-motion";
 import { RotateCcw } from "lucide-react";
 import { awardBattleWinHibrAction } from "@/app/actions/economy";
+import { ArenaMuteButton } from "@/components/battle/ArenaMuteButton";
 import { BattleResultOverlay } from "@/components/battle/BattleResultOverlay";
 import { BattleStage, CombatPhaseBanner, HUD_BOSS, HUD_HAND, HUD_MIDDLE } from "@/components/battle/BattleStage";
 import { BossEntity, PlayerHero, type CombatFloat } from "@/components/battle/BattleEntities";
@@ -21,9 +22,11 @@ import {
 } from "@/components/battle/TutorialOverlay";
 import { ArabicText } from "@/components/common/ArabicText";
 import { Button } from "@/components/ui/button";
+import { useBGM } from "@/hooks/useBGM";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { useAppStore } from "@/store/useAppStore";
 import { useBattleStore } from "@/store/useBattleStore";
+import { cn } from "@/lib/utils";
 
 export function BattleArena() {
   const [railTutorial, setRailTutorial] = useState(false);
@@ -72,6 +75,7 @@ export function BattleArena() {
 
   const autoTutorial = useShouldAutoStartTutorial();
   const [, startTransition] = useTransition();
+  const { fadeOut } = useBGM("/sounds/battle-theme.mp3", started && !railTutorial);
 
   useEffect(() => {
     if (appStatus === "idle") void hydrateApp();
@@ -297,6 +301,7 @@ export function BattleArena() {
       shake={screenShake || playerHit || Boolean(lastResult?.critical && combatState === "player_attacking")}
       combatState={combatState}
     >
+      <ArenaMuteButton />
       <ResonanceCheck />
       <SpellCastVFX projectile={projectile} onDone={() => setProjectile(null)} />
       <BossAttackFlash active={bossFlash} />
@@ -304,7 +309,7 @@ export function BattleArena() {
 
       {/* Row 1 — Boss Zone */}
       <div className={HUD_BOSS}>
-        <div className="mb-1 flex w-full items-center justify-between gap-2 px-1">
+        <div className="mb-1 flex w-full items-center justify-between gap-2 px-1 pe-12">
           <p className="text-[clamp(0.55rem,1.2vh,0.65rem)] tracking-wide text-white/40 uppercase">
             Sentence battle
           </p>
@@ -324,7 +329,12 @@ export function BattleArena() {
           </Button>
         </div>
         <CombatTurnBanner />
-        <div className="flex w-full items-start justify-center gap-3 px-1 md:gap-6">
+        <div
+          className={cn(
+            "flex w-full items-start justify-center gap-3 px-1 md:gap-6",
+            combatState === "enemy_attacking" && "relative z-[75]",
+          )}
+        >
           <PlayerHero
             hp={playerHp}
             maxHp={playerMaxHp}
@@ -391,6 +401,7 @@ export function BattleArena() {
             onRematch={rematch}
             pathHref="/path"
             pathLabel="Return to Path"
+            onMountAudio={fadeOut}
           />
         </>
       )}

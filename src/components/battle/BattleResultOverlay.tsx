@@ -17,6 +17,7 @@ export function BattleResultOverlay({
   rematchLabel,
   pathHref = "/path",
   pathLabel = "Return to Path",
+  onMountAudio,
 }: {
   outcome: "victory" | "defeat";
   maxCombo?: number;
@@ -26,14 +27,17 @@ export function BattleResultOverlay({
   rematchLabel?: string;
   pathHref?: string;
   pathLabel?: string;
+  /** Optional: fade BGM / extra audio when the overlay appears */
+  onMountAudio?: () => void;
 }) {
   const { playSuccess, playError } = useSoundEffects();
   const won = outcome === "victory";
 
   useEffect(() => {
+    onMountAudio?.();
     if (won) playSuccess();
     else playError();
-  }, [won, playSuccess, playError]);
+  }, [won, playSuccess, playError, onMountAudio]);
 
   return (
     <motion.div

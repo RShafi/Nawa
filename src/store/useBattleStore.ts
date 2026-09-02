@@ -621,7 +621,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       return;
     }
 
-    // Enemy turn transition banner
+    // Enemy turn transition banner (short), clear, then attack
     set({
       combatState: "enemy_turn_transition",
       turnBanner: {
@@ -631,7 +631,10 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
         tone: "enemy",
       },
     });
-    await delay(1500);
+    await delay(800);
+
+    set({ combatState: "enemy_idle", turnBanner: null });
+    await delay(300);
 
     const livePre = get();
     const intent = livePre.enemyIntent;

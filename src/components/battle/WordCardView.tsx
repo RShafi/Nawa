@@ -42,6 +42,7 @@ export function WordCardView({
   const meta = SCHOOL_META[card.school];
   const interactive = Boolean(onClick) && !locked && !dimmed;
   const Tag = as === "div" ? "div" : "button";
+  const spotlighted = elevated || highlight;
 
   return (
     <motion.div
@@ -51,15 +52,19 @@ export function WordCardView({
           "z-0 -ml-4 shrink-0 first:ml-0 sm:-ml-2 sm:first:ml-0 md:ml-0 md:px-0.5",
         runeTile && "h-full max-h-full shrink-0",
         !inHand && !runeTile && "shrink-0",
-        elevated && "z-50",
-        dimmed && !elevated && "opacity-35",
+        spotlighted && "z-[70]",
+        dimmed && !spotlighted && "opacity-35",
       )}
+      /* Avoid Framer transforms while spotlighted — they create a stacking context that traps z-index. */
       whileHover={
-        inHand || interactive
-          ? { y: -12, zIndex: 50, transition: { type: "spring", stiffness: 400, damping: 22 } }
-          : undefined
+        spotlighted
+          ? undefined
+          : inHand || interactive
+            ? { y: -12, zIndex: 50, transition: { type: "spring", stiffness: 400, damping: 22 } }
+            : undefined
       }
-      style={elevated || highlight ? { zIndex: 50 } : undefined}
+      animate={spotlighted ? { y: 0, scale: 1 } : undefined}
+      style={spotlighted ? { zIndex: 70 } : undefined}
     >
       <Tag
         type={as === "button" ? "button" : undefined}

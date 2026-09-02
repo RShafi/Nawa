@@ -63,20 +63,20 @@ export function GuideBanner({
   );
 }
 
-/** Fixed dimmer — pointer-events none so HUD stays clickable; targets use SpotlightElevate. */
+/** Fixed dimmer — targets elevate to z-[70] above this layer. */
 export function TutorialBlackout({ active }: { active: boolean }) {
   if (!active) return null;
   return (
     <div
-      className="pointer-events-none fixed inset-0 z-30 bg-black/50"
+      className="pointer-events-none fixed inset-0 z-50 bg-black/55"
       aria-hidden
     />
   );
 }
 
 /**
- * Elevate a tutorial target above the z-50 blackout.
- * Use when spotlighting syntax / hand / cast / redraw.
+ * Elevate a tutorial target above the blackout.
+ * Uses plain CSS z-index (no Framer transforms) so stacking isn't trapped.
  */
 export function SpotlightElevate({
   active,
@@ -92,7 +92,7 @@ export function SpotlightElevate({
       className={cn(
         "relative",
         active &&
-          "z-[60] rounded-2xl bg-slate-900 p-1 ring-4 ring-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.55)]",
+          "z-[70] rounded-2xl bg-slate-900/95 p-1 ring-4 ring-amber-400 shadow-[0_0_30px_rgba(245,158,11,0.55)]",
         className,
       )}
     >
@@ -104,20 +104,16 @@ export function SpotlightElevate({
 /** Pulse ring applied directly to the active target (no overlay mask). */
 export function targetPulse(active: boolean) {
   return active
-    ? "relative z-[60] ring-4 ring-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.6)] animate-pulse"
+    ? "relative z-[70] ring-4 ring-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.6)] animate-pulse"
     : "";
 }
 
 export function TargetArrow({ show }: { show: boolean }) {
   if (!show) return null;
   return (
-    <motion.div
-      className="pointer-events-none absolute -top-8 inset-x-0 z-30 flex justify-center"
-      animate={{ y: [0, 6, 0] }}
-      transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
-    >
-      <ChevronDown className="size-8 text-amber-300 drop-shadow-[0_0_12px_rgba(245,158,11,0.9)]" />
-    </motion.div>
+    <div className="pointer-events-none absolute -top-8 inset-x-0 z-[71] flex justify-center">
+      <ChevronDown className="size-8 animate-bounce text-amber-300 drop-shadow-[0_0_12px_rgba(245,158,11,0.9)]" />
+    </div>
   );
 }
 

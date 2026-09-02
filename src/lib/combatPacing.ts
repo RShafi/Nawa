@@ -10,6 +10,7 @@ export type CombatState =
   | "resonance_check"
   | "player_attacking"
   | "enemy_turn_transition"
+  | "enemy_idle"
   | "enemy_attacking";
 
 /** Damage multiplier applied when Resonance Check succeeds. */
