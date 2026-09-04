@@ -26,8 +26,10 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-sans);
-  --font-arabic: var(--font-arabic);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-marcellus);
+  --font-arabic: var(--font-aref);
+  --font-display: var(--font-marcellus);
 
   /* Desert Twilight & Celestial Gold */
   --color-obsidian: #0b0f19;
@@ -77,13 +79,7 @@
   }
 
   body {
-    @apply bg-obsidian text-foreground font-sans antialiased;
-    background-color: #0b0f19;
-    background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, color-mix(in srgb, #f59e0b 10%, transparent), transparent),
-      radial-gradient(ellipse 55% 40% at 100% 0%, color-mix(in srgb, #38bdf8 6%, transparent), transparent),
-      radial-gradient(ellipse 50% 35% at 0% 100%, color-mix(in srgb, #10b981 5%, transparent), transparent);
-    background-attachment: fixed;
+    @apply text-foreground font-sans antialiased;
     min-height: 100dvh;
   }
 
@@ -116,7 +112,7 @@
   [dir="rtl"].font-arabic,
   .font-arabic[dir="rtl"],
   [lang="ar"].font-arabic {
-    font-family: var(--font-arabic), "Noto Naskh Arabic", "Amiri", serif;
+    font-family: var(--font-arabic), "Aref Ruqaa", serif;
     line-height: 2.15;
     letter-spacing: 0.03em;
     padding-block: 0.15em;
@@ -125,22 +121,32 @@
 
 @layer utilities {
   .font-arabic {
-    font-family: var(--font-arabic), "Noto Naskh Arabic", "Amiri", serif;
+    font-family: var(--font-arabic), "Aref Ruqaa", serif;
     line-height: 2.15;
     letter-spacing: 0.03em;
   }
 
+  .font-display,
+  .font-serif {
+    font-family: var(--font-serif), "Marcellus", Georgia, serif;
+    letter-spacing: 0.04em;
+  }
+
+  .text-gold-gradient {
+    @apply bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 bg-clip-text text-transparent;
+  }
+
   /* Dark frosted glass — Desert Twilight */
   .glass-panel {
-    @apply border border-amber-500/15 bg-slate-900/60 backdrop-blur-md;
+    @apply border border-amber-500/20 bg-slate-900/90 backdrop-blur-md;
   }
 
   .glass-panel-strong {
-    @apply border border-amber-500/20 bg-slate-900/75 backdrop-blur-xl;
+    @apply border border-amber-500/25 bg-slate-900/90 backdrop-blur-xl;
   }
 
   .glass-tablet {
-    @apply rounded-2xl border border-amber-500/15 bg-slate-900/60 shadow-[0_0_40px_-20px_rgba(245,158,11,0.35)] backdrop-blur-md;
+    @apply rounded-2xl border border-amber-500/20 bg-slate-900/90 shadow-[0_0_40px_-20px_rgba(245,158,11,0.35)] backdrop-blur-md;
   }
 
   .glow-emerald {
@@ -245,20 +251,7 @@
   }
 
   .game-stage {
-    @apply w-full min-h-[100dvh] bg-obsidian;
-  }
-
-  @media (min-width: 1024px) {
-    .game-stage {
-      min-height: min(100dvh, 920px);
-      max-width: 72rem;
-      border-radius: 1.75rem;
-      border: 1px solid color-mix(in srgb, #f59e0b 15%, transparent);
-      overflow: hidden;
-      box-shadow:
-        0 0 80px -30px rgba(245, 158, 11, 0.35),
-        0 25px 50px -20px rgba(0, 0, 0, 0.6);
-    }
+    @apply flex w-full min-h-screen flex-col bg-transparent;
   }
 }
 
@@ -335,4 +328,34 @@
     transform: translateY(-28px) scale(0.4);
     opacity: 0;
   }
+}
+
+@keyframes nawa-starfield-far {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 280px;
+  }
+}
+
+@keyframes nawa-starfield-near {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 220px;
+  }
+}
+
+.nawa-starfield-far {
+  animation: nawa-starfield-far 90s linear infinite;
+}
+
+.nawa-starfield-near {
+  animation: nawa-starfield-near 55s linear infinite;
+}
+
+.nawa-motion-paused {
+  animation-play-state: paused !important;
 }

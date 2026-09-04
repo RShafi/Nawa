@@ -145,8 +145,8 @@ export function LessonPageClient({ id }: LessonPageClientProps) {
     : undefined;
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
-      <header className="shrink-0 border-b border-border/60 px-4 py-3 sm:px-6">
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden">
+      <header className="relative z-10 shrink-0 border-b border-amber-500/15 bg-slate-950/40 px-4 py-3 backdrop-blur-md sm:px-6">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2">
           <Button asChild variant="ghost" size="sm" className="-ms-2 gap-1">
             <Link href="/path">
@@ -155,7 +155,9 @@ export function LessonPageClient({ id }: LessonPageClientProps) {
             </Link>
           </Button>
           <div className="min-w-0 flex-1 text-center sm:text-start">
-            <h1 className="truncate text-base font-semibold sm:text-lg">{lesson.title}</h1>
+            <h1 className="font-display truncate text-base font-semibold tracking-wide sm:text-lg">
+              {lesson.title}
+            </h1>
             <p className="text-muted-foreground truncate text-xs">
               {stage.title} · {unit.title}
             </p>
@@ -175,7 +177,7 @@ export function LessonPageClient({ id }: LessonPageClientProps) {
 
       <div
         className={cn(
-          "mx-auto w-full max-w-5xl flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6",
+          "relative z-10 mx-auto w-full max-w-5xl flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6",
         )}
       >
         <p className="text-muted-foreground mb-4 text-sm leading-relaxed sm:text-base">

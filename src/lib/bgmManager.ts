@@ -78,6 +78,13 @@ function attachUnlock() {
   window.addEventListener("keydown", onUnlock);
 }
 
+export function pauseBgmOnHide(): void {
+  clearFade();
+  if (audio && !audio.paused) {
+    audio.pause();
+  }
+}
+
 export function startBgm(url: string, muted: boolean) {
   mutedState = muted;
   ensureAudio(url);

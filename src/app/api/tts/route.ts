@@ -7,6 +7,8 @@ import { createHash } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
+import { resolveSpokenText } from "@/utils/tts";
+import { getTtsOverrideForArabic } from "@/content/ttsOverrides";
 
 export const runtime = "nodejs";
 
@@ -30,7 +32,9 @@ function cachePath(hash: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const text = (req.nextUrl.searchParams.get("text") ?? "").trim();
+  const rawText = (req.nextUrl.searchParams.get("text") ?? "").trim();
+  if (!rawText) return badRequest("Missing text");
+  const text = resolveSpokenText(rawText, getTtsOverrideForArabic(rawText));
   if (!text) return badRequest("Missing text");
   if (text.length > MAX_CHARS) return badRequest(`Text too long (max ${MAX_CHARS} chars)`);
 

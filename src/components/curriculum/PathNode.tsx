@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { Check, Lock, MapPin, Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { loomLessonHref } from "@/content/curriculumData";
 import { cn } from "@/lib/utils";
 import type { LessonStatus } from "@/types/arabic";
 
@@ -10,6 +12,8 @@ type PathNodeProps = {
   status: LessonStatus;
   title: string;
   description: string;
+  /** Loom lesson id — links to /loom/[lessonId] when set and unlocked. */
+  lessonId?: string;
   themeColor?: string;
   size?: "sm" | "md";
   /** Unit hubs use a pin marker; lessons use play/lock/check. */
@@ -21,6 +25,7 @@ export function PathNode({
   status,
   title,
   description,
+  lessonId,
   themeColor = "var(--primary)",
   size = "md",
   kind = "lesson",
@@ -31,39 +36,34 @@ export function PathNode({
   const completed = status === "completed";
   const active = status === "active";
   const isUnit = kind === "unit";
+  const href = lessonId && !locked && !isUnit ? loomLessonHref(lessonId) : undefined;
 
-  const node = (
-    <motion.button
-      type="button"
-      disabled={locked && !isUnit}
-      onClick={onClick}
-      whileHover={locked && !isUnit ? undefined : { scale: 1.06 }}
-      whileTap={locked && !isUnit ? undefined : { scale: 0.96 }}
-      className={cn(
-        "relative z-10 flex items-center justify-center rounded-full border-2 shadow-sm transition-colors",
-        dim,
-        locked && !isUnit && "cursor-not-allowed border-muted-foreground/25 bg-muted text-muted-foreground",
-        isUnit && locked && "border-muted-foreground/30 bg-background text-muted-foreground",
-        isUnit && !locked && !completed && "bg-background",
-        completed && "border-transparent text-primary-foreground",
-        active && !isUnit && "border-transparent text-primary-foreground",
-        isUnit && active && "text-foreground",
-      )}
-      style={
-        completed || (active && !isUnit)
-          ? {
-              backgroundColor: themeColor,
-              boxShadow:
-                active && !isUnit
-                  ? `0 0 0 6px color-mix(in oklab, ${themeColor} 25%, transparent)`
-                  : undefined,
-            }
-          : isUnit && !locked
-            ? { borderColor: themeColor, color: themeColor }
-            : undefined
-      }
-      aria-label={title}
-    >
+  const className = cn(
+    "relative z-10 flex items-center justify-center rounded-full border-2 shadow-sm transition-colors",
+    dim,
+    locked && !isUnit && "cursor-not-allowed border-muted-foreground/25 bg-muted text-muted-foreground",
+    isUnit && locked && "border-muted-foreground/30 bg-background text-muted-foreground",
+    isUnit && !locked && !completed && "bg-background",
+    completed && "border-transparent text-primary-foreground",
+    active && !isUnit && "border-transparent text-primary-foreground",
+    isUnit && active && "text-foreground",
+  );
+
+  const style =
+    completed || (active && !isUnit)
+      ? {
+          backgroundColor: themeColor,
+          boxShadow:
+            active && !isUnit
+              ? `0 0 0 6px color-mix(in oklab, ${themeColor} 25%, transparent)`
+              : undefined,
+        }
+      : isUnit && !locked
+        ? { borderColor: themeColor, color: themeColor }
+        : undefined;
+
+  const glyph = (
+    <>
       {active && !isUnit ? (
         <motion.span
           className="absolute inset-0 rounded-full"
@@ -82,6 +82,31 @@ export function PathNode({
       {!isUnit && locked ? <Lock className="size-4" /> : null}
       {!isUnit && completed ? <Check className="size-5 stroke-[2.5]" /> : null}
       {!isUnit && active ? <Play className="size-5 fill-current ps-0.5" /> : null}
+    </>
+  );
+
+  const node = href ? (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={className}
+      style={style}
+      aria-label={title}
+    >
+      {glyph}
+    </Link>
+  ) : (
+    <motion.button
+      type="button"
+      disabled={locked && !isUnit}
+      onClick={onClick}
+      whileHover={locked && !isUnit ? undefined : { scale: 1.06 }}
+      whileTap={locked && !isUnit ? undefined : { scale: 0.96 }}
+      className={className}
+      style={style}
+      aria-label={title}
+    >
+      {glyph}
     </motion.button>
   );
 

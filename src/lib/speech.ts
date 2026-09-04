@@ -5,8 +5,10 @@
  */
 export {
   canSpeak,
+  getIsAudioPlaying,
   prefetchArabic,
   speakArabic,
+  stopArabicAudio,
   type SpeakOptions,
   type SpeakResult,
 } from "@/lib/audio";

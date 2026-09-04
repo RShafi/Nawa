@@ -162,7 +162,7 @@ export function BossEntity({
             className={cn(
               "pointer-events-none absolute -top-1 z-20 font-mono font-black",
               f.tone === "critical" &&
-                "text-lg text-amber-400 drop-shadow-[0_0_15px_rgba(245,158,11,0.8)] sm:text-xl",
+                "font-display text-gold-gradient text-lg drop-shadow-[0_0_15px_rgba(245,158,11,0.8)] sm:text-xl",
               f.tone === "damage" && "text-sm text-rose-300",
               f.tone === "burn" && "text-sm text-orange-300",
               f.tone === "frost" && "text-sm text-cyan-300",
@@ -213,7 +213,9 @@ export function BossEntity({
       </div>
 
       <div className="text-center">
-        <p className="text-[clamp(0.8rem,1.8vh,1.1rem)] font-semibold text-white">{name}</p>
+        <p className="font-display text-[clamp(0.8rem,1.8vh,1.1rem)] font-semibold text-white">
+          {name}
+        </p>
         <InlineArabic className="mt-0.5 block text-[clamp(1rem,2.2vh,1.5rem)] text-amber-100/80">
           {nameAr}
         </InlineArabic>

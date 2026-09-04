@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ArabicText } from "@/components/common/ArabicText";
-import { buildResonanceQuiz } from "@/lib/resonanceQuiz";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { cn } from "@/lib/utils";
 import { useBattleStore } from "@/store/useBattleStore";
+import { generateValidSentencePair } from "@/utils/sentenceGenerator";
 import type { WordCard } from "@/data/combatDictionary";
 
 type LocalProps = {
@@ -26,11 +26,11 @@ type StoreProps = {
 
 /**
  * Soft-fail translation quiz after Cast — Critical Strike if correct.
- * Free-play reads the battle store; tutorial passes controlled props.
+ * Free-play reads pending Syntax Bar cards from the battle store; tutorial passes controlled props.
  */
 export function ResonanceCheck(props: LocalProps | StoreProps = {}) {
   const storeState = useBattleStore((s) => s.combatState);
-  const pending = useBattleStore((s) => s.pendingCastCards);
+  const pendingCastCards = useBattleStore((s) => s.pendingCastCards);
   const resolveResonance = useBattleStore((s) => s.resolveResonance);
   const hand = useBattleStore((s) => s.hand);
   const { playSuccess, playError, playTap } = useSoundEffects();
@@ -38,15 +38,13 @@ export function ResonanceCheck(props: LocalProps | StoreProps = {}) {
 
   const controlled = "cards" in props && props.cards != null && props.onResolve != null;
   const active = controlled ? Boolean(props.active) : storeState === "resonance_check";
-  const cards = controlled ? props.cards! : pending;
-  const distractors = controlled
-    ? (props.distractors ?? [])
-    : hand;
+  const slottedCards = controlled ? props.cards! : pendingCastCards;
+  const distractorPool = controlled ? (props.distractors ?? []) : hand;
 
   const quiz = useMemo(() => {
-    if (!active || cards.length === 0) return null;
-    return buildResonanceQuiz(cards, distractors);
-  }, [active, cards, distractors]);
+    if (!active || slottedCards.length === 0) return null;
+    return generateValidSentencePair(slottedCards, distractorPool);
+  }, [active, slottedCards, distractorPool]);
 
   if (!active || !quiz) return null;
 
@@ -54,7 +52,7 @@ export function ResonanceCheck(props: LocalProps | StoreProps = {}) {
     if (picked) return;
     playTap();
     setPicked(option);
-    const success = option === quiz!.correct;
+    const success = option === quiz!.english;
     if (success) playSuccess();
     else playError();
     window.setTimeout(() => {
@@ -93,10 +91,16 @@ export function ResonanceCheck(props: LocalProps | StoreProps = {}) {
           </ArabicText>
         </div>
 
+        {quiz.fallback ? (
+          <p className="mt-2 text-center text-[10px] text-white/40">
+            Resonance is unstable — match the literal gloss.
+          </p>
+        ) : null}
+
         <div className="mt-5 flex flex-col gap-2">
           {quiz.options.map((opt) => {
             const selected = picked === opt;
-            const isCorrect = opt === quiz.correct;
+            const isCorrect = opt === quiz.english;
             return (
               <button
                 key={opt}

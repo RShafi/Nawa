@@ -1,214 +1,328 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { BookOpen, Check, ChevronRight, Lock, Play, Sparkles } from "lucide-react";
+import { Play, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PathNode } from "@/components/path/PathNode";
+import { usePageVisible } from "@/hooks/usePageVisible";
 import {
-  CURRICULUM,
-  firstIncompleteLesson,
-  isLessonComplete,
-  isModuleUnlocked,
-  lessonPathHref,
-  type CurriculumUnit,
-} from "@/data/curriculum";
+  curriculumData,
+  firstIncompleteLoomLesson,
+  isLoomLessonComplete,
+  isLoomLessonUnlocked,
+  LOOM_CHAPTER_META,
+  loomLessonHref,
+} from "@/content/curriculumData";
+import {
+  forgeTrialHref,
+  forgeTrials,
+  trialMilestoneId,
+} from "@/content/forgeTrials";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
-import { cn } from "@/lib/utils";
-import { useAppStore } from "@/store/useAppStore";
+import { registerLessons, useLessonStore } from "@/store/useLessonStore";
+import type { CurriculumLesson } from "@/types/curriculum";
+import type { ForgeTrial } from "@/types/forge";
+import type { PathNodeKind, PathNodeState } from "@/components/path/PathNode";
 
-const ACCENT: Record<
-  CurriculumUnit["accent"],
-  { bar: string; soft: string; badge: string; line: string }
-> = {
-  sky: {
-    bar: "from-astral-cyan/80 to-astral-cyan/30",
-    soft: "border-cyan-400/25 bg-cyan-500/10",
-    badge: "bg-cyan-400 text-slate-950",
-    line: "bg-gradient-to-b from-cyan-400/50 to-cyan-400/5",
-  },
-  emerald: {
-    bar: "from-muted-emerald/80 to-muted-emerald/30",
-    soft: "border-emerald-400/25 bg-emerald-500/10",
-    badge: "bg-emerald-400 text-emerald-950",
-    line: "bg-gradient-to-b from-emerald-400/50 to-emerald-400/5",
-  },
-  amber: {
-    bar: "from-celestial-amber/80 to-celestial-gold/30",
-    soft: "border-amber-400/25 bg-amber-500/10",
-    badge: "bg-amber-400 text-amber-950",
-    line: "bg-gradient-to-b from-amber-400/50 to-amber-400/5",
-  },
-  violet: {
-    bar: "from-violet-500/80 to-violet-400/30",
-    soft: "border-violet-400/25 bg-violet-500/10",
-    badge: "bg-violet-400 text-violet-950",
-    line: "bg-gradient-to-b from-violet-400/50 to-violet-400/5",
-  },
+const CANVAS_W = 320;
+const ROW_H = 148;
+const TOP_PAD = 96;
+const CHAPTER_HEADER_H = 80;
+
+type StarMapNode = PathNodeState & {
+  chapterId: string;
+  lane: -1 | 0 | 1;
 };
 
-type PathMapProps = {
-  initialCompletedIds?: string[];
-};
+function isLessonUnlockedByMastery(
+  lesson: CurriculumLesson,
+  lessonIndex: number,
+  masteredVocabIds: readonly string[],
+): boolean {
+  return isLoomLessonUnlocked(lessonIndex, masteredVocabIds);
+}
 
-export function PathMap({ initialCompletedIds = [] }: PathMapProps) {
-  const storeCompleted = useAppStore((s) => s.completedLessonIds);
-  const hydrate = useAppStore((s) => s.hydrate);
-  const status = useAppStore((s) => s.status);
-  const scrollRef = useRef<HTMLDivElement>(null);
+function isTrialUnlocked(
+  trial: ForgeTrial,
+  masteredVocabIds: readonly string[],
+): boolean {
+  const unlockLesson = curriculumData.find((l) => l.id === trial.unlockAfterLessonId);
+  if (!unlockLesson) return false;
+  return isLoomLessonComplete(unlockLesson, masteredVocabIds);
+}
+
+function isTrialComplete(
+  trial: ForgeTrial,
+  masteredVocabIds: readonly string[],
+): boolean {
+  return masteredVocabIds.includes(trialMilestoneId(trial.id));
+}
+
+function buildStarMapNodes(masteredVocabIds: readonly string[]): StarMapNode[] {
+  const result: StarMapNode[] = [];
+  let globalIndex = 0;
+
+  curriculumData.forEach((lesson, lessonIndex) => {
+    const lane = ((globalIndex % 3) - 1) as -1 | 0 | 1;
+    const unlocked = isLessonUnlockedByMastery(lesson, lessonIndex, masteredVocabIds);
+    const done = isLoomLessonComplete(lesson, masteredVocabIds);
+
+    result.push({
+      kind: "LESSON" as PathNodeKind,
+      id: lesson.id,
+      title: lesson.title,
+      subtitle: lesson.subtitle,
+      href: loomLessonHref(lesson.id),
+      chapterId: lesson.chapterId,
+      unlocked,
+      done,
+      isContinue: false,
+      globalIndex,
+      lane,
+    });
+    globalIndex += 1;
+
+    for (const trial of forgeTrials) {
+      if (trial.unlockAfterLessonId !== lesson.id) continue;
+      const trialLane = ((globalIndex % 3) - 1) as -1 | 0 | 1;
+      result.push({
+        kind: "TRIAL",
+        id: trial.id,
+        title: trial.title,
+        subtitle: trial.subtitle,
+        href: forgeTrialHref(trial.id),
+        chapterId: trial.chapterId,
+        unlocked: isTrialUnlocked(trial, masteredVocabIds),
+        done: isTrialComplete(trial, masteredVocabIds),
+        isContinue: false,
+        globalIndex,
+        lane: trialLane,
+      });
+      globalIndex += 1;
+    }
+  });
+
+  return result;
+}
+
+function laneCenterX(lane: StarMapNode["lane"]): number {
+  if (lane === -1) return CANVAS_W * 0.28;
+  if (lane === 1) return CANVAS_W * 0.72;
+  return CANVAS_W * 0.5;
+}
+
+const STAR_LAYER_NEAR =
+  "radial-gradient(1.5px 1.5px at 18px 24px, rgba(255,255,255,0.9), transparent)," +
+  "radial-gradient(1px 1px at 64px 88px, rgba(255,255,255,0.55), transparent)," +
+  "radial-gradient(1.5px 1.5px at 112px 42px, rgba(251,191,36,0.65), transparent)," +
+  "radial-gradient(1px 1px at 156px 120px, rgba(255,255,255,0.45), transparent)," +
+  "radial-gradient(1px 1px at 200px 68px, rgba(255,255,255,0.7), transparent)";
+
+const STAR_LAYER_FAR =
+  "radial-gradient(1px 1px at 32px 56px, rgba(255,255,255,0.35), transparent)," +
+  "radial-gradient(1px 1px at 96px 140px, rgba(255,255,255,0.25), transparent)," +
+  "radial-gradient(1px 1px at 168px 28px, rgba(255,255,255,0.3), transparent)," +
+  "radial-gradient(1px 1px at 240px 96px, rgba(255,255,255,0.2), transparent)";
+
+function ParallaxStarField({ paused }: { paused: boolean }) {
+  return (
+    <>
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 opacity-50 nawa-starfield-far ${paused ? "nawa-motion-paused" : ""}`}
+        style={{
+          backgroundImage: STAR_LAYER_FAR,
+          backgroundSize: "280px 280px",
+          backgroundRepeat: "repeat",
+        }}
+      />
+      <div
+        aria-hidden
+        className={`pointer-events-none absolute inset-0 opacity-70 nawa-starfield-near ${paused ? "nawa-motion-paused" : ""}`}
+        style={{
+          backgroundImage: STAR_LAYER_NEAR,
+          backgroundSize: "220px 220px",
+          backgroundRepeat: "repeat",
+        }}
+      />
+    </>
+  );
+}
+
+export function PathMap() {
+  const pageVisible = usePageVisible();
+  const masteredVocabIds = useLessonStore((s) => s.masteredVocabIds);
+  const hasHydrated = useLessonStore((s) => s.hasHydrated);
   const { playTap } = useSoundEffects();
 
   useEffect(() => {
-    if (status === "idle") void hydrate();
-  }, [status, hydrate]);
+    registerLessons(curriculumData);
+    if (!hasHydrated) {
+      useLessonStore.persist.rehydrate();
+    }
+  }, [hasHydrated]);
 
-  const completedIds = useMemo(() => {
-    return [...new Set([...initialCompletedIds, ...storeCompleted])];
-  }, [initialCompletedIds, storeCompleted]);
+  const nodes = useMemo(
+    () => (hasHydrated ? buildStarMapNodes(masteredVocabIds) : []),
+    [hasHydrated, masteredVocabIds],
+  );
 
-  const continueLesson = firstIncompleteLesson(completedIds);
-  const totalLessons = CURRICULUM.units.reduce(
-    (n, u) => n + u.modules.reduce((m, mod) => m + mod.lessons.length, 0),
-    0,
+  // Mark continue lesson on hydrated set
+  const continueLesson = useMemo(
+    () => (hasHydrated ? firstIncompleteLoomLesson(masteredVocabIds) : null),
+    [hasHydrated, masteredVocabIds],
   );
-  const doneCount = CURRICULUM.units.reduce(
-    (n, u) =>
-      n +
-      u.modules.reduce(
-        (m, mod) => m + mod.lessons.filter((l) => isLessonComplete(l.id, completedIds)).length,
-        0,
-      ),
-    0,
-  );
+
+  const highlightedNodes = useMemo(() => {
+    return nodes.map((node) => {
+      if (node.kind === "LESSON" && continueLesson?.id === node.id) {
+        return { ...node, isContinue: true };
+      }
+      return { ...node, isContinue: node.kind === "TRIAL" ? node.isContinue : false };
+    });
+  }, [continueLesson?.id, nodes]);
+
+  const totalLessons = highlightedNodes.filter((n) => n.kind === "LESSON").length;
+  const doneCount = highlightedNodes.filter((n) => n.kind === "LESSON" && n.done).length;
+
+  const chapterBoundaries = useMemo(() => {
+    const map = new Map<string, number>();
+    highlightedNodes.forEach((n, i) => {
+      if (!map.has(n.chapterId)) map.set(n.chapterId, i);
+    });
+    return map;
+  }, [highlightedNodes]);
+
+  const nodeCenters = useMemo(() => {
+    return highlightedNodes.map((node, index) => {
+      let y = TOP_PAD;
+      for (let i = 0; i < index; i++) {
+        if (chapterBoundaries.get(highlightedNodes[i]!.chapterId) === i && i > 0) {
+          y += CHAPTER_HEADER_H;
+        }
+        y += ROW_H;
+      }
+      if (chapterBoundaries.get(node.chapterId) === index && index > 0) {
+        y += CHAPTER_HEADER_H;
+      }
+      return { x: laneCenterX(node.lane), y };
+    });
+  }, [chapterBoundaries, highlightedNodes]);
+
+  const constellationPaths = useMemo(() => {
+    return highlightedNodes.slice(0, -1).map((node, i) => {
+      const next = highlightedNodes[i + 1]!;
+      const from = nodeCenters[i]!;
+      const to = nodeCenters[i + 1]!;
+      const midY = (from.y + to.y) / 2;
+      const lit = node.done && next.unlocked;
+      return {
+        id: `constellation-${node.id}`,
+        d: `M ${from.x} ${from.y} C ${from.x} ${midY}, ${to.x} ${midY}, ${to.x} ${to.y}`,
+        lit,
+      };
+    });
+  }, [nodeCenters, highlightedNodes]);
+  const svgHeight = (nodeCenters.at(-1)?.y ?? TOP_PAD) + ROW_H;
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden lg:h-full">
-      <div className="shrink-0 border-b border-amber-500/10 px-4 py-3 sm:px-6">
-        <div className="mx-auto max-w-2xl">
+    <div className="relative flex min-h-full w-full flex-col bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0B0F19] via-black to-black">
+      <ParallaxStarField paused={!pageVisible} />
+
+      <div className="relative z-10 border-b border-amber-500/10 px-4 py-3 sm:px-6">
+        <div className="mx-auto max-w-lg">
           <div className="flex items-center gap-2">
             <Sparkles className="text-celestial-amber size-5" />
-            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-              Constellation Path
+            <h1 className="font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              Celestial Path
             </h1>
           </div>
           <p className="mt-1 text-sm text-white/55">
-            A vertical celestial journey — letters, meanings, and sentences under desert twilight.
+            Follow the runestone constellation — each star unlocks Arabic power.
           </p>
           <p className="text-celestial-amber/70 mt-2 font-mono text-[11px]">
-            {doneCount}/{totalLessons} stars lit
+            {hasHydrated ? `${doneCount}/${totalLessons}` : "—"} runestones awakened
           </p>
         </div>
       </div>
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="mx-auto max-w-2xl space-y-10 px-4 py-6 pb-28 sm:px-6">
-          {CURRICULUM.units.map((unit, ui) => {
-            const accent = ACCENT[unit.accent];
-            return (
-              <section key={unit.id} className="scroll-mt-4">
+      <div className="relative z-10 mx-auto w-full max-w-md px-4 py-8 pb-8 sm:max-w-lg sm:px-6">
+        <div
+          className="relative mx-auto"
+          style={{ width: CANVAS_W, maxWidth: "100%", minHeight: svgHeight }}
+        >
+          <svg
+            viewBox={`0 0 ${CANVAS_W} ${svgHeight}`}
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            preserveAspectRatio="xMidYMin meet"
+            aria-hidden
+          >
+            <defs>
+              <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FBBF24" />
+                <stop offset="50%" stopColor="#F59E0B" />
+                <stop offset="100%" stopColor="#D97706" />
+              </linearGradient>
+            </defs>
+            {constellationPaths.map((segment, index) => (
+              <path
+                key={segment.id}
+                d={segment.d}
+                fill="none"
+                stroke="url(#goldGradient)"
+                strokeWidth={segment.lit ? 2.5 : 1.5}
+                strokeLinecap="round"
+                filter={
+                  segment.lit
+                    ? "drop-shadow(0px 0px 10px rgba(245,158,11,0.8))"
+                    : undefined
+                }
+                className={segment.lit ? undefined : "opacity-30"}
+              />
+            ))}
+          </svg>
+
+          <div className="pointer-events-auto relative" style={{ minHeight: svgHeight }}>
+            {highlightedNodes.map((node, index) => {
+              const center = nodeCenters[index]!;
+              const isChapterStart = chapterBoundaries.get(node.chapterId) === node.globalIndex;
+              const chapterMeta = LOOM_CHAPTER_META[node.chapterId];
+
+              return (
                 <div
-                  className={cn(
-                    "sticky top-0 z-20 mb-5 rounded-2xl border px-4 py-3 backdrop-blur-xl",
-                    "supports-[backdrop-filter]:bg-obsidian/90",
-                    accent.soft,
-                  )}
+                  key={node.id}
+                  className="absolute left-0 w-full"
+                  style={{ top: center.y - 48 }}
                 >
-                  <div className={cn("mb-2 h-1 w-16 rounded-full bg-gradient-to-r", accent.bar)} />
-                  <h2 className="text-lg font-semibold text-white sm:text-xl">{unit.title}</h2>
-                  <p className="mt-0.5 text-sm text-white/55">{unit.summary}</p>
+                  {isChapterStart ? (
+                    <div className="pointer-events-none mb-6 -translate-y-16 text-center">
+                      <div className="mx-auto mb-2 h-px w-24 bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
+                      <p className="font-display text-xs tracking-[0.2em] text-amber-300/70 uppercase">
+                        {chapterMeta?.title ?? node.chapterId}
+                      </p>
+                      {chapterMeta?.summary ? (
+                        <p className="mt-0.5 text-[11px] text-white/40">{chapterMeta.summary}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  <div
+                    className="absolute flex -translate-x-1/2 flex-col items-center"
+                    style={{ left: center.x, top: 0 }}
+                  >
+                    <PathNode node={node} onTap={() => playTap()} />
+                  </div>
                 </div>
-
-                <div className="space-y-6">
-                  {unit.modules.map((mod, mi) => {
-                    const unlocked = isModuleUnlocked(ui, mi, completedIds);
-                    return (
-                      <div key={mod.id} className="space-y-3">
-                        <div className="flex items-center gap-2 px-1">
-                          <BookOpen className="size-3.5 text-white/35" />
-                          <h3 className="text-sm font-medium text-white/80">{mod.title}</h3>
-                          <span className="text-[11px] text-white/35">— {mod.summary}</span>
-                        </div>
-
-                        <ul className="relative space-y-3 ps-2">
-                          <div
-                            className={cn(
-                              "absolute top-3 bottom-3 start-[1.35rem] w-px",
-                              accent.line,
-                            )}
-                            aria-hidden
-                          />
-                          {mod.lessons.map((lesson) => {
-                            const done = isLessonComplete(lesson.id, completedIds);
-                            const locked = !unlocked;
-                            const isContinue = continueLesson?.id === lesson.id;
-
-                            return (
-                              <li key={lesson.id} className="relative flex items-stretch gap-3">
-                                <span
-                                  className={cn(
-                                    "constellation-node z-10 mt-2",
-                                    done && "constellation-node-done",
-                                    isContinue && !done && "constellation-node-active",
-                                    locked && "opacity-40",
-                                  )}
-                                >
-                                  {locked ? (
-                                    <Lock className="size-3.5 text-white/40" />
-                                  ) : done ? (
-                                    <Check className="size-3.5 text-emerald-200" />
-                                  ) : (
-                                    <Play className="size-3 fill-current text-amber-200" />
-                                  )}
-                                </span>
-
-                                {locked ? (
-                                  <div className="glass-tablet flex flex-1 items-center gap-3 px-4 py-3 opacity-45">
-                                    <div className="min-w-0 flex-1">
-                                      <p className="font-medium text-white/70">{lesson.title}</p>
-                                      <p className="truncate text-xs text-white/35">{lesson.summary}</p>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <motion.div
-                                    whileTap={{ scale: 0.96 }}
-                                    className="flex-1"
-                                  >
-                                    <Link
-                                      href={lessonPathHref(lesson.id)}
-                                      onClick={() => playTap()}
-                                      className={cn(
-                                        "glass-tablet group flex items-center gap-3 px-4 py-3 transition hover:bg-slate-800/70",
-                                        isContinue &&
-                                          "ring-celestial-amber/40 border-amber-400/40 ring-1",
-                                        done && "border-emerald-400/25",
-                                      )}
-                                    >
-                                      <div className="min-w-0 flex-1">
-                                        <p className="font-semibold text-white">{lesson.title}</p>
-                                        <p className="truncate text-xs text-white/45">
-                                          {lesson.summary}
-                                        </p>
-                                      </div>
-                                      <ChevronRight className="size-4 shrink-0 text-white/30 transition group-hover:text-amber-300/80" />
-                                    </Link>
-                                  </motion.div>
-                                )}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      <footer className="glass-panel-strong shrink-0 border-t border-amber-500/15 px-4 py-3">
-        <div className="mx-auto flex max-w-2xl flex-wrap items-center justify-between gap-3">
+      <footer className="relative z-10 border-t border-amber-500/15 bg-black/40 px-4 py-3 backdrop-blur-md">
+        <div className="mx-auto flex max-w-lg flex-wrap items-center justify-between gap-3">
           <AnimatePresence mode="wait">
             {continueLesson ? (
               <motion.p
@@ -217,7 +331,7 @@ export function PathMap({ initialCompletedIds = [] }: PathMapProps) {
                 animate={{ opacity: 1 }}
                 className="text-sm text-white/55"
               >
-                Next star:{" "}
+                Next rune:{" "}
                 <span className="text-celestial-amber font-medium">{continueLesson.title}</span>
               </motion.p>
             ) : (
@@ -228,10 +342,10 @@ export function PathMap({ initialCompletedIds = [] }: PathMapProps) {
             <Button
               asChild
               size="lg"
-              className="bg-celestial-amber font-semibold text-obsidian hover:bg-amber-400"
+              className="bg-celestial-amber font-display font-semibold text-obsidian hover:bg-amber-400"
               onClick={() => playTap()}
             >
-              <Link href={lessonPathHref(continueLesson.id)}>
+              <Link href={loomLessonHref(continueLesson.id)}>
                 <Play className="size-4 fill-current" />
                 Continue
               </Link>

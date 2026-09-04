@@ -55,14 +55,16 @@ export function BattleResultOverlay({
       >
         {won ? (
           <>
-            <p className="text-glow-amber text-4xl font-black tracking-wide text-amber-300 sm:text-5xl">
+            <p className="text-gold-gradient font-display text-4xl font-black tracking-wide sm:text-5xl">
               VICTORY
             </p>
             <InlineArabic className="mt-2 block text-3xl text-amber-100">انتصار</InlineArabic>
           </>
         ) : (
           <>
-            <p className="text-4xl font-black tracking-wide text-rose-300 sm:text-5xl">DEFEAT</p>
+            <p className="font-display text-4xl font-black tracking-wide text-rose-300 sm:text-5xl">
+              DEFEAT
+            </p>
             <InlineArabic className="mt-2 block text-3xl text-rose-100/90">هزيمة</InlineArabic>
           </>
         )}

@@ -33,16 +33,10 @@ export function BattleStage({
       }
       transition={{ duration: 0.35 }}
       className={cn(
-        "relative mx-auto grid h-[calc(100dvh-80px)] w-full max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] gap-2 overflow-hidden bg-[#0B0F19] p-2 md:gap-4 md:p-4",
+        "relative mx-auto grid h-[calc(100dvh-80px)] w-full max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] gap-2 overflow-hidden p-2 md:gap-4 md:p-4",
         className,
       )}
     >
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute inset-0 bg-gradient-to-b from-[#070b14] via-[#0B0F19] to-[#12101a]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_15%,rgba(245,158,11,0.12),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_10%,rgba(56,189,248,0.06),transparent_45%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-amber-950/30 to-transparent" />
-      </div>
       {children}
     </motion.div>
   );
@@ -72,8 +66,10 @@ export function CombatPhaseBanner({
           <div className="text-center">
             <p
               className={cn(
-                "text-4xl font-black tracking-[0.2em] uppercase sm:text-5xl md:text-6xl",
-                showBlock ? "text-sky-300" : "text-rose-300",
+                "font-display text-4xl font-black tracking-[0.2em] uppercase sm:text-5xl md:text-6xl",
+                showBlock
+                  ? "text-sky-300"
+                  : "bg-gradient-to-r from-rose-200 via-rose-300 to-rose-500 bg-clip-text text-transparent",
               )}
             >
               {showBlock ? "BLOCKED!" : "ENEMY TURN"}

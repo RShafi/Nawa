@@ -784,8 +784,9 @@ export function getNextLessonId(lessonId: string): string | null {
   return all[idx + 1]?.id ?? null;
 }
 
+/** @deprecated Legacy slide lessons removed — use `loomLessonHref` from `@/content/curriculumData`. */
 export function lessonPathHref(lessonId: string): string {
-  return `/path/lesson/${encodeURIComponent(lessonId)}`;
+  return `/loom/${encodeURIComponent(lessonId)}`;
 }
 
 export function isLessonComplete(lessonId: string, completedIds: string[]): boolean {

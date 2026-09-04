@@ -554,9 +554,9 @@ export function TutorialArena({ onExit, onComplete }: Props) {
                   size="sm"
                   disabled={!pulseCast}
                   className={cn(
-                    "h-8 min-w-[8rem] gap-1.5 text-xs font-bold sm:h-9 sm:text-sm",
+                    "font-display h-8 min-w-[8rem] gap-1.5 text-xs font-bold tracking-wide sm:h-9 sm:text-sm",
                     pulseCast
-                      ? "bg-celestial-amber text-obsidian hover:bg-amber-400"
+                      ? "bg-celestial-amber text-obsidian shadow-[0_0_18px_rgba(245,158,11,0.35)] hover:bg-amber-400"
                       : "bg-white/10 text-white/35",
                   )}
                   onClick={() => void onCast()}

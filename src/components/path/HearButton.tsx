@@ -28,16 +28,16 @@ export function HearButton({
         variant={variant}
         disabled={!text.trim() || isLoading}
         className={cn(
-          "gap-2 border-white/15 bg-white/5",
-          isPlaying && "ring-2 ring-sky-400/50",
+          "gap-2 border-amber-500/20 bg-slate-900/90 text-amber-100",
+          isPlaying && "ring-2 ring-amber-400/50",
           className,
         )}
         onClick={() => void play(text)}
       >
         {isLoading ? (
-          <Loader2 className="size-4 animate-spin text-sky-300" />
+          <Loader2 className="size-4 animate-spin text-amber-400" />
         ) : (
-          <Volume2 className={cn("size-4", isPlaying && "animate-pulse text-sky-300")} />
+          <Volume2 className={cn("size-4", isPlaying && "animate-pulse text-amber-400")} />
         )}
         {isLoading ? "Preparing audio…" : isPlaying ? "Playing…" : label}
       </Button>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import confetti from "canvas-confetti";
 import { AnimatePresence, motion } from "framer-motion";
 import { RotateCcw } from "lucide-react";
@@ -29,6 +30,7 @@ import { useBattleStore } from "@/store/useBattleStore";
 import { cn } from "@/lib/utils";
 
 export function BattleArena() {
+  const router = useRouter();
   const [railTutorial, setRailTutorial] = useState(false);
   const [projectile, setProjectile] = useState<SpellProjectile | null>(null);
   const [floats, setFloats] = useState<CombatFloat[]>([]);
@@ -209,15 +211,33 @@ export function BattleArena() {
     });
   }
 
+  function handleRetreat() {
+    resetBattle();
+    router.push("/");
+  }
+
+  const retreatButton = (
+    <button
+      type="button"
+      onClick={handleRetreat}
+      className="fixed left-4 top-4 z-[100] rounded-md border border-slate-700 bg-black/40 px-4 py-2 text-sm text-slate-300 backdrop-blur-sm transition-colors hover:border-red-500 hover:bg-red-500/20 hover:text-red-100"
+    >
+      Retreat
+    </button>
+  );
+
   if (railTutorial) {
     return (
-      <TutorialArena
-        onExit={() => setRailTutorial(false)}
-        onComplete={() => {
-          markArenaTutorialDone();
-          setRailTutorial(false);
-        }}
-      />
+      <>
+        {retreatButton}
+        <TutorialArena
+          onExit={() => setRailTutorial(false)}
+          onComplete={() => {
+            markArenaTutorialDone();
+            setRailTutorial(false);
+          }}
+        />
+      </>
     );
   }
 
@@ -226,7 +246,9 @@ export function BattleArena() {
     const loading = appStatus === "loading" || appStatus === "idle";
 
     return (
-      <div className="mx-auto flex h-full max-w-5xl flex-col items-center justify-center gap-4 overflow-hidden px-4 py-4 text-center">
+      <>
+        {retreatButton}
+        <div className="mx-auto flex h-full max-w-5xl flex-col items-center justify-center gap-4 overflow-hidden px-4 py-4 text-center">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -290,14 +312,17 @@ export function BattleArena() {
             </p>
           ) : null}
         </motion.div>
-      </div>
+        </div>
+      </>
     );
   }
 
   const blockedBanner = lastEnemyHit === 0 && combatState === "enemy_attacking";
 
   return (
-    <BattleStage
+    <>
+      {retreatButton}
+      <BattleStage
       shake={screenShake || playerHit || Boolean(lastResult?.critical && combatState === "player_attacking")}
       combatState={combatState}
     >
@@ -408,5 +433,6 @@ export function BattleArena() {
 
       {!victory && !defeat ? <SyntaxBoard /> : null}
     </BattleStage>
+    </>
   );
 }

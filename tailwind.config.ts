@@ -29,6 +29,12 @@ const config: Config = {
         "astral-glow": "0 0 32px -8px rgba(56, 189, 248, 0.4)",
         "emerald-glow": "0 0 28px -8px rgba(16, 185, 129, 0.4)",
       },
+      fontFamily: {
+        serif: ["var(--font-marcellus)", "serif"],
+        sans: ["var(--font-inter)", "sans-serif"],
+        arabic: ["var(--font-aref)", "serif"],
+        amiri: ["var(--font-amiri)", "Amiri", "Noto Sans Arabic", "sans-serif"],
+      },
     },
   },
   plugins: [],

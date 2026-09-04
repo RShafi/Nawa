@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { curriculumData } from "@/content/curriculumData";
 import {
   FLAME_BURN_RATIO,
   FLAME_BURN_TICKS,
@@ -12,41 +13,214 @@ import {
 } from "@/data/combatDictionary";
 import { type CombatState, delay, RESONANCE_CRIT_MULT } from "@/lib/combatPacing";
 import { validateSyntax } from "@/lib/syntax";
+import type { SemanticTag } from "@/types/cards";
+import type {
+  ElementalSchool,
+  PartOfSpeech as CurriculumPartOfSpeech,
+  VocabularyItem,
+} from "@/types/curriculum";
 import { findSemanticPair, generateNaturalTranslation } from "@/utils/grammarEngine";
+
+const MIN_PLAYER_DECK_SIZE = 5;
+
+/** Combat lexicon IDs used when mastered curriculum vocab is too small. */
+const STARTER_CARD_IDS = [
+  "drb-noun-of-instrument",
+  "hfz-active-participle",
+  "ktb-noun-book",
+  "kbr-adjective",
+  "ktb-form-1",
+  "drb-form-1",
+] as const;
+
+function collectCurriculumVocab(): VocabularyItem[] {
+  const items: VocabularyItem[] = [];
+  const seen = new Set<string>();
+
+  for (const lesson of curriculumData) {
+    for (const vocab of lesson.unlockableVocab) {
+      if (seen.has(vocab.id)) continue;
+      seen.add(vocab.id);
+      items.push(vocab);
+    }
+    for (const step of lesson.steps) {
+      if (step.forgeVocab && !seen.has(step.forgeVocab.id)) {
+        seen.add(step.forgeVocab.id);
+        items.push(step.forgeVocab);
+      }
+      for (const vocab of step.targetVocab ?? []) {
+        if (seen.has(vocab.id)) continue;
+        seen.add(vocab.id);
+        items.push(vocab);
+      }
+    }
+  }
+
+  return items;
+}
+
+function wordCardToVocabularyItem(card: WordCard): VocabularyItem {
+  const posMap: Record<WordCard["partOfSpeech"], CurriculumPartOfSpeech> = {
+    NOUN: "noun",
+    VERB: "verb",
+    ADJECTIVE: "adjective",
+  };
+  const schoolMap: Record<ElementSchool, ElementalSchool> = {
+    FLAME: "flame",
+    FROST: "frost",
+    MIND: "mind",
+    KINETIC: "kinetic",
+  };
+
+  return {
+    id: card.id,
+    arabic: card.word,
+    transliteration: card.transliteration,
+    english: card.translation,
+    partOfSpeech: posMap[card.partOfSpeech],
+    elementalSchool: schoolMap[card.school],
+    rootId: card.rootId.startsWith("root-") ? card.rootId : `root-${card.rootId}`,
+    pattern: {
+      id: card.patternId,
+      name: card.patternId,
+      meaning: "",
+      visualSlots: [],
+    },
+    semanticTags: card.tags,
+    validTargetTags: card.validTargets,
+  };
+}
+
+function defaultBasePower(partOfSpeech: CurriculumPartOfSpeech): number {
+  switch (partOfSpeech) {
+    case "verb":
+      return 18;
+    case "noun":
+      return 14;
+    case "adjective":
+      return 12;
+    case "particle":
+      return 8;
+    default:
+      return 12;
+  }
+}
+
+function vocabToWordCard(vocab: VocabularyItem): WordCard {
+  const posMap: Record<CurriculumPartOfSpeech, WordCard["partOfSpeech"]> = {
+    noun: "NOUN",
+    verb: "VERB",
+    adjective: "ADJECTIVE",
+    particle: "NOUN",
+  };
+  const schoolMap: Record<ElementalSchool, ElementSchool> = {
+    flame: "FLAME",
+    frost: "FROST",
+    mind: "MIND",
+    kinetic: "KINETIC",
+  };
+
+  return {
+    id: vocab.id,
+    word: vocab.arabic,
+    translation: vocab.english,
+    transliteration: vocab.transliteration,
+    partOfSpeech: posMap[vocab.partOfSpeech],
+    school: schoolMap[vocab.elementalSchool],
+    basePower: defaultBasePower(vocab.partOfSpeech),
+    rootId: vocab.rootId.replace(/^root-/, ""),
+    patternId: vocab.pattern.id ?? vocab.pattern.name,
+    tags: vocab.semanticTags as SemanticTag[],
+    validTargets: vocab.validTargetTags as SemanticTag[] | undefined,
+    lemmaEn: vocab.english.split("/")[0]?.trim(),
+  };
+}
+
+function getStarterVocabulary(): VocabularyItem[] {
+  return STARTER_CARD_IDS.map((id) => getWordCard(id))
+    .filter((card): card is WordCard => Boolean(card))
+    .map(wordCardToVocabularyItem);
+}
+
+function resolveWordCards(ids: string[], playerDeck: VocabularyItem[]): WordCard[] {
+  const vocabById = new Map(playerDeck.map((v) => [v.id, v]));
+  const cards: WordCard[] = [];
+
+  for (const id of ids) {
+    const vocab = vocabById.get(id);
+    if (vocab) {
+      cards.push(vocabToWordCard(vocab));
+      continue;
+    }
+    const legacy = getWordCard(id);
+    if (legacy) cards.push(legacy);
+  }
+
+  return cards;
+}
+
+function playerDeckAsWordCards(playerDeck: VocabularyItem[]): WordCard[] {
+  return playerDeck.map(vocabToWordCard);
+}
 
 /**
  * Deal up to `count` cards, guaranteeing at least one noun↔modifier semantic pair when possible.
  */
-function dealGuidedHand(
-  poolIds: string[],
+function dealGuidedHandCards(
+  poolCards: WordCard[],
   count: number,
-): { handIds: string[]; restIds: string[] } {
-  const pool = shuffle([...poolIds]);
+): { hand: WordCard[]; rest: WordCard[] } {
+  const pool = shuffle([...poolCards]);
   const n = Math.min(count, pool.length);
-  if (n <= 0) return { handIds: [], restIds: pool };
+  if (n <= 0) return { hand: [], rest: pool };
 
-  const cards = getWordCards(pool);
-  const pair = findSemanticPair(cards);
-
-  const handIds: string[] = [];
+  const pair = findSemanticPair(pool);
+  const hand: WordCard[] = [];
   const used = new Set<string>();
 
   if (pair && n >= 2) {
-    handIds.push(pair.noun.id, pair.partner.id);
+    hand.push(pair.noun, pair.partner);
     used.add(pair.noun.id);
     used.add(pair.partner.id);
   }
 
-  for (const id of pool) {
-    if (handIds.length >= n) break;
-    if (used.has(id)) continue;
-    handIds.push(id);
-    used.add(id);
+  for (const card of pool) {
+    if (hand.length >= n) break;
+    if (used.has(card.id)) continue;
+    hand.push(card);
+    used.add(card.id);
   }
 
-  const restIds = pool.filter((id) => !used.has(id));
-  // Keep deal order slightly shuffled so the pair isn’t always first two slots
-  return { handIds: shuffle(handIds), restIds };
+  const rest = pool.filter((card) => !used.has(card.id));
+  return { hand: shuffle(hand), rest };
+}
+
+function buildPlayerDeck(masteredVocabIds: string[]): VocabularyItem[] {
+  const catalog = collectCurriculumVocab();
+  const mastered = new Set(masteredVocabIds);
+  const deck: VocabularyItem[] = [];
+  const seen = new Set<string>();
+
+  for (const vocab of catalog) {
+    if (!mastered.has(vocab.id) || seen.has(vocab.id)) continue;
+    seen.add(vocab.id);
+    deck.push(vocab);
+  }
+
+  if (deck.length < MIN_PLAYER_DECK_SIZE) {
+    for (const starter of getStarterVocabulary()) {
+      if (deck.length >= MIN_PLAYER_DECK_SIZE) break;
+      if (seen.has(starter.id)) continue;
+      seen.add(starter.id);
+      deck.push(starter);
+    }
+  }
+
+  if (deck.length === 0) {
+    return getStarterVocabulary();
+  }
+
+  return deck;
 }
 
 export type EnemyIntent = {
@@ -100,6 +274,7 @@ type BattleStore = {
   maxInk: number;
   hand: WordCard[];
   deckPool: string[];
+  playerDeck: VocabularyItem[];
   currentSentence: WordCard[];
   syntaxValid: boolean;
   syntaxError: string | null;
@@ -120,10 +295,12 @@ type BattleStore = {
     deck: string[];
     rustActive?: boolean;
   }) => { ok: boolean; error?: string };
+  initializeDeck: (masteredVocabIds: string[]) => void;
   resetBattle: () => void;
   drawHand: (count?: number) => void;
   playCard: (cardId: string) => { ok: boolean; error?: string };
   removeFromSentence: (index: number) => void;
+  removeCardFromSyntax: (cardId: string) => void;
   clearSentence: () => void;
   redrawHand: () => { ok: boolean; error?: string };
   castSentence: () => { ok: boolean; error?: string };
@@ -231,6 +408,7 @@ const initialBattle = {
   maxInk: MAX_BATTLE_INK,
   hand: [] as WordCard[],
   deckPool: [] as string[],
+  playerDeck: [] as VocabularyItem[],
   currentSentence: [] as WordCard[],
   syntaxValid: true,
   syntaxError: null as string | null,
@@ -249,14 +427,35 @@ let resolveLock = false;
 export const useBattleStore = create<BattleStore>((set, get) => ({
   ...initialBattle,
 
+  initializeDeck: (masteredVocabIds) => {
+    const playerDeck = buildPlayerDeck(masteredVocabIds);
+    set({ playerDeck });
+  },
+
   startEncounter: ({ deck, rustActive = false }) => {
-    const unique = [...new Set(deck)].filter((id) => getWordCard(id));
-    if (unique.length === 0) {
+    let { playerDeck } = get();
+    let poolCards: WordCard[];
+
+    if (playerDeck.length > 0) {
+      poolCards = shuffle(playerDeckAsWordCards(playerDeck));
+    } else {
+      const unique = [...new Set(deck)].filter((id) => getWordCard(id));
+      if (unique.length > 0) {
+        poolCards = getWordCards(unique);
+      } else {
+        playerDeck = buildPlayerDeck([]);
+        if (playerDeck.length === 0) {
+          return { ok: false, error: "Forge Word Cards on the Learning Path first." };
+        }
+        poolCards = shuffle(playerDeckAsWordCards(playerDeck));
+      }
+    }
+
+    if (poolCards.length === 0) {
       return { ok: false, error: "Forge Word Cards on the Learning Path first." };
     }
 
-    const pool = shuffle(unique);
-    const { handIds, restIds } = dealGuidedHand(pool, Math.min(5, pool.length));
+    const { hand, rest } = dealGuidedHandCards(poolCards, Math.min(5, poolCards.length));
 
     resolveLock = false;
     set({
@@ -264,9 +463,10 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       started: true,
       combatState: "idle",
       rustActive,
-      deckPool: restIds,
-      hand: getWordCards(handIds),
-      enemyShield: unique.length >= 4 ? 18 : 0,
+      playerDeck,
+      deckPool: rest.map((c) => c.id),
+      hand,
+      enemyShield: poolCards.length >= 4 ? 18 : 0,
       weakTo: "FLAME",
       enemyIntent: {
         kind: "heavy-strike",
@@ -287,28 +487,33 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
   },
 
   resetBattle: () => {
+    const { playerDeck } = get();
     resolveLock = false;
-    set({ ...initialBattle });
+    set({ ...initialBattle, playerDeck });
   },
 
   drawHand: (count = 5) => {
-    const { deckPool, hand } = get();
+    const { deckPool, hand, playerDeck } = get();
     const need = Math.max(0, count - hand.length);
     if (need === 0 || deckPool.length === 0) return;
-    // When refilling a whole hand, use guided deal; otherwise top up randomly
+
+    const poolCards = resolveWordCards(deckPool, playerDeck);
+    if (poolCards.length === 0) return;
+
     if (hand.length === 0) {
-      const { handIds, restIds } = dealGuidedHand(deckPool, need);
+      const { hand: dealt, rest } = dealGuidedHandCards(poolCards, Math.min(need, poolCards.length));
       set({
-        hand: getWordCards(handIds),
-        deckPool: restIds,
+        hand: dealt,
+        deckPool: rest.map((c) => c.id),
       });
       return;
     }
-    const take = deckPool.slice(0, need);
-    const rest = deckPool.slice(need);
+
+    const take = poolCards.slice(0, need);
+    const rest = poolCards.slice(need);
     set({
-      hand: [...hand, ...getWordCards(take)],
-      deckPool: rest,
+      hand: [...hand, ...take],
+      deckPool: rest.map((c) => c.id),
     });
   },
 
@@ -351,6 +556,14 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
     });
   },
 
+  removeCardFromSyntax: (cardId) => {
+    const { currentSentence, combatState } = get();
+    if (combatState !== "idle") return;
+    const index = currentSentence.findIndex((c) => c.id === cardId);
+    if (index < 0) return;
+    get().removeFromSentence(index);
+  },
+
   clearSentence: () => {
     const { currentSentence, hand, ink, maxInk, combatState } = get();
     if (combatState !== "idle") return;
@@ -375,12 +588,12 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       ...s.currentSentence.map((c) => c.id),
       ...s.deckPool,
     ];
-    const pool = shuffle(returned);
-    const { handIds, restIds } = dealGuidedHand(pool, Math.min(5, pool.length));
+    const poolCards = shuffle(resolveWordCards(returned, s.playerDeck));
+    const { hand, rest } = dealGuidedHandCards(poolCards, Math.min(5, poolCards.length));
     set({
       ink: s.ink - REDRAW_INK_COST,
-      hand: getWordCards(handIds),
-      deckPool: restIds,
+      hand,
+      deckPool: rest.map((c) => c.id),
       currentSentence: [],
       syntaxValid: true,
       syntaxError: null,
@@ -660,14 +873,16 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
     const defeat = playerHp <= 0;
 
     const spentIds = cards.map((c) => c.id);
-    const pool = shuffle([
-      ...live.deckPool,
-      ...spentIds,
-      ...live.hand.map((h) => h.id),
-    ]);
-    const { handIds, restIds } = dealGuidedHand(pool, Math.min(5, pool.length));
-    const newHand = getWordCards(handIds);
-    const newPool = restIds;
+    const returnedIds = [
+      ...new Set([
+        ...live.deckPool,
+        ...spentIds,
+        ...live.hand.map((h) => h.id),
+      ]),
+    ];
+    const poolCards = shuffle(resolveWordCards(returnedIds, live.playerDeck));
+    const { hand: newHand, rest } = dealGuidedHandCards(poolCards, Math.min(5, poolCards.length));
+    const newPool = rest.map((c) => c.id);
 
     set({
       playerHp,

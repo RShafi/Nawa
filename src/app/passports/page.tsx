@@ -1,10 +1,8 @@
-import { SiteHeader } from "@/components/common/SiteHeader";
 import { PassportPageClient } from "../passport/passport-page-client";
 
 export default function PassportsPage() {
   return (
-    <div className="min-h-screen bg-background" dir="ltr">
-      <SiteHeader />
+    <div className="min-h-0 flex-1 bg-background" dir="ltr">
       <PassportPageClient />
     </div>
   );

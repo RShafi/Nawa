@@ -1,65 +1,38 @@
 "use client";
 
 /**
- * Client audio — ElevenLabs via `/api/tts` only. Web Speech removed.
+ * Client audio — ElevenLabs via `/api/tts` with instant browser-speech fallback.
+ * Single shared playback mutex prevents overlapping streams / crashes on spam-click.
  */
 
 import { fetchTtsBlob, prefetchTtsTexts } from "@/lib/ttsClient";
+import {
+  FATHA,
+  DAMMA,
+  KASRA,
+  PHONETIC_CV,
+  SHADDA,
+  SUKOON,
+  resolveSpokenText,
+} from "@/utils/tts";
+import { getTtsOverrideForArabic } from "@/content/ttsOverrides";
 
-export const FATHA = "\u064E";
-export const DAMMA = "\u064F";
-export const KASRA = "\u0650";
-export const SUKOON = "\u0652";
-export const SHADDA = "\u0651";
+export { FATHA, DAMMA, KASRA, SHADDA, SUKOON, PHONETIC_CV };
 
 const ARABIC_LETTER = /[\u0621-\u063A\u0641-\u064A\u0671-\u06D3]/;
-const SHORT_VOWEL = /[\u064B-\u0652\u0670]/;
-
-export const PHONETIC_CV: Record<string, string> = {
-  ء: "أَ",
-  أ: "أَ",
-  إ: "إِ",
-  آ: "آ",
-  ا: "أَ",
-  ب: "بَ",
-  ت: "تَ",
-  ث: "ثَ",
-  ج: "جَ",
-  ح: "حَ",
-  خ: "خَ",
-  د: "دَ",
-  ذ: "ذَ",
-  ر: "رَ",
-  ز: "زَ",
-  س: "سَ",
-  ش: "شَ",
-  ص: "صَ",
-  ض: "ضَ",
-  ط: "طَ",
-  ظ: "ظَ",
-  ع: "عَ",
-  غ: "غَ",
-  ف: "فَ",
-  ق: "قَ",
-  ك: "كَ",
-  ل: "لَ",
-  م: "مَ",
-  ن: "نَ",
-  ه: "هَ",
-  و: "وَ",
-  ي: "يَ",
-  ة: "ةَ",
-};
+const TTS_FETCH_TIMEOUT_MS = 1500;
 
 export type SpeakOptions = {
   lang?: string;
   rate?: number;
   pitch?: number;
   preferApi?: boolean;
+  /** Manual ElevenLabs string — wins over auto normalization. */
+  ttsOverride?: string;
 };
 
 export type SpeakResult = {
-  mode: "api" | "silent";
+  mode: "api" | "browser" | "silent";
   usedVoice: string | null;
   cached?: boolean;
 };
@@ -90,35 +63,54 @@ export function canSpeak(): boolean {
   return typeof window !== "undefined" && typeof Audio !== "undefined";
 }
 
-export function normalizeForSpeech(text: string): NormalizedSpeech {
+export function normalizeForSpeech(text: string, ttsOverride?: string): NormalizedSpeech {
   const trimmed = text.trim();
   if (!trimmed) return { display: "", spoken: "", ipa: null, short: true };
 
   const letters = [...trimmed].filter((c) => ARABIC_LETTER.test(c));
-  const hasVowel = SHORT_VOWEL.test(trimmed);
-
-  if (letters.length === 1 && !hasVowel) {
-    const letter = letters[0]!;
-    const spoken = PHONETIC_CV[letter] ?? `${letter}${FATHA}`;
-    return { display: letter, spoken, ipa: null, short: true };
-  }
+  const override = ttsOverride ?? getTtsOverrideForArabic(trimmed);
+  const spoken = resolveSpokenText(trimmed, override);
+  const short = letters.length <= 1;
 
   return {
     display: trimmed,
-    spoken: trimmed,
+    spoken,
     ipa: null,
-    short: letters.length <= 2,
+    short,
   };
 }
 
 let sharedAudio: HTMLAudioElement | null = null;
 let objectUrl: string | null = null;
 let playGeneration = 0;
-let lastPlayAt = 0;
-const MIN_REPLAY_GAP_MS = 180;
+let isAudioPlaying = false;
+let browserUtterance: SpeechSynthesisUtterance | null = null;
 
-function stopCurrentAudio() {
-  if (!sharedAudio) return;
+function canUseBrowserSpeech(): boolean {
+  return typeof window !== "undefined" && "speechSynthesis" in window;
+}
+
+function stopBrowserSpeech(): void {
+  if (!canUseBrowserSpeech()) return;
+  window.speechSynthesis.cancel();
+  browserUtterance = null;
+}
+
+/** Whether neural TTS audio is currently playing. */
+export function getIsAudioPlaying(): boolean {
+  return isAudioPlaying;
+}
+
+/** Stop HTML5 neural clip only — does not bump generation (safe mid-fallback). */
+function stopNeuralClip(): void {
+  if (!sharedAudio) {
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+      objectUrl = null;
+    }
+    return;
+  }
+
   sharedAudio.pause();
   sharedAudio.onended = null;
   sharedAudio.onerror = null;
@@ -129,52 +121,148 @@ function stopCurrentAudio() {
     /* ignore */
   }
   sharedAudio = null;
+
   if (objectUrl) {
     URL.revokeObjectURL(objectUrl);
     objectUrl = null;
   }
 }
 
+/** Stop any in-flight audio and release resources. Always resets the mutex. */
+export function stopArabicAudio(): void {
+  playGeneration += 1;
+  isAudioPlaying = false;
+
+  stopBrowserSpeech();
+  stopNeuralClip();
+}
+
+function speakWithBrowser(
+  text: string,
+  options: SpeakOptions,
+  gen: number,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (!canUseBrowserSpeech()) {
+      reject(new Error("Browser speech unavailable"));
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    browserUtterance = utterance;
+    utterance.lang = options.lang ?? "en-US";
+    utterance.rate = options.rate ?? 0.82;
+    utterance.pitch = options.pitch ?? 1;
+
+    const cleanup = () => {
+      if (browserUtterance === utterance) browserUtterance = null;
+    };
+
+    utterance.onend = () => {
+      cleanup();
+      if (gen === playGeneration) resolve();
+    };
+    utterance.onerror = () => {
+      cleanup();
+      if (gen === playGeneration) reject(new Error("Browser speech failed"));
+    };
+
+    window.speechSynthesis.speak(utterance);
+  });
+}
+
+function fetchTtsBlobWithTimeout(text: string, timeoutMs: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error("TTS timeout"));
+    }, timeoutMs);
+
+    void fetchTtsBlob(text)
+      .then((blob) => {
+        window.clearTimeout(timer);
+        resolve(blob);
+      })
+      .catch((err) => {
+        window.clearTimeout(timer);
+        reject(err instanceof Error ? err : new Error(String(err)));
+      });
+  });
+}
+
+function shouldSkipNeuralFetch(): boolean {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+  return false;
+}
+
 /**
- * Primary speak entry — ElevenLabs via GET `/api/tts?text=...`.
+ * Primary speak entry — tries ElevenLabs (1.5s cap), falls back to browser speech instantly.
  */
 export async function speakArabic(
   text: string,
-  _options: SpeakOptions & { latinFallback?: string } = {},
+  options: SpeakOptions & { latinFallback?: string } = {},
 ): Promise<SpeakResult> {
-  if (!canSpeak() || !text.trim()) {
+  if (typeof window === "undefined" || !text.trim()) {
     return { mode: "silent", usedVoice: null };
   }
 
-  const normalized = normalizeForSpeech(text);
-  const now = Date.now();
-  if (now - lastPlayAt < MIN_REPLAY_GAP_MS) {
-    return { mode: "api", usedVoice: "elevenlabs", cached: true };
+  if (typeof document !== "undefined" && document.hidden) {
+    return { mode: "silent", usedVoice: null };
   }
-  lastPlayAt = now;
 
+  stopArabicAudio();
+
+  const normalized = normalizeForSpeech(text, options.ttsOverride);
   const gen = ++playGeneration;
-  stopCurrentAudio();
+  isAudioPlaying = true;
+
+  const releaseLock = () => {
+    if (gen === playGeneration) isAudioPlaying = false;
+  };
 
   try {
-    const blob = await fetchTtsBlob(normalized.spoken);
-    if (gen !== playGeneration) return { mode: "silent", usedVoice: null };
+    if (shouldSkipNeuralFetch()) {
+      await speakWithBrowser(normalized.spoken, options, gen);
+      if (gen !== playGeneration) return { mode: "silent", usedVoice: null };
+      return { mode: "browser", usedVoice: "speechSynthesis" };
+    }
 
-    objectUrl = URL.createObjectURL(blob);
-    sharedAudio = new Audio(objectUrl);
-    const audio = sharedAudio;
-    await new Promise<void>((resolve, reject) => {
-      if (gen !== playGeneration) {
-        resolve();
-        return;
-      }
-      audio.onended = () => resolve();
-      audio.onerror = () => reject(new Error("Audio playback failed"));
-      void audio.play().catch((err) => reject(err instanceof Error ? err : new Error(String(err))));
-    });
-    return { mode: "api", usedVoice: "elevenlabs" };
+    try {
+      const blob = await fetchTtsBlobWithTimeout(normalized.spoken, TTS_FETCH_TIMEOUT_MS);
+      if (gen !== playGeneration) return { mode: "silent", usedVoice: null };
+
+      objectUrl = URL.createObjectURL(blob);
+      sharedAudio = new Audio(objectUrl);
+      const audio = sharedAudio;
+
+      await new Promise<void>((resolve, reject) => {
+        if (gen !== playGeneration) {
+          resolve();
+          return;
+        }
+        audio.onended = () => resolve();
+        audio.onerror = () => reject(new Error("Audio playback failed"));
+        void audio
+          .play()
+          .catch((err) => reject(err instanceof Error ? err : new Error(String(err))));
+      });
+
+      if (gen !== playGeneration) return { mode: "silent", usedVoice: null };
+      return { mode: "api", usedVoice: "elevenlabs" };
+    } catch {
+      if (gen !== playGeneration) return { mode: "silent", usedVoice: null };
+
+      stopNeuralClip();
+
+      await speakWithBrowser(normalized.spoken, options, gen);
+      if (gen !== playGeneration) return { mode: "silent", usedVoice: null };
+      return { mode: "browser", usedVoice: "speechSynthesis" };
+    }
   } catch {
     return { mode: "silent", usedVoice: null };
+  } finally {
+    releaseLock();
   }
 }
 

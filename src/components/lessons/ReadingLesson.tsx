@@ -61,7 +61,7 @@ export function ReadingLesson({
         content.mode === "headline" && "border-s-slate-500/40",
         content.mode === "fade-challenge" && "border-s-primary/40",
         content.mode === "join-hunt" && "border-s-emerald-600/40",
-        content.mode === "shape-compare" && "border-s-sky-500/40",
+        content.mode === "shape-compare" && "border-s-amber-500/40",
       )}
     >
       <CardHeader>

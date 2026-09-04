@@ -1,6 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import { Sparkles, X } from "lucide-react";
 import { InkPoolBar } from "@/components/battle/InkPoolBar";
 import { HUD_HAND, HUD_MIDDLE } from "@/components/battle/BattleStage";
@@ -11,9 +12,9 @@ import { useSoundEffects } from "@/hooks/useSoundEffects";
 import { cn } from "@/lib/utils";
 import { useBattleStore } from "@/store/useBattleStore";
 
-/** Syntax / Spell Chamber — vh-scaled; overflow visible for diacritics & glows. */
+/** Syntax / Spell Chamber — arcane hextech receptacle; overflow visible for diacritics & glows. */
 export const SYNTAX_SHELL =
-  "flex h-[15vh] min-h-[100px] max-h-[140px] w-full flex-col rounded-xl border-2 border-dashed border-amber-500/40 bg-slate-900/50 p-2";
+  "relative flex h-[15vh] min-h-[100px] max-h-[140px] w-full flex-col overflow-hidden rounded-2xl border border-amber-500/20 bg-black/40 p-2 shadow-[inset_0_0_40px_rgba(0,0,0,0.8)]";
 
 /** Grid rows 2–3 for free-play Arena. */
 export function SyntaxBoard() {
@@ -24,7 +25,7 @@ export function SyntaxBoard() {
   const ink = useBattleStore((s) => s.ink);
   const maxInk = useBattleStore((s) => s.maxInk);
   const playCard = useBattleStore((s) => s.playCard);
-  const removeFromSentence = useBattleStore((s) => s.removeFromSentence);
+  const removeCardFromSyntax = useBattleStore((s) => s.removeCardFromSyntax);
   const clearSentence = useBattleStore((s) => s.clearSentence);
   const redrawHand = useBattleStore((s) => s.redrawHand);
   const castSentence = useBattleStore((s) => s.castSentence);
@@ -37,7 +38,7 @@ export function SyntaxBoard() {
   const mult = currentSentence.length ? syntaxMultiplier(currentSentence.length) : 0;
 
   return (
-    <>
+    <LayoutGroup id="syntax-chamber">
       <div className={HUD_MIDDLE}>
         <SyntaxChamber
           cards={currentSentence}
@@ -48,9 +49,9 @@ export function SyntaxBoard() {
             playTap();
             clearSentence();
           }}
-          onRemove={(i) => {
+          onRemove={(cardId) => {
             playTap();
-            removeFromSentence(i);
+            removeCardFromSyntax(cardId);
           }}
         />
       </div>
@@ -62,9 +63,9 @@ export function SyntaxBoard() {
             size="sm"
             disabled={locked || currentSentence.length === 0}
             className={cn(
-              "h-8 min-w-[8rem] shrink-0 gap-1.5 text-xs font-bold sm:h-9 sm:text-sm",
+              "font-display h-8 min-w-[8rem] shrink-0 gap-1.5 text-xs font-bold tracking-wide sm:h-9 sm:text-sm",
               syntaxValid
-                ? "bg-celestial-amber text-obsidian hover:bg-amber-400"
+                ? "bg-celestial-amber text-obsidian shadow-[0_0_18px_rgba(245,158,11,0.35)] hover:bg-amber-400"
                 : "bg-rose-600 text-white hover:bg-rose-500",
             )}
             onClick={() => {
@@ -98,6 +99,7 @@ export function SyntaxBoard() {
               card={card}
               compact
               inHand
+              layoutId={`syntax-card-${card.id}`}
               dimmed={locked || ink < 1}
               onClick={() => {
                 if (locked) return;
@@ -113,7 +115,7 @@ export function SyntaxBoard() {
           ) : null}
         </div>
       </div>
-    </>
+    </LayoutGroup>
   );
 }
 
@@ -131,20 +133,46 @@ export function SyntaxChamber({
   syntaxValid?: boolean;
   syntaxError?: string | null;
   onClear?: () => void;
-  onRemove?: (index: number) => void;
+  onRemove?: (cardId: string) => void;
   className?: string;
 }) {
+  const [slotFlash, setSlotFlash] = useState(false);
+  const prevCount = useRef(cards.length);
+
+  useEffect(() => {
+    if (cards.length > prevCount.current) {
+      setSlotFlash(true);
+      const timer = window.setTimeout(() => setSlotFlash(false), 450);
+      prevCount.current = cards.length;
+      return () => window.clearTimeout(timer);
+    }
+    prevCount.current = cards.length;
+  }, [cards.length]);
+
   return (
     <div
       className={cn(
         SYNTAX_SHELL,
-        cards.length > 0 && syntaxValid && "border-solid border-emerald-400/45",
-        cards.length > 0 && !syntaxValid && "border-solid border-rose-400/55",
+        cards.length > 0 && syntaxValid && "border-amber-400/45 shadow-[inset_0_0_40px_rgba(0,0,0,0.8),0_0_24px_-8px_rgba(16,185,129,0.35)]",
+        cards.length > 0 && !syntaxValid && "border-rose-400/45 shadow-[inset_0_0_40px_rgba(0,0,0,0.8),0_0_20px_-8px_rgba(244,63,94,0.3)]",
         className,
       )}
     >
+      <AnimatePresence>
+        {slotFlash ? (
+          <motion.div
+            key="slot-flash"
+            initial={{ opacity: 0.65 }}
+            animate={{ opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
+            className="pointer-events-none absolute inset-0 z-10 rounded-2xl bg-amber-500/10"
+          />
+        ) : null}
+      </AnimatePresence>
+
       <div className="mb-0.5 flex shrink-0 items-center justify-between gap-2">
-        <p className="text-[clamp(0.55rem,1.2vh,0.65rem)] tracking-[0.14em] text-amber-200/55 uppercase">
+        <p className="font-display text-[clamp(0.55rem,1.2vh,0.65rem)] tracking-[0.18em] text-amber-200/70 uppercase">
           Spell Chamber
         </p>
         <div className="flex items-center gap-2">
@@ -185,29 +213,47 @@ export function SyntaxChamber({
               Spell Chamber — tap cards to weave
             </motion.p>
           ) : (
-            cards.map((card, i) => (
-              <motion.div
-                key={`${card.id}-${i}`}
+            cards.map((card) => (
+              <motion.button
+                key={card.id}
+                type="button"
                 layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85 }}
-                className="relative h-full max-h-full shrink-0"
+                layoutId={`syntax-card-${card.id}`}
+                initial={{ opacity: 0, scale: 0.88, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.82, y: 12 }}
+                transition={{ type: "spring", stiffness: 420, damping: 28 }}
+                title="Tap to unsocket"
+                disabled={!onRemove}
+                onClick={onRemove ? () => onRemove(card.id) : undefined}
+                className={cn(
+                  "group relative h-full max-h-full shrink-0 rounded-xl outline-none",
+                  onRemove &&
+                    "cursor-pointer focus-visible:ring-2 focus-visible:ring-red-400/60",
+                )}
               >
                 <WordCardView
                   card={card}
                   compact
                   inSlot
                   isSlotted
+                  unsocketable={Boolean(onRemove)}
                   as="div"
-                  onClick={onRemove ? () => onRemove(i) : undefined}
                 />
                 {onRemove ? (
-                  <span className="pointer-events-none absolute top-0.5 end-0.5 flex size-3 items-center justify-center rounded-full bg-black/70 text-white/70">
-                    <X className="size-2" />
+                  <span className="pointer-events-none absolute inset-0 rounded-xl bg-red-500/0 transition group-hover:bg-red-500/10" />
+                ) : null}
+                {onRemove ? (
+                  <span className="pointer-events-none absolute -top-5 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-1.5 py-0.5 text-[9px] text-red-200/0 opacity-0 transition group-hover:text-red-200/90 group-hover:opacity-100">
+                    Tap to unsocket
                   </span>
                 ) : null}
-              </motion.div>
+                {onRemove ? (
+                  <span className="pointer-events-none absolute top-0.5 end-0.5 flex size-4 items-center justify-center rounded-full bg-red-950/80 text-red-200/80 opacity-0 transition group-hover:opacity-100">
+                    <X className="size-2.5" />
+                  </span>
+                ) : null}
+              </motion.button>
             ))
           )}
         </AnimatePresence>

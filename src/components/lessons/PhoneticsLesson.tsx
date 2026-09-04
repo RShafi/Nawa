@@ -11,7 +11,7 @@ const MODE_META: Record<
   PhoneticsContent["mode"],
   { icon: typeof Headphones; accent: string }
 > = {
-  "sound-lab": { icon: Headphones, accent: "border-sky-500/30" },
+  "sound-lab": { icon: Headphones, accent: "border-amber-500/30" },
   "pair-duel": { icon: Swords, accent: "border-orange-500/30" },
   "vowel-lab": { icon: Sparkles, accent: "border-violet-500/30" },
   "hello-tasting": { icon: Wine, accent: "border-emerald-500/30" },

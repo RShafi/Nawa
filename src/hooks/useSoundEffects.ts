@@ -5,8 +5,15 @@ import { useCallback, useRef } from "react";
 /** One Web Audio context for all procedural SFX — avoids per-component duplication. */
 let sharedCtx: AudioContext | null = null;
 
+export function suspendSharedAudioContext(): void {
+  if (!sharedCtx || sharedCtx.state !== "running") return;
+  void sharedCtx.suspend();
+}
+
 function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
+  if (typeof document !== "undefined" && document.hidden) return null;
+
   const AC =
     window.AudioContext ||
     (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -14,10 +21,15 @@ function getAudioContext(): AudioContext | null {
   if (!sharedCtx || sharedCtx.state === "closed") {
     sharedCtx = new AC();
   }
-  if (sharedCtx.state === "suspended") {
-    void sharedCtx.resume();
-  }
   return sharedCtx;
+}
+
+function resumeContextIfNeeded(ac: AudioContext): boolean {
+  if (typeof document !== "undefined" && document.hidden) return false;
+  if (ac.state === "suspended") {
+    void ac.resume();
+  }
+  return true;
 }
 
 /**
@@ -34,7 +46,7 @@ export function useSoundEffects() {
 
   const playTap = useCallback(() => {
     const ac = ctx();
-    if (!ac) return;
+    if (!ac || !resumeContextIfNeeded(ac)) return;
     const t0 = ac.currentTime;
     const osc = ac.createOscillator();
     const gain = ac.createGain();
@@ -57,7 +69,7 @@ export function useSoundEffects() {
 
   const playSnap = useCallback(() => {
     const ac = ctx();
-    if (!ac) return;
+    if (!ac || !resumeContextIfNeeded(ac)) return;
     const t0 = ac.currentTime;
     const osc = ac.createOscillator();
     const gain = ac.createGain();
@@ -75,7 +87,7 @@ export function useSoundEffects() {
 
   const playSuccess = useCallback(() => {
     const ac = ctx();
-    if (!ac) return;
+    if (!ac || !resumeContextIfNeeded(ac)) return;
     const t0 = ac.currentTime;
     const freqs = [523.25, 659.25, 783.99]; // C–E–G celestial triad
     freqs.forEach((f, i) => {
@@ -96,7 +108,7 @@ export function useSoundEffects() {
 
   const playError = useCallback(() => {
     const ac = ctx();
-    if (!ac) return;
+    if (!ac || !resumeContextIfNeeded(ac)) return;
     const t0 = ac.currentTime;
     const osc = ac.createOscillator();
     const gain = ac.createGain();
@@ -118,7 +130,7 @@ export function useSoundEffects() {
 
   const playCast = useCallback(() => {
     const ac = ctx();
-    if (!ac) return;
+    if (!ac || !resumeContextIfNeeded(ac)) return;
     const t0 = ac.currentTime;
     // Whoosh noise + pitch ramp
     const bufferSize = Math.floor(ac.sampleRate * 0.35);
@@ -160,7 +172,7 @@ export function useSoundEffects() {
 
   const playImpact = useCallback(() => {
     const ac = ctx();
-    if (!ac) return;
+    if (!ac || !resumeContextIfNeeded(ac)) return;
     const t0 = ac.currentTime;
     const osc = ac.createOscillator();
     const gain = ac.createGain();
@@ -180,5 +192,63 @@ export function useSoundEffects() {
     osc.stop(t0 + 0.25);
   }, [ctx]);
 
-  return { playTap, playSnap, playSuccess, playError, playCast, playImpact };
+  const playCelestialEtch = useCallback(() => {
+    const ac = ctx();
+    if (!ac || !resumeContextIfNeeded(ac)) return;
+    const t0 = ac.currentTime;
+    const freqs = [392, 523.25, 659.25, 783.99, 987.77];
+    freqs.forEach((f, i) => {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.value = f;
+      const start = t0 + i * 0.07;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(i === freqs.length - 1 ? 0.16 : 0.09, start + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.65);
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.start(start);
+      osc.stop(start + 0.7);
+    });
+  }, [ctx]);
+
+  /** Soft quill scratch — calligraphy stroke SFX. */
+  const playQuillStroke = useCallback(() => {
+    const ac = ctx();
+    if (!ac || !resumeContextIfNeeded(ac)) return;
+    const t0 = ac.currentTime;
+    const bufferSize = Math.floor(ac.sampleRate * 0.18);
+    const buffer = ac.createBuffer(1, bufferSize, ac.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize) * 0.35;
+    }
+    const noise = ac.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ac.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 2200;
+    filter.Q.value = 0.9;
+    const gain = ac.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.08, t0 + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ac.destination);
+    noise.start(t0);
+    noise.stop(t0 + 0.22);
+  }, [ctx]);
+
+  return {
+    playTap,
+    playSnap,
+    playSuccess,
+    playError,
+    playCast,
+    playImpact,
+    playCelestialEtch,
+    playQuillStroke,
+  };
 }

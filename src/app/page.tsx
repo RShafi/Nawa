@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
+import { SanctumHome } from "@/components/sanctum/SanctumHome";
 
-/** V1 entry → Learning Path pillar */
+/** Nawā Sanctum — central game hub / main menu. */
 export default function HomePage() {
-  redirect("/path");
+  return <SanctumHome />;
 }

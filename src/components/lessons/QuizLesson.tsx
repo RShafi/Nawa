@@ -48,7 +48,7 @@ export function QuizLesson({
       className={cn(
         "border-s-4",
         content.mode === "scene-pick" && "border-s-amber-500/40",
-        content.mode === "spot-the-word" && "border-s-sky-500/40",
+        content.mode === "spot-the-word" && "border-s-amber-500/40",
         content.mode === "speed-check" && "border-s-primary/40",
         content.mode === "true-false" && "border-s-violet-500/40",
       )}

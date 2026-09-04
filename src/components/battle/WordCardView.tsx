@@ -19,6 +19,10 @@ export function WordCardView({
   inSlot = false,
   /** Alias for chamber seating — same as inSlot. */
   isSlotted = false,
+  /** Shared layout id for hand ↔ chamber fly animations. */
+  layoutId,
+  /** Slotted cards awaiting unsocket — red hover tint. */
+  unsocketable = false,
   as = "button",
   onClick,
   className,
@@ -33,6 +37,8 @@ export function WordCardView({
   inHand?: boolean;
   inSlot?: boolean;
   isSlotted?: boolean;
+  layoutId?: string;
+  unsocketable?: boolean;
   as?: "button" | "div";
   onClick?: () => void;
   className?: string;
@@ -46,6 +52,7 @@ export function WordCardView({
 
   return (
     <motion.div
+      layoutId={layoutId}
       className={cn(
         "relative",
         inHand &&
@@ -60,7 +67,12 @@ export function WordCardView({
         spotlighted
           ? undefined
           : inHand || interactive
-            ? { y: -12, zIndex: 50, transition: { type: "spring", stiffness: 400, damping: 22 } }
+            ? {
+                scale: 1.05,
+                y: -10,
+                zIndex: 50,
+                transition: { type: "spring", stiffness: 400, damping: 25 },
+              }
             : undefined
       }
       animate={spotlighted ? { y: 0, scale: 1 } : undefined}
@@ -83,15 +95,21 @@ export function WordCardView({
             : undefined
         }
         className={cn(
-          "glass-tablet relative text-center transition",
+          "relative text-center transition-all duration-300",
+          "border border-white/10 bg-gradient-to-b from-slate-800 to-slate-900 backdrop-blur-md",
+          "shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),_0_8px_20px_rgba(0,0,0,0.5)]",
           meta.glow,
           runeTile
             ? "flex h-full w-auto min-w-[100px] flex-col items-center justify-center px-4 md:min-w-[120px] md:px-6"
             : "flex h-[22vh] min-h-[110px] max-h-[180px] w-full aspect-[2.5/3.5] flex-col justify-between overflow-hidden p-2 md:p-3",
-          selected && "scale-[1.02] ring-2 ring-amber-300/90",
+          selected && "scale-[1.02] border-amber-400/80 ring-2 ring-amber-300/90",
           highlight &&
-            "z-[60] animate-pulse ring-4 ring-amber-400 shadow-[0_0_28px_-2px_rgba(245,158,11,0.85)]",
-          interactive && "cursor-pointer hover:brightness-110",
+            "z-[60] animate-pulse border-amber-400/90 ring-4 ring-amber-400 shadow-[0_0_28px_-2px_rgba(245,158,11,0.85)]",
+          interactive &&
+            "cursor-pointer hover:border-amber-400/80 hover:shadow-[0_0_20px_rgba(245,158,11,0.4)]",
+          unsocketable &&
+            interactive &&
+            "hover:border-red-500/80 hover:bg-red-950/30 hover:shadow-[0_0_18px_rgba(244,63,94,0.35)]",
           !interactive && "cursor-default",
           className,
         )}

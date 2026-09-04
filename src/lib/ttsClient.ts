@@ -1,6 +1,8 @@
 "use client";
 
 /** Shared in-flight TTS fetches — avoids duplicate ElevenLabs calls. */
+import { resolveSpokenText } from "@/utils/tts";
+import { getTtsOverrideForArabic } from "@/content/ttsOverrides";
 const inflight = new Map<string, Promise<Blob>>();
 
 function ttsUrl(text: string): string {
@@ -46,7 +48,8 @@ export async function fetchTtsBlob(text: string): Promise<Blob> {
   const trimmed = text.trim();
   if (!trimmed) throw new Error("Nothing to speak");
 
-  const url = ttsUrl(trimmed);
+  const spoken = resolveSpokenText(trimmed, getTtsOverrideForArabic(trimmed));
+  const url = ttsUrl(spoken);
   const existing = inflight.get(url);
   if (existing) return existing;
 
@@ -79,7 +82,8 @@ export function prefetchTtsTexts(texts: string[], limit = 8): void {
     if (n >= limit) break;
     const trimmed = raw.trim();
     if (!trimmed) continue;
-    const url = ttsUrl(trimmed);
+    const spoken = resolveSpokenText(trimmed, getTtsOverrideForArabic(trimmed));
+    const url = ttsUrl(spoken);
     if (prefetched.has(url)) continue;
     prefetched.add(url);
     n += 1;

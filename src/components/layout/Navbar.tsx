@@ -15,21 +15,21 @@ import { useAppStore } from "@/store/useAppStore";
 
 const NAV_LINKS = [
   {
-    href: "/path",
-    label: "Learning Path",
-    match: (p: string) => p === "/path" || p.startsWith("/path/") || p.startsWith("/lesson"),
+    href: "/",
+    label: "Sanctum",
+    match: (p: string) => p === "/",
+  },
+  {
+    href: "/learning-path",
+    label: "Star Map",
+    match: (p: string) =>
+      p === "/learning-path" || p === "/path" || p.startsWith("/path/"),
   },
   {
     href: "/arena",
     label: "Arena",
     match: (p: string) => p.startsWith("/arena"),
   },
-  {
-    href: "/passports",
-    label: "Passports",
-    match: (p: string) => p.startsWith("/passport"),
-  },
-  { href: "/review", label: "Review", match: (p: string) => p.startsWith("/review") },
 ] as const;
 
 type NavbarProps = {
@@ -56,22 +56,22 @@ export function Navbar({ email }: NavbarProps) {
   }, [pathname]);
 
   return (
-    <div className="sticky top-0 z-50 px-3 pt-3 sm:px-4 sm:pt-4">
+    <div className="sticky top-0 z-50 border-b border-amber-500/30 bg-[#0B0F19]/80 px-3 pt-3 text-amber-100 backdrop-blur-md sm:px-4 sm:pt-4">
       <motion.header
         initial={{ y: -16, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 280, damping: 28 }}
-        className="glass-panel-strong glow-emerald mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl px-3 py-2.5 sm:px-4"
+        className="mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl border border-amber-500/20 bg-[#0B0F19]/70 px-3 py-2.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.04)] backdrop-blur-md sm:px-4"
       >
         <Link href="/" className="group flex shrink-0 items-center gap-2.5">
           <span className="relative flex size-2.5">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400/50 opacity-60" />
-            <span className="relative inline-flex size-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px] shadow-emerald-400/80" />
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-amber-400/40 opacity-60" />
+            <span className="relative inline-flex size-2.5 rounded-full bg-amber-400 drop-shadow-[0_0_10px_rgba(245,158,11,0.75)]" />
           </span>
           <span className="flex items-baseline gap-1.5 tracking-tight">
-            <ArabicText className="text-lg leading-none text-emerald-100 sm:text-xl">نَوَاة</ArabicText>
-            <span className="text-white/25">|</span>
-            <span className="text-base font-semibold text-white/95 sm:text-lg">Nawā</span>
+            <ArabicText className="text-lg leading-none text-amber-100 sm:text-xl">نَوَاة</ArabicText>
+            <span className="text-amber-500/30">|</span>
+            <span className="text-base font-semibold text-amber-50 sm:text-lg">Nawā</span>
           </span>
         </Link>
 
@@ -84,13 +84,13 @@ export function Navbar({ email }: NavbarProps) {
                 href={link.href}
                 className={cn(
                   "relative rounded-xl px-3 py-1.5 text-sm transition-colors",
-                  active ? "text-white" : "text-white/55 hover:text-white/90",
+                  active ? "text-amber-50" : "text-amber-100/55 hover:text-amber-50/90",
                 )}
               >
                 {active ? (
                   <motion.span
                     layoutId="nav-pill"
-                    className="absolute inset-0 rounded-xl bg-white/8"
+                    className="absolute inset-0 rounded-xl bg-amber-500/10"
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   />
                 ) : null}
@@ -106,7 +106,7 @@ export function Navbar({ email }: NavbarProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="relative size-8 text-white/70 hover:bg-white/8 hover:text-white"
+            className="relative size-8 text-amber-100/70 hover:bg-amber-500/10 hover:text-amber-50"
             aria-label="Toggle theme"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           >
@@ -119,9 +119,9 @@ export function Navbar({ email }: NavbarProps) {
               <button
                 type="button"
                 onClick={() => setUserOpen((v) => !v)}
-                className="glass-panel flex max-w-[9rem] items-center gap-1.5 rounded-xl px-2 py-1.5 text-xs text-white/80 transition hover:bg-white/8 sm:max-w-[12rem]"
+                className="flex max-w-[9rem] items-center gap-1.5 rounded-xl border border-amber-500/15 bg-[#0B0F19]/80 px-2 py-1.5 text-xs text-amber-100/80 transition hover:bg-amber-500/10 sm:max-w-[12rem]"
               >
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[10px] font-semibold text-emerald-200 uppercase">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-amber-500/25 bg-amber-500/10 text-[10px] font-semibold text-amber-200 uppercase">
                   {email.slice(0, 1)}
                 </span>
                 <span className="hidden truncate sm:inline">{email}</span>
@@ -134,12 +134,12 @@ export function Navbar({ email }: NavbarProps) {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 4, scale: 0.97 }}
                     transition={{ type: "spring", stiffness: 400, damping: 28 }}
-                    className="glass-panel-strong absolute end-0 top-[calc(100%+8px)] z-50 min-w-[10rem] overflow-hidden rounded-xl p-1 shadow-2xl"
+                    className="glass-panel-strong absolute end-0 top-[calc(100%+8px)] z-50 min-w-[10rem] overflow-hidden rounded-xl border border-amber-500/20 p-1"
                   >
                     <form action={logout}>
                       <button
                         type="submit"
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/80 transition hover:bg-white/8 hover:text-white"
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-amber-100/80 transition hover:bg-amber-500/10 hover:text-amber-50"
                       >
                         <LogOut className="size-3.5" />
                         Log out
@@ -150,7 +150,12 @@ export function Navbar({ email }: NavbarProps) {
               </AnimatePresence>
             </div>
           ) : (
-            <Button asChild size="sm" variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10">
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="border-amber-500/25 bg-[#0B0F19]/80 text-amber-100 hover:bg-amber-500/10"
+            >
               <Link href="/login">Log In</Link>
             </Button>
           )}
@@ -158,7 +163,7 @@ export function Navbar({ email }: NavbarProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 text-white/70 md:hidden"
+            className="size-8 text-amber-100/70 md:hidden"
             aria-label="Menu"
             onClick={() => setMenuOpen((v) => !v)}
           >
@@ -173,7 +178,7 @@ export function Navbar({ email }: NavbarProps) {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="glass-panel-strong mx-auto mt-2 flex max-w-6xl flex-col gap-1 rounded-2xl p-2 md:hidden"
+            className="mx-auto mt-2 flex max-w-6xl flex-col gap-1 rounded-2xl border border-amber-500/20 bg-[#0B0F19]/80 p-2 backdrop-blur-md md:hidden"
           >
             {NAV_LINKS.map((link) => (
               <Link
@@ -181,7 +186,7 @@ export function Navbar({ email }: NavbarProps) {
                 href={link.href}
                 className={cn(
                   "rounded-xl px-3 py-2.5 text-sm",
-                  link.match(pathname) ? "bg-white/8 text-white" : "text-white/65",
+                  link.match(pathname) ? "bg-amber-500/15 text-amber-50" : "text-amber-100/60",
                 )}
               >
                 {link.label}
@@ -218,12 +223,12 @@ function HibrBadge() {
     <Link
       href="/passports"
       className={cn(
-        "glow-amber glass-panel inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-amber-100 transition hover:bg-amber-400/10",
+        "glass-panel inline-flex items-center gap-1.5 rounded-xl border border-amber-500/20 px-2.5 py-1.5 text-amber-100 transition hover:bg-amber-500/10",
         bump && "ring-1 ring-amber-300/50",
       )}
       title="Hibr ink"
     >
-      <InkDropIcon className="size-3.5 shrink-0 text-amber-300" />
+      <InkDropIcon className="size-3.5 shrink-0 text-amber-300 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
       <AnimatePresence mode="popLayout">
         <motion.span
           key={hydrated ? hibr : "…"}
