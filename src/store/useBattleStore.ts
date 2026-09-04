@@ -851,7 +851,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
 
     const livePre = get();
     const intent = livePre.enemyIntent;
-    let rawHit = intent?.damage ?? 10;
+    const rawHit = intent?.damage ?? 10;
     let shieldPre = livePre.playerShield;
     let blocked = false;
     let finalHit = rawHit;

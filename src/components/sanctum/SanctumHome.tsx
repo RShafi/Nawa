@@ -222,6 +222,7 @@ function SanctumPortal({
   title: string;
   description: string;
   icon: React.ReactNode;
+  accent?: "amber" | "rose";
   disabled?: boolean;
   disabledHint?: string;
 }) {

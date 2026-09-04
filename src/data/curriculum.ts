@@ -769,9 +769,9 @@ export function findCurriculumLesson(lessonId: string):
   | { unit: CurriculumUnit; module: CurriculumModule; lesson: CurriculumLesson }
   | undefined {
   for (const unit of CURRICULUM.units) {
-    for (const module of unit.modules) {
-      const lesson = module.lessons.find((l) => l.id === lessonId);
-      if (lesson) return { unit, module, lesson };
+    for (const mod of unit.modules) {
+      const lesson = mod.lessons.find((l) => l.id === lessonId);
+      if (lesson) return { unit, module: mod, lesson };
     }
   }
   return undefined;

@@ -1,4 +1,4 @@
-import opentype, { Path } from "opentype.js";
+import { parse, Path, type Font } from "opentype.js";
 
 import {
   CALLIGRAPHY_VIEWBOX_WIDTH,
@@ -24,7 +24,7 @@ function splitBareAndTashkeel(letter: string): { bare: string; tashkeel: readonl
 }
 
 function tashkeelMarksForLetter(
-  font: opentype.Font,
+  font: Font,
   tashkeel: readonly string[],
   anchorX: number,
   bodyPath: Path,
@@ -49,18 +49,18 @@ function tashkeelMarksForLetter(
   });
 }
 
-let fontPromise: Promise<opentype.Font> | null = null;
+let fontPromise: Promise<Font> | null = null;
 
-async function fetchAndParseFont(): Promise<opentype.Font> {
+async function fetchAndParseFont(): Promise<Font> {
   const response = await fetch(GLYPH_FONT_URL);
   if (!response.ok) {
     throw new Error(`Failed to load calligraphy font (${response.status})`);
   }
   const buffer = await response.arrayBuffer();
-  return opentype.parse(buffer);
+  return parse(buffer);
 }
 
-export function loadCalligraphyFont(): Promise<opentype.Font> {
+export function loadCalligraphyFont(): Promise<Font> {
   fontPromise ??= fetchAndParseFont();
   return fontPromise;
 }
@@ -100,7 +100,7 @@ function fontSizeForLetterCount(count: number): number {
   return Math.max(72, Math.floor(640 / count));
 }
 
-function typographicBaselineY(font: opentype.Font, fontSize: number): number {
+function typographicBaselineY(font: Font, fontSize: number): number {
   const scale = fontSize / font.unitsPerEm;
   const ascent = font.ascender * scale;
   const descent = Math.abs(font.descender * scale);
@@ -196,7 +196,7 @@ function decomposeGlyphPath(path: Path): { bodyD: string; marks: { d: string; cx
 }
 
 function centeredGlyphPath(
-  font: opentype.Font,
+  font: Font,
   letter: string,
   centerX: number,
   baselineY: number,
@@ -226,7 +226,7 @@ function flattenLetterStrokes(
   letter: string,
   centerX: number,
   rtlLetterOrder: number,
-  font: opentype.Font,
+  font: Font,
   baselineY: number,
   fontSize: number,
   startGlobalIndex: number,

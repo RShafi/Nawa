@@ -31,7 +31,7 @@ export function ObservatoryStep({
   const [revealed, setRevealed] = useState<boolean[]>(() => root.letters.map(() => false));
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const playGenRef = useRef(0);
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const timersRef = useRef<number[]>([]);
 
   const onCompleteStable = useCallback(() => onComplete(), [onComplete]);
 
@@ -63,7 +63,7 @@ export function ObservatoryStep({
   const allRevealed = revealed.every(Boolean);
 
   useEffect(() => {
-    prefetchArabic(root.letters);
+    prefetchArabic([...root.letters]);
   }, [root.letters]);
 
   const revealOrb = useCallback(
