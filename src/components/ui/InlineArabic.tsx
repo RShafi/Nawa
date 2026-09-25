@@ -18,7 +18,7 @@ export function InlineArabic({
       dir="rtl"
       lang="ar"
       className={cn(
-        "font-arabic text-celestial-amber mx-0.5 inline-block align-middle text-2xl leading-none",
+        "font-arabic text-celestial-amber mx-0.5 inline-block align-middle text-2xl leading-none [unicode-bidi:isolate]",
         className,
       )}
     >

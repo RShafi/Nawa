@@ -169,19 +169,12 @@ export async function submitCardReview(
   const rootId = (row as FsrsRow).word_id.split(":")[0] ?? "";
   const plant = plantByRoot(rootId);
   if (plant) {
-    const { data: tree } = await supabase
-      .from("user_bustan_trees")
-      .select("mastery_level")
-      .eq("user_id", user.id)
-      .eq("root_id", rootId)
-      .maybeSingle();
-    const merged = Math.min(3, Math.max(Number(tree?.mastery_level ?? 1), nextMastery));
     await supabase.from("user_bustan_trees").upsert(
       {
         user_id: user.id,
         root_id: rootId,
         letters: plant.letters,
-        mastery_level: merged,
+        mastery_level: nextMastery,
       },
       { onConflict: "user_id,root_id" },
     );

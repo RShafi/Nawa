@@ -36,7 +36,7 @@ export function SpeakButton({
         onClick={() => {
           void play(text).then(() => onSpoke?.("api"));
         }}
-        title="Play pronunciation (ElevenLabs)"
+        title="Play this line"
       >
         {isLoading ? (
           <Loader2 className="size-4 animate-spin" />

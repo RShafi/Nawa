@@ -65,18 +65,18 @@ export const PLANTS: PlantDef[] = [
         lessonId: "hour-ktb",
         wordId: "ktb-form-1",
         title: "He wrote",
-        frameName: "he did",
+        frameName: "he did it",
         frameTemplate: "فَعَلَ",
-        teach: "Put ك, then ت, then ب into the frame. The word is he wrote.",
+        teach: "These three letters mean writing. Arabic starts on the right: k, then t, then b.",
         kind: "build",
       },
       {
         lessonId: "frame-ktb-doer",
         wordId: "ktb-active-participle",
         title: "The writer",
-        frameName: "the doer",
+        frameName: "the person who does it",
         frameTemplate: "فَاعِل",
-        teach: "Same root. This frame is the person who does it.",
+        teach: "Same three letters as he wrote. A long a in the middle names the person who does it.",
         kind: "hear",
       },
       {
@@ -85,7 +85,7 @@ export const PLANTS: PlantDef[] = [
         title: "The desk",
         frameName: "the place",
         frameTemplate: "مَفْعَل",
-        teach: "Same root. This frame is the place.",
+        teach: "Same three letters. An m at the front names the place.",
         kind: "hear",
       },
       {
@@ -94,16 +94,16 @@ export const PLANTS: PlantDef[] = [
         title: "The book",
         frameName: "the thing",
         frameTemplate: "فِعَال",
-        teach: "Same root. This frame is the thing you can hold.",
+        teach: "Same three letters. A long a after the middle letter names the thing you can hold.",
         kind: "hear",
       },
       {
         lessonId: "frame-ktb-cause",
         wordId: "ktb-form-2",
         title: "He made someone write",
-        frameName: "the intensive",
+        frameName: "a stronger action",
         frameTemplate: "فَعَّلَ",
-        teach: "Same root, stronger frame. He caused the writing.",
+        teach: "Same three letters, with the middle letter doubled. The action gets stronger.",
         kind: "hear",
       },
     ],
@@ -119,18 +119,18 @@ export const PLANTS: PlantDef[] = [
         lessonId: "frame-drs-did",
         wordId: "drs-form-1",
         title: "He studied",
-        frameName: "he did",
+        frameName: "he did it",
         frameTemplate: "فَعَلَ",
-        teach: "New root, same frame as he wrote. This one is he studied.",
+        teach: "New letters, d r s, for studying. Same pattern as he wrote.",
         kind: "build",
       },
       {
         lessonId: "frame-drs-doer",
         wordId: "drs-active-participle",
         title: "The student",
-        frameName: "the doer",
+        frameName: "the person who does it",
         frameTemplate: "فَاعِل",
-        teach: "The person who studies.",
+        teach: "Same letters as he studied. A long a in the middle names the person.",
         kind: "hear",
       },
       {
@@ -139,16 +139,16 @@ export const PLANTS: PlantDef[] = [
         title: "The school",
         frameName: "the place",
         frameTemplate: "مَفْعَل",
-        teach: "The place for this root is a school.",
+        teach: "Same letters. An m at the front names the place.",
         kind: "hear",
       },
       {
         lessonId: "frame-drs-cause",
         wordId: "drs-form-2",
         title: "He taught",
-        frameName: "the intensive",
+        frameName: "a stronger action",
         frameTemplate: "فَعَّلَ",
-        teach: "Stronger frame. He made someone study.",
+        teach: "Same letters, with the middle letter doubled. The action gets stronger.",
         kind: "hear",
       },
     ],
@@ -164,27 +164,27 @@ export const PLANTS: PlantDef[] = [
         lessonId: "frame-slm-did",
         wordId: "slm-form-1",
         title: "He was safe",
-        frameName: "he did",
+        frameName: "he did it",
         frameTemplate: "فَعِلَ",
-        teach: "New root. The middle vowel is i. The word is he was safe.",
+        teach: "New letters, s l m, for peace. The middle vowel is i, not a.",
         kind: "build",
       },
       {
         lessonId: "frame-slm-doer",
         wordId: "slm-active-participle",
         title: "Safe",
-        frameName: "the doer",
+        frameName: "the person who does it",
         frameTemplate: "فَاعِل",
-        teach: "The person who is safe.",
+        teach: "Same letters as he was safe. A long a in the middle names the person.",
         kind: "hear",
       },
       {
         lessonId: "frame-slm-cause",
         wordId: "slm-form-2",
         title: "He greeted",
-        frameName: "the intensive",
+        frameName: "a stronger action",
         frameTemplate: "فَعَّلَ",
-        teach: "Stronger frame. He offered peace.",
+        teach: "Same letters, with the middle letter doubled. The action gets stronger.",
         kind: "hear",
       },
     ],
@@ -192,9 +192,9 @@ export const PLANTS: PlantDef[] = [
 ];
 
 export const FIRST_HOUR: Array<{ id: string; title: string; kind: "letter" | "shapes" | "vowel" }> = [
-  { id: "hour-letter", title: "The letter ب", kind: "letter" },
-  { id: "hour-shapes", title: "How ب joins", kind: "shapes" },
-  { id: "hour-vowel", title: "A short vowel", kind: "vowel" },
+  { id: "hour-letter", title: "The letter b", kind: "letter" },
+  { id: "hour-shapes", title: "How b joins", kind: "shapes" },
+  { id: "hour-vowel", title: "A short a", kind: "vowel" },
 ];
 
 export type ScriptLesson = {
@@ -285,7 +285,7 @@ export function plantIsVisible(plant: PlantDef, completed: string[], deck: strin
   if (index <= 0) return true;
   const prev = PLANTS[index - 1];
   if (!prev) return true;
-  return grownFrames(prev, completed, deck).length > 0;
+  return grownFrames(prev, completed, deck).length >= prev.frames.length;
 }
 
 export function registerReady(plant: PlantDef, completed: string[], deck: string[]): boolean {
@@ -311,9 +311,9 @@ export function readingModeFromLevel(level: number): TashkeelMode {
 }
 
 export function readingLabel(mode: TashkeelMode): string {
-  if (mode === "none") return "Bare letters";
-  if (mode === "minimal") return "Short vowels";
-  return "Full vowels";
+  if (mode === "none") return "No vowel marks";
+  if (mode === "minimal") return "Short marks only";
+  return "Vowel marks on";
 }
 
 export function plantReadingLevel(rootId: string, items: FsrsLite[], trees: TreeRow[] = []): number {
@@ -329,7 +329,8 @@ export function plantReadingLevel(rootId: string, items: FsrsLite[], trees: Tree
   }
   const fromCards = items.filter((item) => ids.has(item.wordId)).map((item) => item.masteryLevel);
   const fromTree = trees.find((t) => t.rootId === rootId)?.masteryLevel ?? 0;
-  const best = Math.max(fromTree, ...fromCards, 0);
+  if (fromTree > 0) return Math.min(3, fromTree);
+  const best = Math.max(...fromCards, 0);
   return best <= 0 ? 1 : Math.min(3, best);
 }
 
@@ -371,18 +372,25 @@ export function buildReviewPrompt(wordId: string, salt: number): ReviewPrompt | 
 
   const modes = ["root", "frame", "bare"] as const;
   const mode = modes[Math.abs(salt) % modes.length] ?? "root";
+  const sameFamily = found.plant.frames
+    .filter((frame) => frame.wordId !== wordId)
+    .map((frame) => getWordCard(frame.wordId))
+    .filter((card): card is WordCard => Boolean(card));
   const others = courseWordIds()
-    .filter((id) => id !== wordId)
+    .filter((id) => id !== wordId && !sameFamily.some((card) => card.id === id))
     .map((id) => getWordCard(id))
     .filter((c): c is WordCard => Boolean(c));
-  const distractors = seededShuffle(others, salt + 3).slice(0, 2);
+  const distractors = seededShuffle(
+    sameFamily.length >= 2 ? sameFamily : [...sameFamily, ...others],
+    salt + 3,
+  ).slice(0, 2);
   const choices = seededShuffle([card, ...distractors], salt + 9).map((c) => c.word);
 
   if (mode === "root") {
     return {
       mode,
       promptArabic: found.plant.letters,
-      promptHint: `Frame: ${found.frame.frameName} (${found.frame.frameTemplate})`,
+      promptHint: `These letters mean ${found.plant.gloss}. Make the word for ${found.frame.frameName}.`,
       choices,
       answer: card.word,
       gloss: card.translation,
@@ -392,7 +400,7 @@ export function buildReviewPrompt(wordId: string, salt: number): ReviewPrompt | 
     return {
       mode,
       promptArabic: found.frame.frameTemplate,
-      promptHint: `Root: ${found.plant.letters}`,
+      promptHint: `The first mark is your first letter, the middle mark is the middle letter, and the last mark is the last letter. This shape means ${found.frame.frameName}. Your letters mean ${found.plant.gloss}.`,
       choices,
       answer: card.word,
       gloss: card.translation,
@@ -401,7 +409,7 @@ export function buildReviewPrompt(wordId: string, salt: number): ReviewPrompt | 
   return {
     mode,
     promptArabic: stripDiacritics(card.word, "none"),
-    promptHint: "Add the vowels.",
+    promptHint: "Same word. Put the vowel marks back.",
     choices,
     answer: card.word,
     gloss: card.translation,

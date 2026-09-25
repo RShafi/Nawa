@@ -31,13 +31,17 @@ function Registers() {
 
   const readyPlants = PLANTS.filter((plant) => registerReady(plant, completed, deck));
 
-  async function open(registerId: string) {
+  async function open(registerId: string, cost: number) {
+    if (hibr < cost) {
+      setError("Not enough score yet. Learn, review, or finish a sentence, then try again.");
+      return;
+    }
     setPending(registerId);
     setError(null);
     const result = await openRegisterAction(registerId);
     setPending(null);
     if (!result.ok) {
-      setError(result.error ?? "Could not open that register.");
+      setError(result.error ?? "Could not open that city.");
       return;
     }
     unlockCity(registerId);
@@ -48,19 +52,19 @@ function Registers() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
       <header className="space-y-2">
-        <p className="text-xs tracking-wide text-emerald-200/80 uppercase">Registers</p>
-        <h1 className="text-3xl font-semibold text-white">Cities</h1>
+        <p className="text-xs tracking-wide text-emerald-200/80 uppercase">Cities</p>
+        <h1 className="text-3xl font-semibold text-white">Hear it another way</h1>
         <p className="max-w-xl text-sm text-white/65">
-          A city opens when a root you own is strong enough to hear. Damascus is Levantine. Cairo is Egyptian. Hibr pays for that next register.
+          After two words from the same three letters, you can hear them the way people speak in Damascus or Cairo. Your score pays for that. The score is called Hibr.
         </p>
-        <p className="text-sm text-amber-100/80">Hibr: {hibr}</p>
+        <p className="text-sm text-amber-100/80">Score: {hibr}</p>
       </header>
 
       {readyPlants.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-          Grow two frames on a root, then come back.{" "}
+          Learn two words from the same three letters, then come back.{" "}
           <Link href="/" className="text-emerald-200 underline">
-            Garden
+            Home
           </Link>
         </div>
       ) : null}
@@ -85,15 +89,26 @@ function Registers() {
                     {register.cityAr}
                   </ArabicText>
                   <p className="mt-1 text-xs text-white/50">
-                    {register.dialect === "levantine" ? "Levantine" : "Egyptian"} · {register.cost} Hibr
+                    {register.dialect === "levantine" ? "Damascus speech" : "Cairo speech"} · {register.cost} score
                   </p>
                   {owned ? (
-                    <Button className="mt-3" variant="outline" onClick={() => setOpenId(register.id)}>
+                    <Button
+                      className="mt-3"
+                      variant="outline"
+                      onClick={() => {
+                        setError(null);
+                        setOpenId(register.id);
+                      }}
+                    >
                       Hear it
                     </Button>
                   ) : (
-                    <Button className="mt-3" disabled={pending === register.id} onClick={() => void open(register.id)}>
-                      {pending === register.id ? "Opening…" : `Spend ${register.cost} Hibr`}
+                    <Button
+                      className="mt-3"
+                      disabled={pending === register.id}
+                      onClick={() => void open(register.id, register.cost)}
+                    >
+                      {pending === register.id ? "Opening…" : `Use ${register.cost} score`}
                     </Button>
                   )}
                 </div>

@@ -74,7 +74,7 @@ export function SyntaxBoard() {
             }}
           >
             <Sparkles className="size-3.5" />
-            Cast{mult > 0 ? ` (${mult}×)` : ""}
+            Say it
           </Button>
 
           <InkPoolBar
@@ -109,7 +109,7 @@ export function SyntaxBoard() {
             />
           ))}
           {hand.length === 0 ? (
-            <p className="py-2 text-sm text-white/35">Hand is empty. Redraw.</p>
+            <p className="py-2 text-sm text-white/35">No words in hand. Tap Swap hand.</p>
           ) : null}
         </div>
       </div>
@@ -213,7 +213,7 @@ export function SyntaxChamber({
         </AnimatePresence>
       </div>
       {!syntaxValid && syntaxError ? (
-        <p className="shrink-0 truncate text-center text-[clamp(0.55rem,1.2vh,0.65rem)] text-rose-200">
+        <p className="shrink-0 text-center text-[clamp(0.55rem,1.2vh,0.65rem)] text-rose-200">
           {syntaxError}
         </p>
       ) : null}

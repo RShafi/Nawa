@@ -53,7 +53,7 @@ function ReviewInner() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to load due cards");
+        setError(err instanceof Error ? err.message : "Could not load review.");
         setLoading(false);
       });
 
@@ -70,7 +70,7 @@ function ReviewInner() {
       if (res.ok && res.awarded) {
         addHibrOptimistic(res.awarded);
         if (typeof res.hibrBalance === "number") setHibrBalance(res.hibrBalance);
-        setHibrMsg(`+${res.awarded} Hibr.`);
+        setHibrMsg(`+${res.awarded} score.`);
         void hydrate();
       } else if (res.ok) {
         setHibrMsg("Session complete.");
@@ -84,7 +84,7 @@ function ReviewInner() {
         <Button asChild variant="ghost" size="sm" className="-ms-2 gap-1">
           <Link href="/">
             <ArrowLeft className="size-4" />
-            Garden
+            Home
           </Link>
         </Button>
         {!done && !loading ? (
@@ -95,9 +95,9 @@ function ReviewInner() {
       </div>
 
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-white sm:text-3xl">Rebuild the word</h1>
+        <h1 className="text-2xl font-semibold text-white sm:text-3xl">Build the word again</h1>
         <p className="text-sm text-white/55">
-          The prompt is the root, the frame, or the bare consonants. English shows after you answer.
+          You see the three letters, the pattern, or the word with no vowel marks. The English meaning comes after you answer.
         </p>
       </header>
 
@@ -116,7 +116,7 @@ function ReviewInner() {
       {loading ? (
         <div className="text-muted-foreground flex items-center justify-center gap-2 py-24 text-base">
           <Loader2 className="size-5 animate-spin" />
-          Loading today’s queue…
+          Loading words to review…
         </div>
       ) : null}
 
@@ -128,7 +128,7 @@ function ReviewInner() {
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link href="/">Back to the garden</Link>
+              <Link href="/">Back home</Link>
             </Button>
           </CardContent>
         </Card>
@@ -145,13 +145,13 @@ function ReviewInner() {
             <CardTitle className="text-2xl">Review complete</CardTitle>
             <CardDescription className="text-base">
               {totalTouched === 0
-                ? "Nothing is due. Grow a frame, or come back later."
+                ? "Nothing to review yet. Learn a word, or come back when one is due."
                 : "Those words will come back when they are due."}
             </CardDescription>
             {hibrMsg ? (
               <p className="mt-2 inline-flex items-center justify-center gap-1 text-amber-200">
                 <Sparkles className="size-4" />
-                {pending ? "Awarding Hibr…" : hibrMsg}
+                {pending ? "Adding score…" : hibrMsg}
               </p>
             ) : null}
           </CardHeader>
@@ -159,18 +159,18 @@ function ReviewInner() {
             {totalTouched > 0 ? (
               <ul className="mx-auto grid max-w-lg grid-cols-2 gap-3 text-center sm:grid-cols-5">
                 <Stat label="Reviewed" value={stats.reviewed} />
-                <Stat label="Again" value={stats.again} />
+                <Stat label="Missed" value={stats.again} />
                 <Stat label="Hard" value={stats.hard} />
-                <Stat label="Good" value={stats.good} />
+                <Stat label="Got it" value={stats.good} />
                 <Stat label="Easy" value={stats.easy} />
               </ul>
             ) : null}
             <div className="flex flex-wrap justify-center gap-2 pt-2">
               <Button asChild variant="outline">
-                <Link href="/">Garden</Link>
+                <Link href="/">Home</Link>
               </Button>
               <Button asChild>
-                <Link href="/arena">Cast a sentence</Link>
+                <Link href="/arena">Make a sentence</Link>
               </Button>
             </div>
           </CardContent>

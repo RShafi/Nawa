@@ -153,8 +153,8 @@ const initialBattle = {
   playerShield: 0,
   enemyHp: 70,
   enemyMaxHp: 70,
-  enemyName: "The line",
-  enemyNameAr: "السطر",
+  enemyName: "The sentence",
+  enemyNameAr: "",
   enemyIntent: null as EnemyIntent | null,
   enemyShield: 0,
   ink: MAX_BATTLE_INK,
@@ -181,7 +181,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
   startEncounter: ({ deck }) => {
     const unique = [...new Set(deck)].filter((id) => isCourseWord(id) && getWordCard(id));
     if (unique.length === 0) {
-      return { ok: false, error: "Grow a word in the garden first." };
+      return { ok: false, error: "Learn a word first." };
     }
 
     const pool = shuffle(unique);
@@ -202,11 +202,11 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
         turnsUntil: 1,
         icon: "sword",
       },
-      log: ["Your turn. Put the words in order, then cast."],
+      log: ["Your turn. Put the words in order, then say it."],
       turnBanner: {
         id: ++bannerId,
         title: "Your turn",
-        detail: "Verb first. Adjectives follow nouns.",
+        detail: "Verb first. A describing word follows the noun.",
         tone: "player",
       },
     });
@@ -245,8 +245,8 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
     if (combatState !== "idle") return { ok: false, error: "Wait for combat to resolve." };
     const idx = hand.findIndex((c) => c.id === cardId);
     if (idx < 0) return { ok: false, error: "Card not in hand." };
-    if (currentSentence.length >= 4) return { ok: false, error: "Syntax chamber full." };
-    if (ink < CARD_INK_COST) return { ok: false, error: "Not enough Ink." };
+    if (currentSentence.length >= 4) return { ok: false, error: "Four words is the limit." };
+    if (ink < CARD_INK_COST) return { ok: false, error: "No plays left." };
     const card = hand[idx]!;
     const nextHand = [...hand];
     nextHand.splice(idx, 1);
@@ -295,7 +295,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
     const s = get();
     if (!s.started || s.victory || s.defeat) return { ok: false, error: "Not in battle." };
     if (s.combatState !== "idle") return { ok: false, error: "Wait for combat to resolve." };
-    if (s.ink < REDRAW_INK_COST) return { ok: false, error: "Not enough Ink to redraw." };
+    if (s.ink < REDRAW_INK_COST) return { ok: false, error: "No plays left for a new hand." };
 
     const returned = [
       ...s.hand.map((c) => c.id),
@@ -311,7 +311,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       currentSentence: [],
       syntaxValid: true,
       syntaxError: null,
-      log: [...s.log, `Redraw (−${REDRAW_INK_COST} Ink)`].slice(-24),
+      log: [...s.log, `Swapped the hand (−${REDRAW_INK_COST}).`].slice(-24),
     });
     return { ok: true };
   },
@@ -323,7 +323,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       return { ok: false, error: "Combat is resolving." };
     }
     if (s.currentSentence.length === 0) {
-      return { ok: false, error: "Play cards into the Syntax Bar." };
+      return { ok: false, error: "Add a word to the sentence first." };
     }
 
     const cards = [...s.currentSentence];
@@ -407,7 +407,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       },
       turnBanner: {
         id: ++bannerId,
-        title: crit ? "You knew the meaning" : "Sentence cast",
+        title: crit ? "You knew the meaning" : "You said it",
         detail: english,
         tone: "player",
       },
@@ -533,13 +533,13 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
           : blocked
             ? `Hit for ${finalHit}.`
             : `Hit for ${finalHit}`,
-        ...(defeat ? [] : ["Ink restored."]),
+        ...(defeat ? [] : ["Plays restored."]),
       ].slice(-24),
       turnBanner: defeat
         ? {
             id: ++bannerId,
             title: "Defeat",
-            detail: "Grow another word, then come back.",
+            detail: "Learn another word, then come back.",
             tone: "enemy",
           }
         : blocked && finalHit === 0
@@ -582,7 +582,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       turnBanner: {
         id: ++bannerId,
         title: "Your turn",
-        detail: "Ink is full. Build another sentence.",
+        detail: "Plays are full. Build another sentence.",
         tone: "player",
       },
     });

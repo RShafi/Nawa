@@ -29,6 +29,15 @@ export type RegisterActionResult = {
   hibrBalance?: number;
 };
 
+function plainCityError(message: string): string {
+  if (/insufficient hibr/i.test(message)) {
+    return "Not enough score yet. Learn, review, or finish a sentence, then try again.";
+  }
+  if (/not authenticated/i.test(message)) return "Sign in first.";
+  if (/profile not found/i.test(message)) return "Could not find your score. Sign in again.";
+  return "Could not open that city. Try again.";
+}
+
 async function requireUser() {
   const supabase = await createClient();
   const {
@@ -84,7 +93,7 @@ export async function completeVisitAction(lessonId: string): Promise<VisitAction
   if (!user) return { ok: false, error: "Sign in first." };
 
   const lesson = getLesson(lessonId);
-  if (!lesson) return { ok: false, error: "That step is not on the path." };
+  if (!lesson) return { ok: false, error: "That step is not in the course." };
 
   const completed = await completedLessonIds(supabase, user.id);
   const previous = previousLessonId(lessonId);
@@ -105,7 +114,7 @@ export async function completeVisitAction(lessonId: string): Promise<VisitAction
       lesson_id: lessonId,
     });
     if (insertError && insertError.code !== "23505") {
-      return { ok: false, error: insertError.message };
+      return { ok: false, error: "Could not save this step. Try again." };
     }
   }
 
@@ -114,7 +123,7 @@ export async function completeVisitAction(lessonId: string): Promise<VisitAction
       p_pairs: [{ root_id: card.rootId, pattern_id: card.patternId }],
       p_source_node_id: lessonId,
     });
-    if (rpcError) return { ok: false, error: rpcError.message };
+    if (rpcError) return { ok: false, error: "Could not save this word. Try again." };
 
     const plant = plantByRoot(card.rootId);
     if (plant) {
@@ -150,14 +159,14 @@ export async function completeVisitAction(lessonId: string): Promise<VisitAction
       .eq("id", user.id)
       .maybeSingle();
     if (profileError || !profile) {
-      return { ok: false, error: profileError?.message ?? "Profile not found." };
+      return { ok: false, error: "Could not find your score. Sign in again." };
     }
     hibrBalance = profile.hibr_balance + VISIT_HIBR;
     const { error: updateError } = await supabase
       .from("user_profiles")
       .update({ hibr_balance: hibrBalance })
       .eq("id", user.id);
-    if (updateError) return { ok: false, error: updateError.message };
+    if (updateError) return { ok: false, error: "Could not add your score. The step is saved." };
     bonusAwarded = VISIT_HIBR;
   }
 
@@ -180,7 +189,7 @@ export async function openRegisterAction(registerId: string): Promise<RegisterAc
   if (!user) return { ok: false, error: "Sign in first." };
 
   const found = getRegister(registerId);
-  if (!found) return { ok: false, error: "Unknown register." };
+  if (!found) return { ok: false, error: "That city is not available." };
 
   const { data: vocab } = await supabase
     .from("user_unlocked_vocab")
@@ -199,17 +208,17 @@ export async function openRegisterAction(registerId: string): Promise<RegisterAc
     .map((frame) => frame.wordId);
 
   if (ownedWordIds.length < 1) {
-    return { ok: false, error: "Grow this root in the garden first." };
+    return { ok: false, error: "Learn a word from these letters first." };
   }
   if (!registerReady(found.plant, [], ownedWordIds)) {
-    return { ok: false, error: "Grow two frames of this root first." };
+    return { ok: false, error: "Learn two words from these letters first." };
   }
 
   const { data, error } = await supabase.rpc("unlock_city", {
     p_city_id: found.register.id,
     p_cost: found.register.cost,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) return { ok: false, error: plainCityError(error.message) };
 
   const payload = data as { already_unlocked?: boolean; hibr_balance?: number } | null;
   revalidatePath("/passports");

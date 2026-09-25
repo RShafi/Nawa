@@ -28,13 +28,29 @@ export function buildResonanceQuiz(
     final.push(o);
     if (final.length === 3) break;
   }
-  while (final.length < 3) {
-    final.push(`Echo ${final.length}`);
+  const fallbacks = ["He wrote a book", "The desk is big", "He studied at school", "A safe greeting"];
+  for (const extra of fallbacks) {
+    if (final.length >= 3) break;
+    const key = extra.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    final.push(extra);
   }
-  // Shuffle for display
-  for (let i = final.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [final[i], final[j]] = [final[j]!, final[i]!];
+  return { arabic, correct: natural, options: seededOrder(final, arabic) };
+}
+
+function seededOrder(list: string[], seedText: string): string[] {
+  const copy = [...list];
+  let state = 1;
+  for (const ch of seedText) state = (state * 33 + ch.charCodeAt(0)) % 2147483647;
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    state = (state * 16807) % 2147483647;
+    const j = state % (i + 1);
+    const left = copy[i];
+    const right = copy[j];
+    if (left === undefined || right === undefined) continue;
+    copy[i] = right;
+    copy[j] = left;
   }
-  return { arabic, correct: natural, options: final };
+  return copy;
 }

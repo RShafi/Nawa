@@ -68,7 +68,7 @@ export function validateSyntax(cards: WordCard[]): SyntaxResult {
     if (pos[i] === "ADJECTIVE" && pos[i + 1] === "NOUN") {
       return {
         ok: false,
-        error: "Adjectives follow nouns. Put the noun first.",
+        error: "A describing word follows the noun. Put the noun first.",
       };
     }
   }
@@ -86,14 +86,14 @@ export function validateSyntax(cards: WordCard[]): SyntaxResult {
       return { ok: true, pattern: "Noun + adjective" };
     }
     if (pos[0] === "NOUN" && pos[1] === "NOUN") {
-      return { ok: true, pattern: "Noun phrase (Iḍāfa)" };
+      return { ok: true, pattern: "Two nouns" };
     }
     if (pos[0] === "VERB" && pos[1] === "VERB") {
       return { ok: false, error: "Two verbs in a row. Add a noun, or change the order." };
     }
     return {
       ok: false,
-      error: "Try a verb, then a noun. Or a noun, then an adjective.",
+      error: "Try a verb, then a noun. Or a noun, then a describing word.",
     };
   }
 
@@ -112,7 +112,7 @@ export function validateSyntax(cards: WordCard[]): SyntaxResult {
     if (p === "ADJECTIVE" && !seenNoun) {
       return {
         ok: false,
-        error: "Adjectives need a noun before them.",
+        error: "A describing word needs a noun before it.",
       };
     }
   }
@@ -133,7 +133,7 @@ export function validateSyntax(cards: WordCard[]): SyntaxResult {
     return { ok: true, pattern: "Verb-led sentence" };
   }
 
-  return { ok: false, error: "That order is not a legal Arabic sentence yet." };
+  return { ok: false, error: "That order is not a sentence yet." };
 }
 
 export function describePos(pos: PartOfSpeech): string {

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import Link from "next/link";
 import { AppStoreHydrator } from "@/components/progress/AppStoreHydrator";
 import { ArabicText } from "@/components/common/ArabicText";
@@ -34,45 +33,56 @@ function GardenInner() {
   const deck = useAppStore((s) => s.unlockedDeck);
   const fsrs = useAppStore((s) => s.fsrsItems);
   const trees = useAppStore((s) => s.trees);
-  const hydrate = useAppStore((s) => s.hydrate);
-
-  useEffect(() => {
-    if (status === "idle") void hydrate();
-  }, [status, hydrate]);
 
   const nextId = nextLessonId(completed, deck);
   const nextLesson = nextId ? getLesson(nextId) : null;
   const visible = PLANTS.filter((plant) => plantIsVisible(plant, completed, deck));
+  const firstVisit = completed.length === 0 && deck.length === 0;
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
-      <header className="space-y-2">
-        <p className="text-xs tracking-wide text-emerald-200/80 uppercase">Bustan</p>
-        <h1 className="text-3xl font-semibold text-white">The garden</h1>
-        <p className="max-w-xl text-sm text-white/65">
-          Each root is a plant. A visit adds one frame to a family you already started.
-        </p>
-      </header>
-
       {status === "error" ? (
-        <p className="text-sm text-rose-200">Could not load your garden. Refresh and try again.</p>
-      ) : null}
+        <p className="text-sm text-rose-200">Could not load your words. Refresh and try again.</p>
+      ) : firstVisit ? (
+        <header className="space-y-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-5">
+          <p className="text-xs tracking-wide text-emerald-200/80 uppercase">Start here</p>
+          <h1 className="text-3xl font-semibold text-white">This is your garden</h1>
+          <p className="max-w-xl text-sm text-white/80">
+            Arabic words grow here from three shared letters. Each visit adds one new word to a family you already started.
+          </p>
+          <p className="max-w-xl text-sm text-white/80">
+            Today: the letter b, how it joins, a short a, then one word you can hear.
+          </p>
+          <p className="max-w-xl text-sm text-white/70">When you see a speaker, it plays the sound.</p>
+          <Button asChild className="mt-1">
+            <Link href="/lesson/hour-letter">Start with the letter b</Link>
+          </Button>
+        </header>
+      ) : (
+        <header className="space-y-2">
+          <p className="text-xs tracking-wide text-emerald-200/80 uppercase">Garden</p>
+          <h1 className="text-3xl font-semibold text-white">Your words</h1>
+          <p className="max-w-xl text-sm text-white/65">
+            Three shared letters grow into several words. One new word each visit. Vowel marks fade as you review.
+          </p>
+        </header>
+      )}
 
-      {nextLesson ? (
+      {!firstVisit && status !== "error" && nextLesson ? (
         <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
-          <p className="text-sm text-emerald-100/80">Next visit</p>
+          <p className="text-sm text-emerald-100/80">Next</p>
           <p className="mt-1 text-lg text-white">{nextLesson.title}</p>
           <Button asChild className="mt-3">
             <Link href={`/lesson/${nextLesson.id}`}>
-              {nextLesson.kind === "frame" ? "Grow this frame" : "Start this step"}
+              {nextLesson.kind === "frame" ? "Learn this word" : "Continue"}
             </Link>
           </Button>
         </div>
-      ) : status === "ready" ? (
-        <p className="text-sm text-white/70">Every frame you own is grown. Review them, or cast a sentence.</p>
-      ) : (
-        <p className="text-sm text-white/50">Loading your plants…</p>
-      )}
+      ) : !firstVisit && status === "ready" ? (
+        <p className="text-sm text-white/70">You have learned every word here. Review them, or make a sentence.</p>
+      ) : !firstVisit ? (
+        <p className="text-sm text-white/50">Loading your words…</p>
+      ) : null}
 
       <div className="grid gap-4">
         {visible.map((plant) => {
@@ -93,7 +103,7 @@ function GardenInner() {
                 {grown.length > 0 ? (
                   <p className="text-xs text-white/50">{readingLabel(mode)}</p>
                 ) : (
-                  <p className="text-xs text-white/40">Not planted yet</p>
+                  <p className="text-xs text-white/40">Not started</p>
                 )}
               </div>
               <ul className="mt-4 space-y-2">
@@ -113,11 +123,13 @@ function GardenInner() {
                         }
                       />
                       {isGrown && card ? (
-                        <span className="text-white">
+                        <span className="inline-flex items-baseline gap-2 text-white">
                           <ArabicText size="sm" mode={mode} className="text-amber-50">
                             {displayArabic(card.word, plant.rootId, fsrs, trees)}
                           </ArabicText>
-                          <span className="ms-2 text-white/50">{frame.title}</span>
+                          <span dir="ltr" className="text-white/50 [unicode-bidi:isolate]">
+                            {frame.title}
+                          </span>
                         </span>
                       ) : isNext ? (
                         <Link href={`/lesson/${frame.lessonId}`} className="text-emerald-100">
@@ -131,13 +143,15 @@ function GardenInner() {
                 })}
               </ul>
               {grown.length > 0 && !ready ? (
-                <p className="mt-3 text-xs text-white/45">Two frames, then you can hear this root in a dialect.</p>
+                <p className="mt-3 text-xs text-white/45">
+                  Learn two words from these letters, then you can hear them in Damascus or Cairo.
+                </p>
               ) : null}
               {ready ? (
                 <p className="mt-3 text-xs text-white/60">
-                  This root can be heard in Damascus or Cairo.{" "}
+                  You can hear these words in Damascus or Cairo.{" "}
                   <Link href="/passports" className="text-emerald-200 underline">
-                    Open a register
+                    Hear them
                   </Link>
                 </p>
               ) : null}

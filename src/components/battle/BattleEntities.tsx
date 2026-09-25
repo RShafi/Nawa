@@ -74,7 +74,7 @@ export function PlayerHero({
         </div>
       </div>
       <p className="text-[clamp(0.6rem,1.3vh,0.75rem)] font-semibold tracking-wide text-amber-100/80 uppercase">
-        Apprentice
+        You
       </p>
       {shield > 0 ? (
         <p className="font-mono text-[clamp(0.55rem,1.2vh,0.65rem)] font-bold text-sky-300">
@@ -187,9 +187,7 @@ export function BossEntity({
             large && "max-h-[120px]",
           )}
         >
-          <span className="text-[clamp(1.5rem,4vh,2.5rem)]" aria-hidden>
-            𓂀
-          </span>
+          <Swords className="size-[clamp(1.5rem,4vh,2.5rem)] text-rose-200" aria-hidden />
         </div>
         {shield > 0 ? (
           <motion.div
@@ -202,14 +200,16 @@ export function BossEntity({
 
       <div className="text-center">
         <p className="text-[clamp(0.8rem,1.8vh,1.1rem)] font-semibold text-white">{name}</p>
-        <InlineArabic className="mt-0.5 block text-[clamp(1rem,2.2vh,1.5rem)] text-amber-100/80">
-          {nameAr}
-        </InlineArabic>
+        {nameAr ? (
+          <InlineArabic className="mt-0.5 block text-[clamp(1rem,2.2vh,1.5rem)] text-amber-100/80">
+            {nameAr}
+          </InlineArabic>
+        ) : null}
       </div>
 
       <div className="glass-tablet w-full max-w-[14rem] space-y-1 border-white/10 px-3 py-1.5">
         <div className="flex justify-between text-[clamp(0.65rem,1.4vh,0.8rem)] text-white/70">
-          <span className="font-medium">HP</span>
+          <span className="font-medium">Health</span>
           <span className="font-mono tabular-nums">
             {hp}/{maxHp}
           </span>

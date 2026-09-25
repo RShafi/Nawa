@@ -9,9 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DialectRegister } from "@/types/arabic";
 
 const REGISTERS: { id: DialectRegister; label: string }[] = [
-  { id: "msa", label: "MSA" },
-  { id: "levantine", label: "Levantine" },
-  { id: "egyptian", label: "Egyptian" },
+  { id: "msa", label: "Formal" },
+  { id: "levantine", label: "Damascus" },
+  { id: "egyptian", label: "Cairo" },
 ];
 
 export function DialectBridgeCard({
@@ -29,7 +29,9 @@ export function DialectBridgeCard({
     <Card className="border-white/10 bg-white/5">
       <CardHeader>
         <CardTitle className="text-lg text-white">{phrase.meaning}</CardTitle>
-        <p className="text-sm text-white/60">Hear the same idea in MSA, Levantine, and Egyptian.</p>
+        <p className="text-sm text-white/60">
+          Same three letters you already know. Formal Arabic, then Damascus, then Cairo.
+        </p>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue={focus}>

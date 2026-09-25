@@ -123,13 +123,17 @@ export function WordCardView({
 
         <span
           className={cn(
-            "tracking-wide uppercase",
+            "tracking-wide",
             runeTile
               ? "mt-0.5 text-[clamp(0.55rem,1.2vh,0.7rem)] font-semibold text-white/55"
               : "text-[clamp(0.55rem,1.1vh,0.65rem)] text-white/40",
           )}
         >
-          {card.partOfSpeech}
+          {card.partOfSpeech === "ADJECTIVE"
+            ? "Describing"
+            : card.partOfSpeech === "VERB"
+              ? "Verb"
+              : "Noun"}
         </span>
       </Tag>
     </motion.div>
@@ -149,7 +153,7 @@ export function WordCardUnlockCelebration({
         <InlineArabic className="mt-2 block text-4xl">{card.word}</InlineArabic>
         <p className="mt-2 text-sm">{card.translation}</p>
       </div>
-      <p className="text-base text-emerald-200">Saved to your deck.</p>
+      <p className="text-base text-emerald-200">Saved to your words.</p>
       {onDone ? (
         <button
           type="button"

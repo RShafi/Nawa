@@ -56,12 +56,12 @@ export function BattleResultOverlay({
         ) : (
           <>
             <p className="text-2xl font-semibold text-rose-200">The line broke</p>
-            <p className="mt-2 text-sm text-white/60">Grow another word, then try a shorter sentence.</p>
+            <p className="mt-2 text-sm text-white/60">Learn another word, then try a shorter sentence.</p>
           </>
         )}
 
         {won && hibrAwarded ? (
-          <p className="mt-4 text-sm text-amber-200/80">+{hibrAwarded} Hibr</p>
+          <p className="mt-4 text-sm text-amber-200/80">+{hibrAwarded} score</p>
         ) : null}
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
@@ -76,7 +76,7 @@ export function BattleResultOverlay({
           >
             <Link href="/">
               <Map className="size-4" />
-              Garden
+              Home
             </Link>
           </Button>
           {onRematch ? (

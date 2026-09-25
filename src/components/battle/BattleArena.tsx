@@ -51,17 +51,12 @@ export function BattleArena() {
   const resetBattle = useBattleStore((s) => s.resetBattle);
   const clearLastResult = useBattleStore((s) => s.clearLastResult);
 
-  const hydrateApp = useAppStore((s) => s.hydrate);
   const unlockedDeck = useAppStore((s) => s.unlockedDeck);
   const addHibrOptimistic = useAppStore((s) => s.addHibrOptimistic);
   const setHibrBalance = useAppStore((s) => s.setHibrBalance);
   const appStatus = useAppStore((s) => s.status);
   const grownDeck = unlockedDeck.filter((id) => courseWordIds().includes(id));
   const [, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (appStatus === "idle") void hydrateApp();
-  }, [appStatus, hydrateApp]);
 
   // Player cast VFX driven by combatState + lastResult
   useEffect(() => {
@@ -171,21 +166,19 @@ export function BattleArena() {
           animate={{ opacity: 1, y: 0 }}
           className="glass-tablet relative overflow-hidden border-white/10 px-8 py-12 shadow-2xl"
         >
-          <ArabicText size="lg" forceFull className="relative text-amber-100/90">
-            حَرْبُ الْجُمَل
-          </ArabicText>
           <h1 className="relative mt-1 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            Sentence arena
+            Make a sentence
           </h1>
+          <p className="relative mt-2 text-sm text-white/60">Use only words you have learned.</p>
           <ol className="relative mx-auto mt-5 max-w-sm space-y-2 text-start text-sm text-white/65">
             <li className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-              1. Use words the garden has grown.
+              1. Put the verb first. A describing word follows the noun.
             </li>
             <li className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-              2. Verb first. Adjectives follow nouns. A longer legal line hits harder.
+              2. A longer correct sentence scores more.
             </li>
             <li className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-              3. Cast, then pick the English. Ink refills after their turn.
+              3. Then pick the English meaning. Each word costs 1 play. Plays come back after their turn.
             </li>
           </ol>
           <div className="relative mt-8 flex flex-col items-center gap-3">
@@ -195,10 +188,14 @@ export function BattleArena() {
               </Button>
             ) : (
               <Button asChild size="lg" className="h-12 px-8">
-                <Link href="/">Grow a word first</Link>
+                <Link href="/">Learn a word first</Link>
               </Button>
             )}
-            {loading ? <p className="text-xs text-white/40">Loading your deck…</p> : null}
+            {appStatus === "error" ? (
+              <p className="text-xs text-rose-200">Could not load your words. Refresh and try again.</p>
+            ) : loading ? (
+              <p className="text-xs text-white/40">Loading your words…</p>
+            ) : null}
           </div>
           {canFight ? (
             <p className="relative mt-3 text-xs text-white/40">

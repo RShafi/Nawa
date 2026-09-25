@@ -48,7 +48,7 @@ export function ArabicText({
       dir="rtl"
       lang="ar"
       className={cn(
-        "font-arabic antialiased",
+        "font-arabic [unicode-bidi:isolate] antialiased",
         SIZE[size ?? "display"],
         className,
       )}

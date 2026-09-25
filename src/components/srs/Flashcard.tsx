@@ -12,9 +12,9 @@ import { cn } from "@/lib/utils";
 import type { PopulatedSrsItem, SrsRating } from "@/types/srs";
 
 const RATING_STYLES: Record<SrsRating, { className: string; label: string }> = {
-  1: { label: "Again", className: "border-red-600/40 bg-red-600/10 text-red-100 hover:bg-red-600/20" },
+  1: { label: "Missed", className: "border-red-600/40 bg-red-600/10 text-red-100 hover:bg-red-600/20" },
   2: { label: "Hard", className: "border-orange-500/40 bg-orange-500/10 text-orange-100 hover:bg-orange-500/20" },
-  3: { label: "Good", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20" },
+  3: { label: "Got it", className: "border-emerald-500/40 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/20" },
   4: { label: "Easy", className: "border-sky-500/40 bg-sky-500/10 text-sky-100 hover:bg-sky-500/20" },
 };
 
@@ -52,7 +52,11 @@ export function Flashcard() {
   }
 
   const lead =
-    prompt.mode === "root" ? "Which word is this root and frame?" : prompt.mode === "frame" ? "Which word uses this frame?" : "Which word is this?";
+    prompt.mode === "root"
+      ? "Which word do these letters make?"
+      : prompt.mode === "frame"
+        ? "Which word uses this pattern?"
+        : "Which word is this, with the vowels back?";
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
@@ -89,7 +93,7 @@ export function Flashcard() {
           </div>
           {answered ? (
             <p className="text-center text-white/80">
-              {correct ? "Yes." : "The word was the highlighted one."} English: {prompt.gloss}
+              {correct ? "Yes." : "Not quite."} It means {prompt.gloss}.
             </p>
           ) : null}
         </CardContent>
@@ -106,9 +110,12 @@ export function Flashcard() {
               {RATING_STYLES[preview.rating].label}
             </Button>
           ))}
+          <p className="col-span-2 text-center text-xs text-white/45 sm:col-span-4">
+            Missed brings the vowel marks back. Got it and Easy take them off.
+          </p>
         </div>
       ) : (
-        <p className="text-center text-sm text-white/45">Pick the word. English shows after.</p>
+        <p className="text-center text-sm text-white/45">Pick the word. The English meaning shows after.</p>
       )}
     </div>
   );

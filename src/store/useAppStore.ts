@@ -122,6 +122,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   ...initialState,
 
   hydrate: async () => {
+    if (get().status === "loading") return false;
     set({ status: "loading", error: null });
 
     try {
@@ -129,10 +130,25 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const {
         data: { user },
         error: authError,
-      } = await supabase.auth.getUser();
+      } = await Promise.race([
+        supabase.auth.getUser(),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("timeout")), 6000);
+        }),
+      ]);
 
       if (authError || !user) {
-        set({ ...initialState, status: "idle", error: authError?.message ?? "Not signed in." });
+        if (get().userId) {
+          set({ status: "ready", error: null });
+          return true;
+        }
+        const missingSession = !authError || /session missing/i.test(authError.message);
+        set({
+          ...initialState,
+          status: missingSession ? "ready" : "error",
+          error: missingSession ? null : "Could not reach your account. Refresh and try again.",
+          hydratedAt: Date.now(),
+        });
         return false;
       }
 
@@ -199,9 +215,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
         hydratedAt: Date.now(),
       });
       return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to hydrate app state.";
-      set({ status: "error", error: message });
+    } catch {
+      if (get().userId) {
+        set({ status: "ready", error: null });
+        return true;
+      }
+      set({
+        ...initialState,
+        status: "error",
+        error: "Could not reach your account. Refresh and try again.",
+        hydratedAt: Date.now(),
+      });
       return false;
     }
   },
@@ -302,9 +326,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const trees = plant
         ? s.trees.some((tree) => tree.rootId === rootId)
           ? s.trees.map((tree) =>
-              tree.rootId === rootId
-                ? { ...tree, masteryLevel: Math.min(3, Math.max(tree.masteryLevel, masteryLevel)) }
-                : tree,
+              tree.rootId === rootId ? { ...tree, masteryLevel } : tree,
             )
           : [...s.trees, { rootId, letters: plant.letters, masteryLevel }]
         : s.trees;

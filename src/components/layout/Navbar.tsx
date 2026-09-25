@@ -15,12 +15,12 @@ import { useAppStore } from "@/store/useAppStore";
 const NAV_LINKS = [
   {
     href: "/",
-    label: "Garden",
+    label: "Home",
     match: (p: string) => p === "/" || p.startsWith("/lesson") || p.startsWith("/bustan") || p.startsWith("/path"),
   },
   {
     href: "/arena",
-    label: "Arena",
+    label: "Sentences",
     match: (p: string) => p.startsWith("/arena"),
   },
   {
@@ -223,7 +223,7 @@ function HibrBadge() {
         "glow-amber glass-panel inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-amber-100 transition hover:bg-amber-400/10",
         bump && "ring-1 ring-amber-300/50",
       )}
-      title="Hibr. Spend it on a dialect of a root you own."
+      title="Score from learning. Spend it on Cities to hear a word in another dialect."
     >
       <InkDropIcon className="size-3.5 shrink-0 text-amber-300" />
       <AnimatePresence mode="popLayout">
@@ -239,7 +239,7 @@ function HibrBadge() {
         </motion.span>
       </AnimatePresence>
       <span className="hidden text-[10px] tracking-wide text-amber-200/70 uppercase sm:inline">
-        Hibr
+        Score
       </span>
     </Link>
   );
