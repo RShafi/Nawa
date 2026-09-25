@@ -40,7 +40,7 @@ export function useNeuralAudio(arabicText?: string) {
           };
           audio.onerror = () => {
             setIsPlaying(false);
-            reject(new Error("Playback failed — check ElevenLabs keys / network"));
+            reject(new Error("Playback failed. Check the audio keys or the network."));
           };
           void audio
             .play()

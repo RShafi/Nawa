@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { stripDiacritics } from "@/lib/arabic-utils";
-import { useNawaStore } from "@/store/nawa-store";
+import type { TashkeelMode } from "@/types/arabic";
 import { Fragment } from "react";
 
 type ArabicTextProps = {
@@ -16,6 +16,8 @@ type ArabicTextProps = {
   size?: "display" | "lg" | "md" | "sm" | "inherit";
   /** Skip tashkeel stripping (always show full vowels) */
   forceFull?: boolean;
+  /** Earned reading level. Defaults to full vowels. */
+  mode?: TashkeelMode;
 };
 
 const SIZE: Record<Exclude<ArabicTextProps["size"], undefined>, string> = {
@@ -36,8 +38,8 @@ export function ArabicText({
   as: Tag = "span",
   size = "display",
   forceFull = false,
+  mode = "full",
 }: ArabicTextProps) {
-  const mode = useNawaStore((s) => s.tashkeelMode);
   const text = forceFull ? children : stripDiacritics(children, mode);
   const hasBlank = text.includes("_");
 

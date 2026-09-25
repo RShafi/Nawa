@@ -2,14 +2,13 @@
 
 import { create } from "zustand";
 import {
-  FLAME_BURN_RATIO,
-  FLAME_BURN_TICKS,
   getWordCard,
   getWordCards,
   syntaxMultiplier,
   type ElementSchool,
   type WordCard,
 } from "@/data/combatDictionary";
+import { BATTLE_WIN_HIBR } from "@/data/rewards";
 import { type CombatState, delay, RESONANCE_CRIT_MULT } from "@/lib/combatPacing";
 import { validateSyntax } from "@/lib/syntax";
 import { findSemanticPair, generateNaturalTranslation } from "@/utils/grammarEngine";
@@ -147,66 +146,6 @@ function sumBase(cards: WordCard[]): number {
   return cards.reduce((n, c) => n + c.basePower, 0);
 }
 
-function applyElemental(
-  schools: ElementSchool[],
-  damage: number,
-  state: {
-    enemyShield: number;
-    burnTicks: number;
-    burnDamage: number;
-    frostSkip: boolean;
-    playerShield: number;
-  },
-): {
-  enemyShield: number;
-  burnTicks: number;
-  burnDamage: number;
-  frostSkip: boolean;
-  playerShield: number;
-  pierce: boolean;
-  logs: string[];
-} {
-  const logs: string[] = [];
-  let { enemyShield, burnTicks, burnDamage, frostSkip, playerShield } = state;
-  let pierce = false;
-
-  for (const school of [...new Set(schools)]) {
-    if (school === "FLAME") {
-      burnTicks = FLAME_BURN_TICKS;
-      burnDamage = Math.max(2, Math.round(damage * FLAME_BURN_RATIO));
-      logs.push(`Flame Burn: ${burnDamage} dmg × ${burnTicks} turns`);
-    }
-    if (school === "FROST") {
-      const gain = Math.max(18, Math.round(damage * 1.1));
-      playerShield += gain;
-      frostSkip = false;
-      logs.push(`Frost Ward: +${gain} player shield`);
-    }
-    if (school === "MIND") {
-      pierce = true;
-      if (enemyShield > 0) {
-        logs.push(`Mind: pierced shield (${enemyShield} → 0)`);
-        enemyShield = 0;
-      } else {
-        logs.push("Mind: intent revealed");
-      }
-    }
-    if (school === "KINETIC") {
-      logs.push("Kinetic: raw force");
-    }
-  }
-
-  return {
-    enemyShield,
-    burnTicks,
-    burnDamage,
-    frostSkip,
-    playerShield,
-    pierce,
-    logs,
-  };
-}
-
 const initialBattle = {
   started: false,
   victory: false,
@@ -219,8 +158,8 @@ const initialBattle = {
   playerShield: 0,
   enemyHp: 70,
   enemyMaxHp: 70,
-  enemyName: "Shadow of Ignorance",
-  enemyNameAr: "ظِلُّ الْجَهْل",
+  enemyName: "The line",
+  enemyNameAr: "السطر",
   enemyIntent: null as EnemyIntent | null,
   enemyShield: 0,
   burnTicks: 0,
@@ -252,7 +191,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
   startEncounter: ({ deck, rustActive = false }) => {
     const unique = [...new Set(deck)].filter((id) => getWordCard(id));
     if (unique.length === 0) {
-      return { ok: false, error: "Forge Word Cards on the Learning Path first." };
+      return { ok: false, error: "Grow a word in the garden first." };
     }
 
     const pool = shuffle(unique);
@@ -267,19 +206,19 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       deckPool: restIds,
       hand: getWordCards(handIds),
       enemyShield: unique.length >= 4 ? 18 : 0,
-      weakTo: "FLAME",
+      weakTo: null,
       enemyIntent: {
         kind: "heavy-strike",
-        label: "Preparing Heavy Strike",
+        label: "A hit is coming",
         damage: 14,
         turnsUntil: 1,
         icon: "sword",
       },
-      log: ["Battle start — chain Word Cards into a sentence, then Cast."],
+      log: ["Your turn. Put the words in order, then cast."],
       turnBanner: {
         id: ++bannerId,
         title: "Your turn",
-        detail: "Build a sentence in the Syntax Bar",
+        detail: "Verb first. Adjectives follow nouns.",
         tone: "player",
       },
     });
@@ -404,17 +343,17 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
     if (!syntax.ok) {
       set({
         syntaxValid: false,
-        syntaxError: syntax.error ?? "Invalid grammar",
+        syntaxError: syntax.error ?? "That order does not work.",
         lastResult: {
           kind: "syntax-fail",
           arabic: cards.map((c) => c.word).join(" "),
-          english: syntax.error ?? "Broken chain",
+          english: syntax.error ?? "That order does not work.",
           damage: 0,
           multiplier: 0,
-          schools: cards.map((c) => c.school),
+          schools: [],
         },
         screenShake: true,
-        log: [...s.log, `Syntax fail — ${syntax.error}`].slice(-24),
+        log: [...s.log, syntax.error ?? "That order does not work."].slice(-24),
       });
       window.setTimeout(() => set({ screenShake: false }), 400);
       return { ok: false, error: syntax.error };
@@ -429,8 +368,8 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       combatState: "resonance_check",
       turnBanner: {
         id: ++bannerId,
-        title: "Resonance Check",
-        detail: "Channel the meaning of your spell",
+        title: "Meaning check",
+        detail: "Pick the English.",
         tone: "system",
       },
     });
@@ -447,8 +386,8 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       log: [
         ...s.log,
         success
-          ? "Resonance aligned — Critical Strike!"
-          : "Meaning slipped — base damage only.",
+          ? "Meaning matched."
+          : "Meaning missed. The hit stays smaller.",
       ].slice(-24),
     });
     void get().resolveTurn(cards);
@@ -462,18 +401,10 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
     const mult = syntaxMultiplier(cards.length);
     const crit = s0.isCriticalStrike;
     const critMult = crit ? RESONANCE_CRIT_MULT : 1;
-    let base = sumBase(cards);
-    if (s0.rustActive) base = Math.round(base * 0.7);
-
-    const schools = cards.map((c) => c.school);
-    const arabic = cards.map((c) => c.word).join(" · ");
+    const base = sumBase(cards);
+    const arabic = cards.map((c) => c.word).join(" ");
     const english = generateNaturalTranslation(cards);
-
-    // Preview cast result before HP lands (for VFX)
-    let previewDamage = Math.round(base * mult * critMult);
-    if (s0.weakTo && schools.includes(s0.weakTo)) {
-      previewDamage = Math.round(previewDamage * 1.35);
-    }
+    const damage = Math.round(base * mult * critMult);
 
     set({
       combatState: "player_attacking",
@@ -481,15 +412,15 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
         kind: "hit",
         arabic,
         english,
-        damage: previewDamage,
+        damage,
         multiplier: mult * critMult,
-        schools,
+        schools: [],
         critical: crit,
       },
       turnBanner: {
         id: ++bannerId,
-        title: crit ? "CRITICAL STRIKE!" : `${mult}× Combo!`,
-        detail: crit ? "Meaning channeled — full power" : "Spell in flight",
+        title: crit ? "You knew the meaning" : "Sentence cast",
+        detail: english,
         tone: "player",
       },
       lastEnemyHit: null,
@@ -504,28 +435,12 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       return;
     }
 
-    const elemental = applyElemental(schools, Math.round(base * mult * critMult), {
-      enemyShield: s.enemyShield,
-      burnTicks: s.burnTicks,
-      burnDamage: s.burnDamage,
-      frostSkip: s.frostSkip,
-      playerShield: s.playerShield,
-    });
-
-    let damage = Math.round(base * mult * critMult);
-    if (s.weakTo && schools.includes(s.weakTo)) {
-      damage = Math.round(damage * 1.35);
-      elemental.logs.push(`Weakness (${s.weakTo}) ×1.35`);
-    }
-    if (crit) {
-      elemental.logs.push(`Critical Resonance ×${RESONANCE_CRIT_MULT}`);
-    }
-
-    let enemyShield = elemental.enemyShield;
+    let enemyShield = s.enemyShield;
     let dealt = damage;
     let kind: CastResultKind = "hit";
+    const logs: string[] = [];
 
-    if (!elemental.pierce && enemyShield > 0) {
+    if (enemyShield > 0) {
       const absorbed = Math.min(enemyShield, damage);
       enemyShield -= absorbed;
       dealt = damage - absorbed;
@@ -533,7 +448,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
         kind = "shield-break";
         dealt = 0;
       }
-      elemental.logs.push(`Shield absorbed ${absorbed}`);
+      logs.push(`Shield took ${absorbed}.`);
     }
 
     const enemyHp = Math.max(0, s.enemyHp - dealt);
@@ -542,26 +457,18 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
     set({
       enemyHp,
       enemyShield,
-      burnTicks: elemental.burnTicks,
-      burnDamage: elemental.burnDamage,
-      frostSkip: elemental.frostSkip,
-      playerShield: elemental.playerShield,
       lastResult: {
         kind,
         arabic,
         english,
         damage: dealt,
         multiplier: mult * critMult,
-        schools,
+        schools: [],
         critical: crit,
       },
-      log: [
-        ...s.log,
-        `Cast (${mult}×${crit ? ` Crit×${RESONANCE_CRIT_MULT}` : ""}): ${arabic} → −${dealt}`,
-        ...elemental.logs,
-      ].slice(-24),
+      log: [...s.log, `${arabic}. ${english}. −${dealt}`, ...logs].slice(-24),
       victory,
-      hibrAwarded: victory ? 25 + cards.length * 5 + (crit ? 10 : 0) : null,
+      hibrAwarded: victory ? BATTLE_WIN_HIBR : null,
       screenShake: dealt > 0 || crit,
       isCriticalStrike: false,
     });
@@ -572,8 +479,8 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
         combatState: "idle",
         turnBanner: {
           id: ++bannerId,
-          title: "Victory",
-          detail: "Sentence power wins",
+          title: "The sentence landed",
+          detail: english,
           tone: "player",
         },
       });
@@ -581,53 +488,13 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       return;
     }
 
-    // Burn tick between player strike and enemy turn
-    let nextBurn = get().burnTicks;
-    let nextHp = get().enemyHp;
-    const burnLogs: string[] = [];
-    if (nextBurn > 0 && get().burnDamage > 0) {
-      nextHp = Math.max(0, nextHp - get().burnDamage);
-      nextBurn -= 1;
-      burnLogs.push(`Burn tick −${get().burnDamage}`);
-      set({ enemyHp: nextHp, burnTicks: nextBurn });
-      if (nextHp <= 0) {
-        set({
-          victory: true,
-          hibrAwarded: 30,
-          combatState: "idle",
-          log: [...get().log, ...burnLogs, "Burn finished the enemy."].slice(-24),
-        });
-        resolveLock = false;
-        return;
-      }
-    }
-
     const cur = get();
-    if (cur.frostSkip) {
-      set({
-        frostSkip: false,
-        ink: cur.maxInk,
-        combatState: "idle",
-        log: [...cur.log, ...burnLogs, "Enemy turn skipped (Frost).", "Ink restored."].slice(-24),
-        turnBanner: {
-          id: ++bannerId,
-          title: "Enemy delayed",
-          detail: "Frost holds them back",
-          tone: "system",
-        },
-      });
-      get().drawHand(5);
-      resolveLock = false;
-      return;
-    }
-
-    // Enemy turn transition banner
     set({
       combatState: "enemy_turn_transition",
       turnBanner: {
         id: ++bannerId,
-        title: "ENEMY TURN",
-        detail: cur.enemyIntent?.label ?? "Attack incoming",
+        title: "Their turn",
+        detail: cur.enemyIntent?.label ?? "A hit is coming",
         tone: "enemy",
       },
     });
@@ -635,7 +502,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
 
     const livePre = get();
     const intent = livePre.enemyIntent;
-    let rawHit = intent?.damage ?? 10;
+    const rawHit = intent?.damage ?? 10;
     let shieldPre = livePre.playerShield;
     let blocked = false;
     let finalHit = rawHit;
@@ -673,26 +540,25 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       screenShake: finalHit > 0,
       log: [
         ...live.log,
-        ...burnLogs,
         blocked && finalHit === 0
-          ? "BLOCKED! Frost Ward held."
+          ? "The shield held."
           : blocked
-            ? `Enemy hits −${finalHit} (partial block)`
-            : `Enemy hits −${finalHit}`,
+            ? `Hit for ${finalHit}.`
+            : `Hit for ${finalHit}`,
         ...(defeat ? [] : ["Ink restored."]),
       ].slice(-24),
       turnBanner: defeat
         ? {
             id: ++bannerId,
             title: "Defeat",
-            detail: "Forge more cards on the Path",
+            detail: "Grow another word, then come back.",
             tone: "enemy",
           }
         : blocked && finalHit === 0
           ? {
               id: ++bannerId,
-              title: "BLOCKED!",
-              detail: "Your Frost Ward absorbed the blow",
+              title: "Shield held",
+              detail: "No damage.",
               tone: "system",
             }
           : {
@@ -703,7 +569,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
             },
       enemyIntent: {
         kind: "probe",
-        label: "Preparing Strike",
+        label: "Another hit",
         damage: 10 + Math.floor(Math.random() * 6),
         turnsUntil: 1,
         icon: "sword",
@@ -728,7 +594,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       turnBanner: {
         id: ++bannerId,
         title: "Your turn",
-        detail: "Ink restored — weave another sentence",
+        detail: "Ink is full. Build another sentence.",
         tone: "player",
       },
     });

@@ -14,7 +14,7 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const next = params.next?.startsWith("/") ? params.next : "/path";
+  const next = params.next?.startsWith("/") ? params.next : "/";
 
   return (
     <main className="bg-background flex min-h-screen items-center justify-center px-4 py-12">
@@ -25,7 +25,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               Nawā
             </Link>
           </CardTitle>
-          <CardDescription>Sign in to continue your Arabic path</CardDescription>
+          <CardDescription>Sign in to grow a root.</CardDescription>
         </CardHeader>
         <CardContent>
           <LoginForm next={next} />

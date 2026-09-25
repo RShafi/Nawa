@@ -16,7 +16,7 @@ type LoginFormProps = {
   next?: string;
 };
 
-export function LoginForm({ next = "/path" }: LoginFormProps) {
+export function LoginForm({ next = "/" }: LoginFormProps) {
   const [loginState, loginAction, loginPending] = useActionState(login, initialState);
   const [signupState, signupAction, signupPending] = useActionState(signup, initialState);
 

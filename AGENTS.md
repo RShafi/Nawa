@@ -8,7 +8,7 @@ Single Next.js service. Standard commands live in `package.json` (`dev`, `build`
 
 ### Required env
 
-Copy `.env.example` → `.env.local`. **`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required** — `src/middleware.ts` calls `createServerClient` on nearly every request, and missing values crash the app with a 500 (including `/` and `/login`). Auth-gated routes: `/path`, `/lesson/*`, `/arena`, `/bustan`, `/forge`, `/review`, `/passport`, `/passports`. Unauthenticated users are redirected to `/login`.
+Copy `.env.example` → `.env.local`. **`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required** — `src/middleware.ts` calls `createServerClient` on nearly every request, and missing values crash the app with a 500 (including `/` and `/login`). Auth-gated routes: `/`, `/path`, `/lesson/*`, `/arena`, `/bustan`, `/review`, `/passport`, `/passports`. Unauthenticated users are redirected to `/login`.
 
 Schema SQL lives in `supabase/schema.sql` and `supabase/migrations/` — apply against the Supabase project (no local DB is started by the app).
 

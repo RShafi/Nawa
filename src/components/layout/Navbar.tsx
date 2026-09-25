@@ -8,16 +8,15 @@ import { ChevronDown, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { logout } from "@/app/login/actions";
 import { ArabicText } from "@/components/common/ArabicText";
-import { TashkeelToggle } from "@/components/common/TashkeelToggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
 
 const NAV_LINKS = [
   {
-    href: "/path",
-    label: "Learning Path",
-    match: (p: string) => p === "/path" || p.startsWith("/path/") || p.startsWith("/lesson"),
+    href: "/",
+    label: "Garden",
+    match: (p: string) => p === "/" || p.startsWith("/lesson") || p.startsWith("/bustan") || p.startsWith("/path"),
   },
   {
     href: "/arena",
@@ -25,11 +24,15 @@ const NAV_LINKS = [
     match: (p: string) => p.startsWith("/arena"),
   },
   {
+    href: "/review",
+    label: "Review",
+    match: (p: string) => p.startsWith("/review"),
+  },
+  {
     href: "/passports",
-    label: "Passports",
+    label: "Cities",
     match: (p: string) => p.startsWith("/passport"),
   },
-  { href: "/review", label: "Review", match: (p: string) => p.startsWith("/review") },
 ] as const;
 
 type NavbarProps = {
@@ -102,7 +105,6 @@ export function Navbar({ email }: NavbarProps) {
 
         <div className="flex items-center gap-1.5 sm:gap-2">
           <HibrBadge />
-          <TashkeelToggle />
           <Button
             variant="ghost"
             size="icon"
@@ -221,7 +223,7 @@ function HibrBadge() {
         "glow-amber glass-panel inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-amber-100 transition hover:bg-amber-400/10",
         bump && "ring-1 ring-amber-300/50",
       )}
-      title="Hibr ink"
+      title="Hibr. Spend it on a dialect of a root you own."
     >
       <InkDropIcon className="size-3.5 shrink-0 text-amber-300" />
       <AnimatePresence mode="popLayout">
@@ -233,7 +235,7 @@ function HibrBadge() {
           transition={{ type: "spring", stiffness: 420, damping: 22 }}
           className="font-mono text-xs font-semibold tabular-nums sm:text-sm"
         >
-          {hydrated ? hibr : "—"}
+          {hydrated ? hibr : "..."}
         </motion.span>
       </AnimatePresence>
       <span className="hidden text-[10px] tracking-wide text-amber-200/70 uppercase sm:inline">

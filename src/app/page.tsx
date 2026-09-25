@@ -1,6 +1,11 @@
-import { redirect } from "next/navigation";
+import { SiteHeader } from "@/components/common/SiteHeader";
+import { GardenHome } from "@/components/garden/GardenHome";
 
-/** V1 entry → Learning Path pillar */
 export default function HomePage() {
-  redirect("/path");
+  return (
+    <div className="min-h-screen bg-background">
+      <SiteHeader />
+      <GardenHome />
+    </div>
+  );
 }

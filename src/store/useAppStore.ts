@@ -9,6 +9,7 @@ import {
   type MasteryLevel,
   type UnlockedVocab,
 } from "@/types/app-progress";
+import type { TreeRow } from "@/data/garden";
 import { createClient } from "@/utils/supabase/client";
 
 type HydrateStatus = "idle" | "loading" | "ready" | "error";
@@ -23,6 +24,7 @@ type AppStore = {
   fsrsItems: FsrsItem[];
   unlockedCities: string[];
   completedLessonIds: string[];
+  trees: TreeRow[];
 
   status: HydrateStatus;
   error: string | null;
@@ -49,7 +51,6 @@ type AppStore = {
   getMastery: (wordId: string) => MasteryLevel | null;
   getMasteryForPair: (rootId: string, patternId: string) => MasteryLevel | null;
   dueReviewCount: (now?: Date) => number;
-  hasRustDebuff: (now?: Date) => boolean;
 };
 
 const initialState = {
@@ -61,6 +62,7 @@ const initialState = {
   fsrsItems: [] as FsrsItem[],
   unlockedCities: [] as string[],
   completedLessonIds: [] as string[],
+  trees: [] as TreeRow[],
   status: "idle" as HydrateStatus,
   error: null as string | null,
   hydratedAt: null as number | null,
@@ -116,8 +118,6 @@ function clampMastery(n: number): MasteryLevel {
   return 2;
 }
 
-const RUST_OVERDUE_MS = 3 * 24 * 60 * 60 * 1000;
-
 export const useAppStore = create<AppStore>((set, get) => ({
   ...initialState,
 
@@ -136,7 +136,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         return false;
       }
 
-      const [profileRes, vocabRes, fsrsRes, citiesRes, lessonsRes] = await Promise.all([
+      const [profileRes, vocabRes, fsrsRes, citiesRes, lessonsRes, treesRes] = await Promise.all([
         supabase
           .from("user_profiles")
           .select("email, hibr_balance")
@@ -152,6 +152,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
           .eq("user_id", user.id),
         supabase.from("user_unlocked_cities").select("city_id").eq("user_id", user.id),
         supabase.from("user_lesson_progress").select("lesson_id").eq("user_id", user.id),
+        supabase.from("user_bustan_trees").select("root_id, letters, mastery_level").eq("user_id", user.id),
       ]);
 
       let hibrBalance = profileRes.data?.hibr_balance ?? 0;
@@ -186,6 +187,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
         fsrsItems: mapFsrsRows(fsrsRes.data ?? []),
         unlockedCities: (citiesRes.data ?? []).map((r) => r.city_id as string),
         completedLessonIds: (lessonsRes.data ?? []).map((r) => r.lesson_id as string),
+        trees: treesRes.error
+          ? []
+          : (treesRes.data ?? []).map((row) => ({
+              rootId: row.root_id as string,
+              letters: row.letters as string,
+              masteryLevel: Number(row.mastery_level ?? 0),
+            })),
         status: "ready",
         error: null,
         hydratedAt: Date.now(),
@@ -210,6 +218,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       fsrsItems: payload.fsrsItems,
       unlockedCities: payload.unlockedCities,
       completedLessonIds: payload.completedLessonIds,
+      trees: [],
       status: "ready",
       error: null,
       hydratedAt: Date.now(),
@@ -342,13 +351,5 @@ export const useAppStore = create<AppStore>((set, get) => ({
   dueReviewCount: (now = new Date()) => {
     const t = now.getTime();
     return get().fsrsItems.filter((f) => new Date(f.dueDate).getTime() <= t).length;
-  },
-
-  hasRustDebuff: (now = new Date()) => {
-    const t = now.getTime();
-    return get().fsrsItems.some((f) => {
-      const due = new Date(f.dueDate).getTime();
-      return due < t - RUST_OVERDUE_MS;
-    });
   },
 }));

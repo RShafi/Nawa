@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { BATTLE_WIN_HIBR, REVIEW_SESSION_HIBR } from "@/lib/wardDealer";
+import { BATTLE_WIN_HIBR, REVIEW_SESSION_HIBR } from "@/data/rewards";
 import { createClient } from "@/utils/supabase/server";
 
 async function requireUser() {

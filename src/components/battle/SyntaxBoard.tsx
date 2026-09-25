@@ -109,7 +109,7 @@ export function SyntaxBoard() {
             />
           ))}
           {hand.length === 0 ? (
-            <p className="py-2 text-sm text-white/35">Hand empty — try Redraw</p>
+            <p className="py-2 text-sm text-white/35">Hand is empty. Redraw.</p>
           ) : null}
         </div>
       </div>
@@ -182,7 +182,7 @@ export function SyntaxChamber({
               animate={{ opacity: 1 }}
               className="px-3 text-center text-[clamp(0.7rem,1.6vh,0.875rem)] text-amber-100/70"
             >
-              Spell Chamber — tap cards to weave
+              Tap words to build the sentence.
             </motion.p>
           ) : (
             cards.map((card, i) => (

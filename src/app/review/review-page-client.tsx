@@ -70,7 +70,7 @@ function ReviewInner() {
       if (res.ok && res.awarded) {
         addHibrOptimistic(res.awarded);
         if (typeof res.hibrBalance === "number") setHibrBalance(res.hibrBalance);
-        setHibrMsg(`+${res.awarded} Hibr earned for reviewing.`);
+        setHibrMsg(`+${res.awarded} Hibr.`);
         void hydrate();
       } else if (res.ok) {
         setHibrMsg("Session complete.");
@@ -82,26 +82,22 @@ function ReviewInner() {
     <main className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button asChild variant="ghost" size="sm" className="-ms-2 gap-1">
-          <Link href="/path">
+          <Link href="/">
             <ArrowLeft className="size-4" />
-            Back to Path
+            Garden
           </Link>
         </Button>
         {!done && !loading ? (
           <p className="text-muted-foreground text-sm">
-            {totalTouched} reviewed · {remaining} left · Earn up to 50 Hibr
+            {totalTouched} done · {remaining} left
           </p>
         ) : null}
       </div>
 
       <header className="space-y-1">
-        <p className="text-[11px] tracking-[0.2em] text-emerald-300/70 uppercase">
-          Pillar 4 · Daily Review
-        </p>
-        <h1 className="text-2xl font-semibold text-white sm:text-3xl">Maintain combat power</h1>
+        <h1 className="text-2xl font-semibold text-white sm:text-3xl">Rebuild the word</h1>
         <p className="text-sm text-white/55">
-          Strong reviews raise mastery (harder tooltips, better fights). Neglecting cards applies
-          Rust in the Arena.
+          The prompt is the root, the frame, or the bare consonants. English shows after you answer.
         </p>
       </header>
 
@@ -127,12 +123,12 @@ function ReviewInner() {
       {error ? (
         <Card>
           <CardHeader>
-            <CardTitle>Couldn’t start review</CardTitle>
+            <CardTitle>Could not load review</CardTitle>
             <CardDescription className="text-base">{error}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link href="/path">Return to Path</Link>
+              <Link href="/">Back to the garden</Link>
             </Button>
           </CardContent>
         </Card>
@@ -149,8 +145,8 @@ function ReviewInner() {
             <CardTitle className="text-2xl">Review complete</CardTitle>
             <CardDescription className="text-base">
               {totalTouched === 0
-                ? "Nothing due — check back tomorrow, or learn more on the Path."
-                : "FSRS updated. Mastery also sharpens Arena tooltips."}
+                ? "Nothing is due. Grow a frame, or come back later."
+                : "Those words will come back when they are due."}
             </CardDescription>
             {hibrMsg ? (
               <p className="mt-2 inline-flex items-center justify-center gap-1 text-amber-200">
@@ -171,10 +167,10 @@ function ReviewInner() {
             ) : null}
             <div className="flex flex-wrap justify-center gap-2 pt-2">
               <Button asChild variant="outline">
-                <Link href="/path">Learning Path</Link>
+                <Link href="/">Garden</Link>
               </Button>
               <Button asChild>
-                <Link href="/arena">Enter Arena</Link>
+                <Link href="/arena">Cast a sentence</Link>
               </Button>
             </div>
           </CardContent>
