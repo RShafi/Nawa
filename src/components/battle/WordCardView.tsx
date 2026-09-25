@@ -114,7 +114,7 @@ export function WordCardView({
           >
             {shown}
           </InlineArabic>
-          {!runeTile ? (
+          {!runeTile && !inHand ? (
             <span className="line-clamp-2 w-full pb-1 text-[clamp(0.65rem,1.5vh,0.875rem)] leading-tight text-slate-300">
               {card.translation}
             </span>

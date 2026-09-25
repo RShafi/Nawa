@@ -145,7 +145,7 @@ export function SyntaxChamber({
     >
       <div className="mb-0.5 flex shrink-0 items-center justify-between gap-2">
         <p className="text-[clamp(0.55rem,1.2vh,0.65rem)] tracking-[0.14em] text-amber-200/55 uppercase">
-          Spell Chamber
+          Sentence
         </p>
         <div className="flex items-center gap-2">
           {mult > 0 ? (

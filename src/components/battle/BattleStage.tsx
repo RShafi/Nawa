@@ -76,10 +76,10 @@ export function CombatPhaseBanner({
                 showBlock ? "text-sky-300" : "text-rose-300",
               )}
             >
-              {showBlock ? "BLOCKED!" : "ENEMY TURN"}
+              {showBlock ? "Shield held" : "Their turn"}
             </p>
             <p className="mt-2 text-sm text-white/60">
-              {showBlock ? "Your Frost Ward holds." : "Brace for impact"}
+              {showBlock ? "No damage." : "A hit is coming."}
             </p>
           </div>
         </motion.div>

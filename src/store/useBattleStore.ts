@@ -8,6 +8,7 @@ import {
   type ElementSchool,
   type WordCard,
 } from "@/data/combatDictionary";
+import { isCourseWord } from "@/data/garden";
 import { BATTLE_WIN_HIBR } from "@/data/rewards";
 import { type CombatState, delay, RESONANCE_CRIT_MULT } from "@/lib/combatPacing";
 import { validateSyntax } from "@/lib/syntax";
@@ -91,10 +92,6 @@ type BattleStore = {
   enemyNameAr: string;
   enemyIntent: EnemyIntent | null;
   enemyShield: number;
-  burnTicks: number;
-  burnDamage: number;
-  frostSkip: boolean;
-  weakTo: ElementSchool | null;
   ink: number;
   maxInk: number;
   hand: WordCard[];
@@ -113,11 +110,9 @@ type BattleStore = {
   } | null;
   screenShake: boolean;
   hibrAwarded: number | null;
-  rustActive: boolean;
 
   startEncounter: (opts: {
     deck: string[];
-    rustActive?: boolean;
   }) => { ok: boolean; error?: string };
   resetBattle: () => void;
   drawHand: (count?: number) => void;
@@ -162,10 +157,6 @@ const initialBattle = {
   enemyNameAr: "السطر",
   enemyIntent: null as EnemyIntent | null,
   enemyShield: 0,
-  burnTicks: 0,
-  burnDamage: 0,
-  frostSkip: false,
-  weakTo: null as ElementSchool | null,
   ink: MAX_BATTLE_INK,
   maxInk: MAX_BATTLE_INK,
   hand: [] as WordCard[],
@@ -179,7 +170,6 @@ const initialBattle = {
   turnBanner: null as BattleStore["turnBanner"],
   screenShake: false,
   hibrAwarded: null as number | null,
-  rustActive: false,
 };
 
 let bannerId = 0;
@@ -188,8 +178,8 @@ let resolveLock = false;
 export const useBattleStore = create<BattleStore>((set, get) => ({
   ...initialBattle,
 
-  startEncounter: ({ deck, rustActive = false }) => {
-    const unique = [...new Set(deck)].filter((id) => getWordCard(id));
+  startEncounter: ({ deck }) => {
+    const unique = [...new Set(deck)].filter((id) => isCourseWord(id) && getWordCard(id));
     if (unique.length === 0) {
       return { ok: false, error: "Grow a word in the garden first." };
     }
@@ -202,11 +192,9 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       ...initialBattle,
       started: true,
       combatState: "idle",
-      rustActive,
       deckPool: restIds,
       hand: getWordCards(handIds),
       enemyShield: unique.length >= 4 ? 18 : 0,
-      weakTo: null,
       enemyIntent: {
         kind: "heavy-strike",
         label: "A hit is coming",

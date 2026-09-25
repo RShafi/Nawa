@@ -42,9 +42,6 @@ export function BattleArena() {
   const enemyName = useBattleStore((s) => s.enemyName);
   const enemyNameAr = useBattleStore((s) => s.enemyNameAr);
   const enemyShield = useBattleStore((s) => s.enemyShield);
-  const burnTicks = useBattleStore((s) => s.burnTicks);
-  const frostSkip = useBattleStore((s) => s.frostSkip);
-  const weakTo = useBattleStore((s) => s.weakTo);
   const lastResult = useBattleStore((s) => s.lastResult);
   const lastEnemyHit = useBattleStore((s) => s.lastEnemyHit);
   const screenShake = useBattleStore((s) => s.screenShake);
@@ -108,13 +105,13 @@ export function BattleArena() {
         setBossFlash(true);
         const dmg = lastEnemyHit;
         if (dmg === 0) {
-          setPlayerDamageFloat("BLOCKED!");
+          setPlayerDamageFloat("Blocked");
         } else if (typeof dmg === "number" && dmg > 0) {
           setPlayerHit(true);
-          setPlayerDamageFloat(`−${dmg} DMG`);
+          setPlayerDamageFloat(`−${dmg}`);
         } else {
           setPlayerHit(true);
-          setPlayerDamageFloat("−? DMG");
+          setPlayerDamageFloat("Hit");
         }
       }, 200);
       const clearA = window.setTimeout(() => setBossAttacking(false), 700);
@@ -247,9 +244,6 @@ export function BattleArena() {
             hp={enemyHp}
             maxHp={enemyMaxHp}
             shield={enemyShield}
-            burn={burnTicks}
-            frost={frostSkip}
-            weakTo={weakTo}
             hit={bossHit}
             attacking={bossAttacking || combatState === "enemy_attacking"}
             floats={floats}

@@ -9,7 +9,7 @@ import {
   type MasteryLevel,
   type UnlockedVocab,
 } from "@/types/app-progress";
-import type { TreeRow } from "@/data/garden";
+import { plantByRoot, type TreeRow } from "@/data/garden";
 import { createClient } from "@/utils/supabase/client";
 
 type HydrateStatus = "idle" | "loading" | "ready" | "error";
@@ -297,9 +297,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setMasteryOptimistic: (wordId, masteryLevel, dueDate) =>
     set((s) => {
+      const rootId = wordId.split(":")[0] ?? "";
+      const plant = plantByRoot(rootId);
+      const trees = plant
+        ? s.trees.some((tree) => tree.rootId === rootId)
+          ? s.trees.map((tree) =>
+              tree.rootId === rootId
+                ? { ...tree, masteryLevel: Math.min(3, Math.max(tree.masteryLevel, masteryLevel)) }
+                : tree,
+            )
+          : [...s.trees, { rootId, letters: plant.letters, masteryLevel }]
+        : s.trees;
       const idx = s.fsrsItems.findIndex((f) => f.wordId === wordId);
       if (idx === -1) {
         return {
+          trees,
           fsrsItems: [
             ...s.fsrsItems,
             {
@@ -321,7 +333,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         dueDate: dueDate ?? cur.dueDate,
         lastReview: new Date().toISOString(),
       };
-      return { fsrsItems: next };
+      return { trees, fsrsItems: next };
     }),
 
   markLessonCompleteOptimistic: (lessonId) =>
