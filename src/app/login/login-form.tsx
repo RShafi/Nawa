@@ -25,7 +25,7 @@ export function LoginForm({ next = "/" }: LoginFormProps) {
   const pending = loginPending || signupPending;
 
   return (
-    <form className="flex flex-col gap-4">
+    <form className="flex flex-col gap-4" suppressHydrationWarning>
       <input type="hidden" name="next" value={next} />
 
       <div className="flex flex-col gap-2">
@@ -38,6 +38,7 @@ export function LoginForm({ next = "/" }: LoginFormProps) {
           required
           placeholder="you@example.com"
           disabled={pending}
+          suppressHydrationWarning
         />
       </div>
 
@@ -52,6 +53,7 @@ export function LoginForm({ next = "/" }: LoginFormProps) {
           minLength={6}
           placeholder="••••••••"
           disabled={pending}
+          suppressHydrationWarning
         />
       </div>
 

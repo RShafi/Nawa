@@ -8,6 +8,40 @@ export type AuthActionState = {
   message?: string;
 };
 
+const UNREACHABLE =
+  "The Supabase project URL is missing or unreachable. Set NEXT_PUBLIC_SUPABASE_URL to your project and restart the dev server.";
+
+function projectConfigError(): string | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? "";
+  if (!url || !key) return UNREACHABLE;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return UNREACHABLE;
+  } catch {
+    return UNREACHABLE;
+  }
+  return null;
+}
+
+function authErrorMessage(error: { message?: string } | null): string {
+  const message = error?.message?.trim() ?? "";
+  const lower = message.toLowerCase();
+  if (
+    !message ||
+    lower === "fetch failed" ||
+    lower.includes("failed to fetch") ||
+    lower.includes("enotfound") ||
+    lower.includes("econnrefused") ||
+    lower.includes("econnreset") ||
+    lower.includes("getaddrinfo") ||
+    lower.includes("network")
+  ) {
+    return UNREACHABLE;
+  }
+  return message;
+}
+
 export async function login(
   _prev: AuthActionState,
   formData: FormData,
@@ -20,11 +54,16 @@ export async function login(
     return { error: "Email and password are required." };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const configError = projectConfigError();
+  if (configError) return { error: configError };
 
-  if (error) {
-    return { error: error.message || "Invalid credentials." };
+  const supabase = await createClient();
+  try {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: authErrorMessage(error) };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    return { error: authErrorMessage({ message }) };
   }
 
   redirect(next.startsWith("/") ? next : "/path");
@@ -45,11 +84,18 @@ export async function signup(
     return { error: "Password must be at least 6 characters." };
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const configError = projectConfigError();
+  if (configError) return { error: configError };
 
-  if (error) {
-    return { error: error.message };
+  const supabase = await createClient();
+  let data: Awaited<ReturnType<typeof supabase.auth.signUp>>["data"];
+  try {
+    const result = await supabase.auth.signUp({ email, password });
+    if (result.error) return { error: authErrorMessage(result.error) };
+    data = result.data;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    return { error: authErrorMessage({ message }) };
   }
 
   // Email confirmation enabled → no session yet
