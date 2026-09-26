@@ -231,18 +231,13 @@ function HibrBadge() {
       title="Score from learning. Spend it on Cities to hear a word in another dialect."
     >
       <InkDropIcon className="size-3.5 shrink-0 text-amber-300" />
-      <AnimatePresence mode="popLayout">
-        <motion.span
-          key={hydrated ? hibr : "…"}
-          initial={{ y: 8, opacity: 0, scale: 0.85 }}
-          animate={{ y: 0, opacity: 1, scale: bump ? 1.12 : 1 }}
-          exit={{ y: -8, opacity: 0, scale: 0.9 }}
-          transition={{ type: "spring", stiffness: 420, damping: 22 }}
-          className="font-mono text-xs font-semibold tabular-nums sm:text-sm"
-        >
-          {hydrated ? hibr : "..."}
-        </motion.span>
-      </AnimatePresence>
+      <motion.span
+        animate={{ scale: bump ? 1.12 : 1 }}
+        transition={{ type: "spring", stiffness: 420, damping: 22 }}
+        className="font-mono text-xs font-semibold tabular-nums sm:text-sm"
+      >
+        {hydrated ? hibr : "..."}
+      </motion.span>
       <span className="hidden text-[10px] tracking-wide text-amber-200/70 sm:inline">Score</span>
     </Link>
   );

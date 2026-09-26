@@ -494,7 +494,11 @@ function seededShuffle<T>(list: T[], seed: number): T[] {
   return copy;
 }
 
-export function buildReviewPrompt(wordId: string, salt: number): ReviewPrompt | null {
+export function buildReviewPrompt(
+  wordId: string,
+  salt: number,
+  knownIds: readonly string[] = [],
+): ReviewPrompt | null {
   const card = getWordCard(wordId);
   if (!card || !isCourseWord(wordId)) return null;
   const found = PLANTS.flatMap((plant) =>
@@ -504,12 +508,14 @@ export function buildReviewPrompt(wordId: string, salt: number): ReviewPrompt | 
 
   const modes = ["root", "frame", "bare"] as const;
   const mode = modes[Math.abs(salt) % modes.length] ?? "root";
+  const known = new Set(knownIds);
+  known.add(wordId);
   const sameFamily = found.plant.frames
-    .filter((frame) => frame.wordId !== wordId)
+    .filter((frame) => frame.wordId !== wordId && known.has(frame.wordId))
     .map((frame) => getWordCard(frame.wordId))
     .filter((card): card is WordCard => Boolean(card));
   const others = courseWordIds()
-    .filter((id) => id !== wordId && !sameFamily.some((card) => card.id === id))
+    .filter((id) => id !== wordId && known.has(id) && !sameFamily.some((card) => card.id === id))
     .map((id) => getWordCard(id))
     .filter((c): c is WordCard => Boolean(c));
   const distractors = seededShuffle(

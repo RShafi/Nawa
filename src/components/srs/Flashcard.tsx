@@ -5,6 +5,7 @@ import { ArabicText } from "@/components/common/ArabicText";
 import { previewRatings } from "@/lib/fsrs";
 import { buildReviewPrompt } from "@/data/garden";
 import { forgeWordCard } from "@/data/combatDictionary";
+import { useAppStore } from "@/store/useAppStore";
 import { useReviewStore } from "@/store/useReviewStore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +20,7 @@ const RATING_STYLES: Record<SrsRating, { className: string; label: string }> = {
 };
 
 export function Flashcard() {
+  const deck = useAppStore((s) => s.unlockedDeck);
   const queue = useReviewStore((s) => s.queue);
   const currentIndex = useReviewStore((s) => s.currentIndex);
   const submitRating = useReviewStore((s) => s.submitRating);
@@ -30,8 +32,8 @@ export function Flashcard() {
     if (!item || item.content.kind !== "word") return null;
     const card = forgeWordCard(item.content.rootId, item.content.patternId);
     if (!card) return null;
-    return buildReviewPrompt(card.id, item.reps + currentIndex + item.content.arabic.length);
-  }, [item, currentIndex]);
+    return buildReviewPrompt(card.id, item.reps + currentIndex + item.content.arabic.length, deck);
+  }, [item, currentIndex, deck]);
 
   const previews = useMemo(() => (item ? previewRatings(item) : []), [item]);
 

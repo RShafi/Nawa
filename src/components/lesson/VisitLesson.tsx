@@ -163,7 +163,7 @@ function SavedPanel({
         </Button>
         {next ? (
           <Button asChild>
-            <Link href={`/lesson/${next.id}`}>{nextStepLabel(next.kind)}</Link>
+            <Link href={`/lesson/${next.id}`}>{nextStepLabel(next)}</Link>
           </Button>
         ) : null}
       </div>
@@ -171,8 +171,8 @@ function SavedPanel({
   );
 }
 
-function nextStepLabel(kind: string): string {
-  if (kind === "sentence") return "Make this sentence";
-  if (kind === "frame") return "Learn the next word";
-  return "Next step";
+function nextStepLabel(lesson: { kind: string; title: string }): string {
+  if (lesson.kind === "sentence") return "Make this sentence";
+  if (lesson.kind === "frame") return `Next: ${lesson.title}`;
+  return `Next: ${lesson.title}`;
 }
