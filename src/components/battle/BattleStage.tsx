@@ -72,14 +72,14 @@ export function CombatPhaseBanner({
           <div className="text-center">
             <p
               className={cn(
-                "text-4xl font-black tracking-[0.2em] uppercase sm:text-5xl md:text-6xl",
-                showBlock ? "text-sky-300" : "text-rose-300",
+                "text-3xl font-semibold sm:text-4xl",
+                showBlock ? "text-sky-200" : "text-white",
               )}
             >
-              {showBlock ? "Shield held" : "Their turn"}
+              {showBlock ? "That word fits" : "Check the line"}
             </p>
             <p className="mt-2 text-sm text-white/60">
-              {showBlock ? "No damage." : "A hit is coming."}
+              {showBlock ? "Keep going." : "The order still has to hold."}
             </p>
           </div>
         </motion.div>

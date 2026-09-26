@@ -57,8 +57,8 @@ export function Flashcard() {
     prompt.mode === "root"
       ? "Which word do these letters make?"
       : prompt.mode === "frame"
-        ? "Which word matches this shape?"
-        : "Which word is this, with the vowels back?";
+        ? "Which word fits these vowels?"
+        : "Which word is this?";
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
@@ -113,11 +113,11 @@ export function Flashcard() {
             </Button>
           ))}
           <p className="col-span-2 text-center text-xs text-white/45 sm:col-span-4">
-            Missed brings the vowel marks back. Got it and Easy take them off.
+            Missed puts the vowel marks back. Got it and Easy take them off.
           </p>
         </div>
       ) : (
-        <p className="text-center text-sm text-white/45">Pick the word. The English meaning shows after.</p>
+        <p className="text-center text-sm text-white/45">Choose the word. English comes after.</p>
       )}
     </div>
   );

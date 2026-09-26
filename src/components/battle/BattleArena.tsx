@@ -174,23 +174,22 @@ export function BattleArena() {
           className="glass-tablet relative overflow-hidden border-white/10 px-8 py-12 shadow-2xl"
         >
           <h1 className="relative mt-1 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            Make a sentence
+            Say a sentence
           </h1>
-          <p className="relative mt-2 text-sm text-white/60">Use only words you have learned.</p>
+          <p className="relative mt-2 text-sm text-white/60">Use words from your plant.</p>
           <div className="relative mx-auto mt-5 max-w-sm space-y-2 text-start text-sm text-white/70">
             <p>Tap an action word first, then a thing.</p>
-            <p>A longer sentence is a bigger win.</p>
-            <p>Then choose the English meaning.</p>
-            <p>You can tap up to 5 words. They come back when the sentence is finished.</p>
+            <p>A longer sentence is harder. Then choose the English.</p>
+            <p>You can use up to five words. They return when you finish.</p>
           </div>
           <div className="relative mt-8 flex flex-col items-center gap-3">
             {canFight ? (
               <Button size="lg" className="h-12 px-8 text-base" onClick={beginFreePlay}>
-                Start
+                Begin
               </Button>
             ) : (
               <Button asChild size="lg" className="h-12 px-8">
-                <Link href="/">Learn a word first</Link>
+                <Link href="/">Grow a word first</Link>
               </Button>
             )}
             {appStatus === "error" ? (

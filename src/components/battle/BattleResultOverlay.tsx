@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Map, RotateCcw, Swords } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { InlineArabic } from "@/components/ui/InlineArabic";
 import { Button } from "@/components/ui/button";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
@@ -47,7 +47,7 @@ export function BattleResultOverlay({
       >
         {won ? (
           <>
-            <p className="text-2xl font-semibold text-amber-100">The sentence landed</p>
+            <p className="text-2xl font-semibold text-amber-100">You said it.</p>
             {sentence ? (
               <InlineArabic className="mt-3 block text-3xl text-amber-50">{sentence}</InlineArabic>
             ) : null}
@@ -55,8 +55,8 @@ export function BattleResultOverlay({
           </>
         ) : (
           <>
-            <p className="text-2xl font-semibold text-rose-200">The line broke</p>
-            <p className="mt-2 text-sm text-white/60">Learn another word, then try a shorter sentence.</p>
+            <p className="text-2xl font-semibold text-rose-200">That order is not a sentence yet.</p>
+            <p className="mt-2 text-sm text-white/60">Try a shorter line, or grow another word.</p>
           </>
         )}
 
@@ -74,10 +74,7 @@ export function BattleResultOverlay({
                 : "h-12 bg-emerald-500 font-semibold text-black hover:bg-emerald-400"
             }
           >
-            <Link href="/">
-              <Map className="size-4" />
-              Home
-            </Link>
+            <Link href="/">Back to the garden</Link>
           </Button>
           {onRematch ? (
             <Button
@@ -90,10 +87,7 @@ export function BattleResultOverlay({
               {rematchLabel ? (
                 rematchLabel
               ) : won ? (
-                <>
-                  <Swords className="size-4" />
-                  Fight again
-                </>
+                "Say another"
               ) : (
                 <>
                   <RotateCcw className="size-4" />

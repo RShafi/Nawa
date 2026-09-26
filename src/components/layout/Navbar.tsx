@@ -16,7 +16,7 @@ import { useAppStore } from "@/store/useAppStore";
 const NAV_LINKS = [
   {
     href: "/",
-    label: "Home",
+    label: "Garden",
     match: (p: string) => p === "/" || p.startsWith("/lesson") || p.startsWith("/bustan") || p.startsWith("/path"),
   },
   {
@@ -228,7 +228,7 @@ function HibrBadge() {
         "glow-amber glass-panel inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-amber-100 transition hover:bg-amber-400/10",
         bump && "ring-1 ring-amber-300/50",
       )}
-      title="Score from learning. Spend it on Cities to hear a word in another dialect."
+      title="Score is a receipt. It pays to hear a word in Damascus or Cairo."
     >
       <InkDropIcon className="size-3.5 shrink-0 text-amber-300" />
       <motion.span

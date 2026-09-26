@@ -197,7 +197,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       enemyShield: unique.length >= 4 ? 18 : 0,
       enemyIntent: {
         kind: "heavy-strike",
-        label: "A hit is coming",
+        label: "Check the order",
         damage: 14,
         turnsUntil: 1,
         icon: "sword",
@@ -206,7 +206,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       turnBanner: {
         id: ++bannerId,
         title: "Your turn",
-        detail: "Verb first. A describing word follows the noun.",
+        detail: "The action comes first. A describing word follows the thing.",
         tone: "player",
       },
     });
@@ -467,7 +467,7 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
         combatState: "idle",
         turnBanner: {
           id: ++bannerId,
-          title: "The sentence landed",
+          title: "You said it.",
           detail: english,
           tone: "player",
         },
@@ -481,8 +481,8 @@ export const useBattleStore = create<BattleStore>((set, get) => ({
       combatState: "enemy_turn_transition",
       turnBanner: {
         id: ++bannerId,
-        title: "Their turn",
-        detail: cur.enemyIntent?.label ?? "A hit is coming",
+        title: "Check the line",
+        detail: cur.enemyIntent?.label ?? "Check the order",
         tone: "enemy",
       },
     });

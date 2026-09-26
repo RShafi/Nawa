@@ -33,7 +33,7 @@ function Registers() {
 
   async function open(registerId: string, cost: number) {
     if (hibr < cost) {
-      setError("Not enough score yet. Learn, review, or finish a sentence, then try again.");
+      setError("Not enough score yet. Finish a lesson, a review, or a sentence, then try again.");
       return;
     }
     setPending(registerId);
@@ -52,18 +52,18 @@ function Registers() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold text-white">Hear it another way</h1>
+        <h1 className="text-3xl font-semibold text-white">Hear it in another city</h1>
         <p className="max-w-xl text-sm text-white/65">
-          After two words from the same three letters, you can hear them the way people speak in Damascus or Cairo. Your score pays for that.
+          Two words from the same three letters are enough. Score pays to hear Damascus or Cairo, and nothing else.
         </p>
         <p className="text-sm text-amber-100/80">Score: {hibr}</p>
       </header>
 
       {readyPlants.length === 0 ? (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
-          Learn two words from the same three letters, then come back.{" "}
+          Grow two words from one family, then come back.{" "}
           <Link href="/" className="text-emerald-200 underline">
-            Home
+            Back to the garden
           </Link>
         </div>
       ) : null}
@@ -88,7 +88,7 @@ function Registers() {
                     {register.cityAr}
                   </ArabicText>
                   <p className="mt-1 text-xs text-white/50">
-                    {register.dialect === "levantine" ? "Damascus speech" : "Cairo speech"} · {register.cost} score
+                    {register.dialect === "levantine" ? "Damascus" : "Cairo"} · {register.cost} score
                   </p>
                   {owned ? (
                     <Button

@@ -1,24 +1,18 @@
 "use client";
 
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AppStoreHydrator } from "@/components/progress/AppStoreHydrator";
-import { ArabicText } from "@/components/common/ArabicText";
 import { Button } from "@/components/ui/button";
+import { FamilyPlant } from "@/components/garden/FamilyPlant";
+import { StartOver } from "@/components/garden/StartOver";
+import Link from "next/link";
 import {
   PLANTS,
-  cardForFrame,
-  displayArabic,
   getLesson,
-  grownFrames,
+  isLessonDone,
   nextLessonId,
   plantIsVisible,
-  plantReadingLevel,
-  readingLabel,
-  readingModeFromLevel,
-  registerReady,
-  type LessonDef,
 } from "@/data/garden";
-import { StartOver } from "@/components/garden/StartOver";
 import { useAppStore } from "@/store/useAppStore";
 
 export function GardenHome() {
@@ -35,146 +29,88 @@ function GardenInner() {
   const deck = useAppStore((s) => s.unlockedDeck);
   const fsrs = useAppStore((s) => s.fsrsItems);
   const trees = useAppStore((s) => s.trees);
+  const grewParam = useSearchParams().get("grew");
 
   const nextId = nextLessonId(completed, deck);
   const nextLesson = nextId ? getLesson(nextId) : null;
-  const visible = PLANTS.filter((plant) => plantIsVisible(plant, completed, deck));
+  const grewLesson = grewParam ? getLesson(grewParam) : null;
+  const grewId = grewLesson && isLessonDone(grewLesson.id, completed, deck) ? grewLesson.id : null;
   const firstVisit = completed.length === 0 && deck.length === 0;
+  const visible = PLANTS.filter((plant) => plantIsVisible(plant, completed, deck));
+
+  if (status === "error") {
+    return (
+      <main className="mx-auto max-w-lg px-4 py-10">
+        <p className="text-sm text-rose-200">Could not load your words. Refresh and try again.</p>
+      </main>
+    );
+  }
+
+  if (status !== "ready") {
+    return (
+      <main className="mx-auto max-w-lg px-4 py-10">
+        <p className="text-sm text-white/50">Loading your words…</p>
+      </main>
+    );
+  }
+
+  if (firstVisit) {
+    return (
+      <main className="mx-auto flex w-full max-w-lg flex-col gap-10 px-4 py-10">
+        <section className="space-y-3">
+          <h1 className="text-4xl font-semibold tracking-tight text-white">This is a garden.</h1>
+          <p className="text-lg leading-relaxed text-white/75">
+            Arabic words grow here. A family is three letters, and the words you keep come from those letters.
+          </p>
+        </section>
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-white">You add one piece. Then you stop.</h2>
+          <p className="text-base leading-relaxed text-white/70">
+            The plant shows that piece. The next piece stays empty.
+          </p>
+        </section>
+        <section className="space-y-2">
+          <h2 className="text-2xl font-semibold text-white">Today you learn the letter b.</h2>
+          <p className="text-base leading-relaxed text-white/70">You will hear it, then tap it.</p>
+        </section>
+        <Button asChild size="lg" className="h-12 w-full text-base sm:w-fit">
+          <Link href="/lesson/hour-letter">Start with the letter b</Link>
+        </Button>
+      </main>
+    );
+  }
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
-      {status === "error" ? (
-        <p className="text-sm text-rose-200">Could not load your words. Refresh and try again.</p>
-      ) : status !== "ready" ? (
-        <p className="text-sm text-white/50">Loading your words…</p>
-      ) : firstVisit ? (
-        <header className="space-y-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-5">
-          <h1 className="text-3xl font-semibold text-white">This is your garden.</h1>
-          <p className="max-w-xl text-sm text-white/80">
-            Words you learn stay here. You start with one letter.
-          </p>
-          <p className="max-w-xl text-sm text-white/80">
-            Today you only learn the letter b. Then how it joins, a short a, and one word: he wrote.
-          </p>
-          <p className="max-w-xl text-sm text-white/70">When you see a speaker, it plays the sound.</p>
-          <Button asChild className="mt-1">
-            <Link href="/lesson/hour-letter">Hear the letter b</Link>
-          </Button>
-        </header>
-      ) : (
-        <header className="space-y-2">
-          <h1 className="text-3xl font-semibold text-white">Your words</h1>
-          <p className="max-w-xl text-sm text-white/65">
-            One step is waiting. Gray names are words you have not learned yet.
-          </p>
-        </header>
-      )}
+    <main className="mx-auto flex w-full max-w-lg flex-col gap-8 px-4 py-8">
+      <header className="space-y-2">
+        {grewLesson && grewId ? (
+          <h1 className="text-3xl font-semibold tracking-tight text-white">{grewLesson.win}</h1>
+        ) : (
+          <h1 className="text-3xl font-semibold tracking-tight text-white">Your garden</h1>
+        )}
+        {nextLesson ? (
+          <p className="text-base text-white/70">{nextLesson.title} is still open.</p>
+        ) : (
+          <p className="text-base text-white/70">Every piece here is grown.</p>
+        )}
+      </header>
 
-      {status === "ready" && !firstVisit && nextLesson ? (
-        <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
-          <p className="text-sm text-emerald-100/80">Next</p>
-          <p className="mt-1 text-lg text-white">{nextLesson.title}</p>
-          <p className="mt-1 text-sm text-white/70">{nextLesson.teach}</p>
-          <Button asChild className="mt-3">
-            <Link href={`/lesson/${nextLesson.id}`}>{nextAction(nextLesson)}</Link>
-          </Button>
-        </div>
-      ) : status === "ready" && !firstVisit ? (
-        <p className="text-sm text-white/70">You have learned every word here. Review them, or make a sentence.</p>
-      ) : null}
+      {visible.map((plant) => (
+        <FamilyPlant
+          key={plant.rootId}
+          plant={plant}
+          completed={completed}
+          deck={deck}
+          fsrs={fsrs}
+          trees={trees}
+          nextId={nextId}
+          grewId={grewId}
+        />
+      ))}
 
-      {status === "ready" ? (
-      <div className="grid gap-4">
-        {visible.map((plant) => {
-          const grown = grownFrames(plant, completed, deck);
-          const level = plantReadingLevel(plant.rootId, fsrs, trees);
-          const mode = readingModeFromLevel(level);
-          const nextFrame = plant.frames.find((frame) => !grown.some((g) => g.lessonId === frame.lessonId));
-          const ready = registerReady(plant, completed, deck);
-          return (
-            <article key={plant.rootId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <ArabicText size="lg" forceFull className="text-emerald-50">
-                    {plant.letters}
-                  </ArabicText>
-                  <p className="text-sm text-white/60">{plant.gloss}</p>
-                </div>
-                {grown.length > 0 ? (
-                  <p className="text-xs text-white/50">{readingLabel(mode)}</p>
-                ) : (
-                  <p className="text-xs text-white/40">Still to come</p>
-                )}
-              </div>
-              <ul className="mt-4 space-y-2">
-                {plant.frames.map((frame) => {
-                  const isGrown = grown.some((g) => g.lessonId === frame.lessonId);
-                  const isNext = nextFrame?.lessonId === frame.lessonId && nextId === frame.lessonId;
-                  const card = cardForFrame(frame);
-                  return (
-                    <li key={frame.lessonId} className="flex items-center gap-3 text-sm">
-                      <span
-                        className={
-                          isGrown
-                            ? "size-2.5 rounded-full bg-emerald-400"
-                            : isNext
-                              ? "size-2.5 rounded-full border border-emerald-300"
-                              : "size-2.5 rounded-full bg-white/15"
-                        }
-                      />
-                      {isGrown && card ? (
-                        <span className="inline-flex items-baseline gap-2 text-white">
-                          <ArabicText size="sm" mode={mode} className="text-amber-50">
-                            {displayArabic(card.word, plant.rootId, fsrs, trees)}
-                          </ArabicText>
-                          <span dir="ltr" className="text-white/50 [unicode-bidi:isolate]">
-                            {frame.title}
-                          </span>
-                        </span>
-                      ) : isNext ? (
-                        <Link href={`/lesson/${frame.lessonId}`} className="text-emerald-100">
-                          Next: {frame.title}
-                        </Link>
-                      ) : (
-                        <span className="text-white/35">{frame.title}</span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-              {grown.length > 0 && !ready ? (
-                <p className="mt-3 text-xs text-white/45">
-                  Learn two words from these letters, then you can hear them in Damascus or Cairo.
-                </p>
-              ) : null}
-              {ready ? (
-                <p className="mt-3 text-xs text-white/60">
-                  You can hear these words in Damascus or Cairo.{" "}
-                  <Link href="/passports" className="text-emerald-200 underline">
-                    Hear them
-                  </Link>
-                </p>
-              ) : null}
-            </article>
-          );
-        })}
-      </div>
-      ) : null}
-
-      {status === "ready" && !firstVisit ? (
-        <p className="text-sm text-white/45">
-          <StartOver />
-        </p>
-      ) : null}
+      <p className="text-sm text-white/40">
+        <StartOver />
+      </p>
     </main>
   );
-}
-
-function nextAction(lesson: LessonDef): string {
-  if (lesson.kind === "sentence") return "Make this sentence";
-  if (lesson.kind === "frame") return "Learn this word";
-  if (lesson.kind === "letter") return "Hear the letter b";
-  if (lesson.kind === "shapes") return "See how b joins";
-  if (lesson.kind === "vowel") return "Add a short a";
-  return "Continue";
 }

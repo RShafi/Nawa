@@ -30,7 +30,7 @@ export function DialectBridgeCard({
       <CardHeader>
         <CardTitle className="text-lg text-white">{phrase.meaning}</CardTitle>
         <p className="text-sm text-white/60">
-          Same three letters you already know. Formal Arabic, then Damascus, then Cairo.
+          The same three letters, said three ways.
         </p>
       </CardHeader>
       <CardContent>

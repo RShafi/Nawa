@@ -80,7 +80,7 @@ function ReviewInner() {
         setHibrMsg(`+${res.awarded} score.`);
         void hydrate();
       } else if (res.ok) {
-        setHibrMsg("Session complete.");
+        setHibrMsg("Done.");
       }
     });
   }, [done, totalTouched, hibrMsg, addHibrOptimistic, setHibrBalance, hydrate]);
@@ -91,7 +91,7 @@ function ReviewInner() {
         <Button asChild variant="ghost" size="sm" className="-ms-2 gap-1">
           <Link href="/">
             <ArrowLeft className="size-4" />
-            Home
+            Garden
           </Link>
         </Button>
         {!done && !loading ? (
@@ -102,16 +102,16 @@ function ReviewInner() {
       </div>
 
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-white sm:text-3xl">Build the word again</h1>
+        <h1 className="text-2xl font-semibold text-white sm:text-3xl">Read a word again</h1>
         <p className="text-sm text-white/55">
-          You see the three letters, the word shape, or the word with no vowel marks. The English meaning comes after you answer.
+          You see the three letters, the vowels alone, or the word with the marks taken off. The English meaning comes after you choose.
         </p>
       </header>
 
       {!done && !loading && !error ? (
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="font-medium">Session progress</span>
+            <span className="font-medium">This sitting</span>
             <span className="text-muted-foreground">
               {totalTouched} / {totalTouched + remaining}
             </span>
@@ -123,7 +123,7 @@ function ReviewInner() {
       {loading ? (
         <div className="text-muted-foreground flex items-center justify-center gap-2 py-24 text-base">
           <Loader2 className="size-5 animate-spin" />
-          Loading words to review…
+          Loading words…
         </div>
       ) : null}
 
@@ -135,7 +135,7 @@ function ReviewInner() {
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link href="/">Back home</Link>
+              <Link href="/">Back to the garden</Link>
             </Button>
           </CardContent>
         </Card>
@@ -149,11 +149,13 @@ function ReviewInner() {
             <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-emerald-600/15">
               <CheckCircle2 className="size-7 text-emerald-700 dark:text-emerald-300" />
             </div>
-            <CardTitle className="text-2xl">Review complete</CardTitle>
+            <CardTitle className="text-2xl">
+              {totalTouched === 0 ? "No word is due" : "Those words can rest"}
+            </CardTitle>
             <CardDescription className="text-base">
               {totalTouched === 0
-                ? "Nothing to review yet. Learn a word, or come back when one is due."
-                : "Those words will come back when they are due."}
+                ? "Grow a word, or come back later."
+                : "They will come back when they are due."}
             </CardDescription>
             {hibrMsg ? (
               <p className="mt-2 inline-flex items-center justify-center gap-1 text-amber-200">
@@ -174,10 +176,7 @@ function ReviewInner() {
             ) : null}
             <div className="flex flex-wrap justify-center gap-2 pt-2">
               <Button asChild variant="outline">
-                <Link href="/">Home</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/arena">Make a sentence</Link>
+                <Link href="/">Back to the garden</Link>
               </Button>
             </div>
           </CardContent>

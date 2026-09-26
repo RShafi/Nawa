@@ -91,9 +91,9 @@ export const PLANTS: PlantDef[] = [
         title: "He wrote",
         frameName: "he wrote",
         frameTemplate: "فَعَلَ",
-        teach: "These three letters mean writing. Arabic starts on the right: k, then t, then b.",
-        task: "Tap the letters in that order. The first tap goes in the right box.",
-        win: "He wrote is in your garden.",
+        teach: "k, t, and b mean writing. The first letter sits on the right.",
+        task: "Tap k, then t, then b.",
+        win: "He wrote is on the plant.",
         kind: "build",
       },
       {
@@ -102,9 +102,9 @@ export const PLANTS: PlantDef[] = [
         title: "The writer",
         frameName: "the writer",
         frameTemplate: "فَاعِل",
-        teach: "You already have he wrote. A long a in the middle names the person.",
-        task: "Tap the long a into the empty box.",
-        win: "The writer is in your garden.",
+        teach: "He wrote is already on the plant. A long a in the middle names the person.",
+        task: "Tap the long a into the empty space.",
+        win: "The writer is on the plant.",
         kind: "insert",
         gap: "middle",
         pieces: LONG_A,
@@ -115,9 +115,9 @@ export const PLANTS: PlantDef[] = [
         title: "The desk",
         frameName: "the desk",
         frameTemplate: "مَفْعَل",
-        teach: "An m at the front names the place. The front is the right side.",
-        task: "Tap m into the empty box.",
-        win: "The desk is in your garden.",
+        teach: "m at the front names the place. The front is the right side.",
+        task: "Tap m into the empty space.",
+        win: "The desk is on the plant.",
         kind: "insert",
         gap: "front",
         pieces: FRONT_M,
@@ -128,9 +128,9 @@ export const PLANTS: PlantDef[] = [
         title: "The book",
         frameName: "the book",
         frameTemplate: "فِعَال",
-        teach: "A long a after the middle letter names the thing you can hold.",
-        task: "Play the sound, then tap the word you heard.",
-        win: "The book is in your garden.",
+        teach: "These same letters can name the thing you hold. Listen before you choose.",
+        task: "Play the sound. Then tap the word you heard.",
+        win: "The book is on the plant.",
         kind: "hear",
       },
       {
@@ -139,9 +139,9 @@ export const PLANTS: PlantDef[] = [
         title: "He made someone write",
         frameName: "he made someone write",
         frameTemplate: "فَعَّلَ",
-        teach: "Say the middle letter twice and the action gets stronger.",
-        task: "Tap the middle letter.",
-        win: "That stronger word is in your garden.",
+        teach: "Say the middle letter twice. The action is stronger.",
+        task: "Tap the middle letter, t.",
+        win: "He made someone write is on the plant.",
         kind: "strengthen",
       },
     ],
@@ -159,9 +159,9 @@ export const PLANTS: PlantDef[] = [
         title: "He studied",
         frameName: "he studied",
         frameTemplate: "فَعَلَ",
-        teach: "New letters for studying: d, then r, then s. Arabic still starts on the right.",
-        task: "Tap the letters in that order. The first tap goes in the right box.",
-        win: "He studied is in your garden.",
+        teach: "d, r, and s mean studying. The first letter sits on the right.",
+        task: "Tap d, then r, then s.",
+        win: "He studied is on the plant.",
         kind: "build",
       },
       {
@@ -170,9 +170,9 @@ export const PLANTS: PlantDef[] = [
         title: "The student",
         frameName: "the student",
         frameTemplate: "فَاعِل",
-        teach: "Same letters as he studied. A long a in the middle names the person.",
-        task: "Tap the long a into the empty box.",
-        win: "The student is in your garden.",
+        teach: "He studied is already on the plant. A long a in the middle names the person.",
+        task: "Tap the long a into the empty space.",
+        win: "The student is on the plant.",
         kind: "insert",
         gap: "middle",
         pieces: LONG_A,
@@ -183,9 +183,9 @@ export const PLANTS: PlantDef[] = [
         title: "The school",
         frameName: "the school",
         frameTemplate: "مَفْعَل",
-        teach: "An m at the front names the place, same as the desk.",
-        task: "Tap m into the empty box.",
-        win: "The school is in your garden.",
+        teach: "m at the front names the place, as it did for the desk.",
+        task: "Tap m into the empty space.",
+        win: "The school is on the plant.",
         kind: "insert",
         gap: "front",
         pieces: FRONT_M,
@@ -196,9 +196,9 @@ export const PLANTS: PlantDef[] = [
         title: "He taught",
         frameName: "he taught",
         frameTemplate: "فَعَّلَ",
-        teach: "Say the middle letter twice and the action gets stronger.",
-        task: "Tap the middle letter.",
-        win: "He taught is in your garden.",
+        teach: "Say the middle letter twice. The action is stronger.",
+        task: "Tap the middle letter, r.",
+        win: "He taught is on the plant.",
         kind: "strengthen",
       },
     ],
@@ -216,9 +216,9 @@ export const PLANTS: PlantDef[] = [
         title: "He was safe",
         frameName: "he was safe",
         frameTemplate: "فَعِلَ",
-        teach: "New letters for peace: s, then l, then m. This time the middle sound is i, not a.",
-        task: "Tap the letters in that order. The first tap goes in the right box.",
-        win: "He was safe is in your garden.",
+        teach: "s, l, and m mean peace. This time the middle vowel is i, not a.",
+        task: "Tap s, then l, then m.",
+        win: "He was safe is on the plant.",
         kind: "build",
       },
       {
@@ -227,9 +227,9 @@ export const PLANTS: PlantDef[] = [
         title: "Safe",
         frameName: "safe",
         frameTemplate: "فَاعِل",
-        teach: "Same letters as he was safe. A long a in the middle names the person.",
-        task: "Tap the long a into the empty box.",
-        win: "Safe is in your garden.",
+        teach: "He was safe is already on the plant. A long a in the middle describes the person.",
+        task: "Tap the long a into the empty space.",
+        win: "Safe is on the plant.",
         kind: "insert",
         gap: "middle",
         pieces: LONG_A,
@@ -240,9 +240,9 @@ export const PLANTS: PlantDef[] = [
         title: "He greeted",
         frameName: "he greeted",
         frameTemplate: "فَعَّلَ",
-        teach: "Say the middle letter twice and the action gets stronger.",
-        task: "Tap the middle letter.",
-        win: "He greeted is in your garden.",
+        teach: "Say the middle letter twice. The action is stronger.",
+        task: "Tap the middle letter, l.",
+        win: "He greeted is on the plant.",
         kind: "strengthen",
       },
     ],
@@ -263,25 +263,25 @@ export const FIRST_HOUR: OpeningLesson[] = [
     id: "hour-letter",
     title: "The letter b",
     kind: "letter",
-    teach: "This letter says b, like the b in book.",
-    task: "Play the sound, then tap that letter.",
-    win: "You know the letter b.",
+    teach: "This letter is b, the same b as in book.",
+    task: "Play the sound. Then tap b.",
+    win: "b is on the plant.",
   },
   {
     id: "hour-shapes",
     title: "How b joins",
     kind: "shapes",
-    teach: "The letter b changes shape when it joins the letters beside it.",
-    task: "Tap each shape into the next box.",
-    win: "You can spot b in the middle of a word.",
+    teach: "b changes shape when a letter sits beside it.",
+    task: "Tap each shape into its box.",
+    win: "The shapes of b are on the plant.",
   },
   {
     id: "hour-vowel",
     title: "A short a",
     kind: "vowel",
-    teach: "A short line above a letter is a short a.",
-    task: "Tap the short a mark onto the letter.",
-    win: "b with a short a says ba.",
+    teach: "A short stroke above a letter is the vowel a.",
+    task: "Tap the short a onto b.",
+    win: "ba is on the plant.",
   },
 ];
 
@@ -303,9 +303,9 @@ export const SENTENCES: SentenceLesson[] = [
     kind: "sentence",
     id: "hour-sentence",
     title: "He wrote the book",
-    teach: "You can say he wrote, and you can say the book. The action comes first.",
-    task: "Tap “He wrote” first. It goes in the right box. Then tap “The book”.",
-    win: "You made a sentence: he wrote the book.",
+    teach: "The action comes first. He wrote, then the book.",
+    task: "Tap He wrote into the right box. Then tap The book.",
+    win: "He wrote the book is on the plant.",
     meaning: "He wrote the book.",
     words: [
       { id: "verb", arabic: "كَتَبَ", label: "He wrote" },
@@ -342,6 +342,61 @@ export function visitOrder(): string[] {
     }
   }
   return ids;
+}
+
+export type StemKind = "letter" | "shapes" | "vowel" | "frame" | "sentence";
+
+export type StemNode = {
+  id: string;
+  title: string;
+  kind: StemKind;
+  task: string;
+  arabic?: string;
+  shapes?: string[];
+  meaning?: string;
+};
+
+const BA_SHAPES = ["ب", "بـ", "ـبـ", "ـب"];
+
+/** Pieces on one plant, in the order a learner grows them. */
+export function stemForPlant(plant: PlantDef): StemNode[] {
+  const nodes: StemNode[] = [];
+  if (plant.rootId === "ktb") {
+    for (const step of FIRST_HOUR) {
+      nodes.push({
+        id: step.id,
+        title: step.title,
+        kind: step.kind,
+        task: step.task,
+        arabic: step.kind === "letter" ? "ب" : step.kind === "vowel" ? "بَ" : undefined,
+        shapes: step.kind === "shapes" ? BA_SHAPES : undefined,
+      });
+    }
+  }
+  for (const frame of plant.frames) {
+    const card = cardForFrame(frame);
+    nodes.push({
+      id: frame.lessonId,
+      title: frame.title,
+      kind: "frame",
+      task: frame.task,
+      arabic: card?.word,
+      meaning: card?.translation,
+    });
+    for (const extraId of AFTER_FRAME[frame.lessonId] ?? []) {
+      const sentence = SENTENCES.find((item) => item.id === extraId);
+      if (!sentence) continue;
+      nodes.push({
+        id: sentence.id,
+        title: sentence.title,
+        kind: "sentence",
+        task: sentence.task,
+        arabic: sentence.words.map((word) => word.arabic).join(" "),
+        meaning: sentence.meaning,
+      });
+    }
+  }
+  return nodes;
 }
 
 export function courseWordIds(): string[] {
@@ -528,7 +583,7 @@ export function buildReviewPrompt(
     return {
       mode,
       promptArabic: found.plant.letters,
-      promptHint: `These letters mean ${found.plant.gloss}. Build the word for ${found.frame.frameName}.`,
+      promptHint: "These are the three letters.",
       choices,
       answer: card.word,
       gloss: card.translation,
@@ -538,7 +593,7 @@ export function buildReviewPrompt(
     return {
       mode,
       promptArabic: found.frame.frameTemplate,
-      promptHint: `This shape means ${found.frame.frameName}. Your letters mean ${found.plant.gloss}.`,
+      promptHint: "These are the vowels. The letters stay the same.",
       choices,
       answer: card.word,
       gloss: card.translation,
@@ -547,7 +602,7 @@ export function buildReviewPrompt(
   return {
     mode,
     promptArabic: stripDiacritics(card.word, "none"),
-    promptHint: "Same word. Put the vowel marks back.",
+    promptHint: "The vowel marks are gone.",
     choices,
     answer: card.word,
     gloss: card.translation,

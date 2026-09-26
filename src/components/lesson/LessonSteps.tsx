@@ -32,35 +32,10 @@ const SHAPES = [
 const SHAPE_BANK = [SHAPES[2]!, SHAPES[0]!, SHAPES[3]!, SHAPES[1]!];
 
 const MARKS = [
-  { id: "a", mark: "\u064E", label: "short a", shown: "بَ", sound: "بَ" },
-  { id: "i", mark: "\u0650", label: "short i", shown: "بِ", sound: "بِ" },
-  { id: "u", mark: "\u064F", label: "short u", shown: "بُ", sound: "بُ" },
+  { id: "i", mark: "\u0650", label: "short i", shown: "بِ" },
+  { id: "a", mark: "\u064E", label: "short a", shown: "بَ" },
+  { id: "u", mark: "\u064F", label: "short u", shown: "بُ" },
 ];
-
-function LookFirst({
-  children,
-  then,
-}: {
-  children: React.ReactNode;
-  then: React.ReactNode;
-}) {
-  const [ready, setReady] = useState(false);
-  if (!ready) {
-    return (
-      <div className="space-y-4">
-        {children}
-        <button
-          type="button"
-          className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-black"
-          onClick={() => setReady(true)}
-        >
-          Try it
-        </button>
-      </div>
-    );
-  }
-  return <div className="space-y-4">{then}</div>;
-}
 
 function Hint({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-white/70">{children}</p>;
@@ -68,72 +43,51 @@ function Hint({ children }: { children: React.ReactNode }) {
 
 export function LetterStep({ onDone }: { onDone: () => void }) {
   return (
-    <LookFirst
-      then={
-        <HearThenTap
-          sound="ب"
-          prompt="Play the sound, then tap that letter."
-          answer="ب"
-          options={[
-            { id: "ت", arabic: "ت" },
-            { id: "ب", arabic: "ب" },
-            { id: "ك", arabic: "ك" },
-          ]}
-          wrong="Listen again. That letter is a different sound."
-          onDone={onDone}
-        />
-      }
-    >
-      <ArabicText size="lg" forceFull className="text-amber-50">
-        ب
-      </ArabicText>
-      <HearButton text="ب" label="Play the sound" />
-    </LookFirst>
+    <HearThenTap
+      sound="ب"
+      prompt="Play the sound. Then tap b."
+      answer="ب"
+      options={[
+        { id: "ت", arabic: "ت" },
+        { id: "ب", arabic: "ب" },
+        { id: "ك", arabic: "ك" },
+      ]}
+      wrong="Listen again. That is a different letter."
+      onDone={onDone}
+    />
   );
 }
 
 export function ShapeStep({ onDone }: { onDone: () => void }) {
   return (
-    <LookFirst
-      then={
-        <>
-          <p className="text-white/80">Tap each shape into the next box.</p>
-          <OrderIntoSlots
-            slots={SHAPES.map((shape) => ({ id: shape.id, label: shape.label }))}
-            bank={SHAPE_BANK.map((shape) => ({ id: shape.id, arabic: shape.arabic }))}
-            onCorrect={onDone}
-          />
-        </>
-      }
-    >
-      <HearButton text="ب" label="Play the sound" />
-      <div className="grid grid-cols-2 gap-2">
-        {SHAPES.map((shape) => (
-          <div key={shape.id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-center">
-            <span dir="rtl" lang="ar" className="font-arabic block text-3xl text-amber-50 [unicode-bidi:isolate]">
-              {shape.arabic}
-            </span>
-            <span dir="ltr" className="mt-1 block text-sm text-white/70 [unicode-bidi:isolate]">
-              {shape.label}
-            </span>
-          </div>
-        ))}
+    <div className="space-y-4">
+      <p className="text-base text-white/80">Tap each shape into its box.</p>
+      <div className="space-y-2">
+        <p className="text-xs text-white/45">For reference</p>
+        <div className="grid grid-cols-2 gap-2">
+          {SHAPES.map((shape) => (
+            <div key={shape.id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-center">
+              <span dir="rtl" lang="ar" className="font-arabic block text-2xl text-amber-50 [unicode-bidi:isolate]">
+                {shape.arabic}
+              </span>
+              <span dir="ltr" className="mt-1 block text-xs text-white/55 [unicode-bidi:isolate]">
+                {shape.label}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
-      <Hint>The middle shape has a join on both sides.</Hint>
-    </LookFirst>
+      <OrderIntoSlots
+        slots={SHAPES.map((shape) => ({ id: shape.id, label: shape.label }))}
+        bank={SHAPE_BANK.map((shape) => ({ id: shape.id, arabic: shape.arabic }))}
+        onCorrect={onDone}
+      />
+    </div>
   );
 }
 
 export function VowelStep({ onDone }: { onDone: () => void }) {
-  return (
-    <LookFirst then={<PlaceMark onDone={onDone} />}>
-      <ArabicText size="lg" forceFull className="text-amber-50">
-        ب
-      </ArabicText>
-      <p className="text-white/80">Together, b and a short a say ba.</p>
-      <Hint>You will put that mark on the letter yourself.</Hint>
-    </LookFirst>
-  );
+  return <PlaceMark onDone={onDone} />;
 }
 
 export function FrameStep({
@@ -152,62 +106,41 @@ export function FrameStep({
   }
 
   return (
-    <LookFirst
-      then={
-        <>
-          {lesson.frame.kind !== "hear" ? <p className="text-white/80">{lesson.task}</p> : null}
-          {lesson.frame.kind === "build" ? (
-            <BuildLetters letters={letters} onCorrect={onDone} />
-          ) : null}
-          {lesson.frame.kind === "insert" && lesson.frame.pieces && lesson.frame.gap ? (
-            <InsertPiece
-              letters={letters}
-              gap={lesson.frame.gap}
-              pieces={lesson.frame.pieces}
-              onCorrect={onDone}
-            />
-          ) : null}
-          {lesson.frame.kind === "strengthen" ? (
-            <StrengthenMiddle letters={letters} onCorrect={onDone} />
-          ) : null}
-          {lesson.frame.kind === "hear" && card ? (
-            <HearThenTap
-              sound={card.word}
-              prompt={lesson.task}
-              answer={card.id}
-              options={hearOptions(lesson)}
-              wrong="Listen again. That is a different word."
-              onDone={onDone}
-            />
-          ) : null}
-          {done && card ? (
-            <div className="space-y-2 rounded-2xl border border-white/10 p-4 text-center">
-              <ArabicText size="lg" forceFull className="text-amber-50">
-                {card.word}
-              </ArabicText>
-              <p className="text-white/80">It means {card.translation}.</p>
-              <HearButton text={card.word} label="Play the word" />
-            </div>
-          ) : null}
-        </>
-      }
-    >
-      {lesson.frame.kind === "build" ? (
-        <div dir="rtl" className="flex justify-center gap-2">
-          {letters.map((letter) => (
-            <div key={letter} className="w-16 rounded-xl border border-white/10 bg-white/5 py-2 text-center">
-              <span lang="ar" className="font-arabic block text-3xl text-amber-50">
-                {letter}
-              </span>
-              <span dir="ltr" className="text-sm text-white/70">
-                {SOUND[letter] ?? ""}
-              </span>
-            </div>
-          ))}
+    <div className="space-y-4">
+      {lesson.frame.kind !== "build" ? <KnownWord lesson={lesson} /> : null}
+      {lesson.frame.kind !== "hear" ? <p className="text-base text-white/80">{lesson.task}</p> : null}
+      {lesson.frame.kind === "build" ? <BuildLetters letters={letters} onCorrect={onDone} /> : null}
+      {lesson.frame.kind === "insert" && lesson.frame.pieces && lesson.frame.gap ? (
+        <InsertPiece
+          letters={letters}
+          gap={lesson.frame.gap}
+          pieces={lesson.frame.pieces}
+          onCorrect={onDone}
+        />
+      ) : null}
+      {lesson.frame.kind === "strengthen" ? (
+        <StrengthenMiddle letters={letters} onCorrect={onDone} />
+      ) : null}
+      {lesson.frame.kind === "hear" && card ? (
+        <HearThenTap
+          sound={card.word}
+          prompt={lesson.task}
+          answer={card.id}
+          options={hearOptions(lesson)}
+          wrong="Listen again. That is a different word."
+          onDone={onDone}
+        />
+      ) : null}
+      {done && card ? (
+        <div className="space-y-2 rounded-2xl border border-white/10 p-4 text-center">
+          <ArabicText size="lg" forceFull className="text-amber-50">
+            {card.word}
+          </ArabicText>
+          <p className="text-white/80">It means {card.translation}.</p>
+          <HearButton text={card.word} label="Play the word" />
         </div>
       ) : null}
-      {lesson.frame.kind !== "build" ? <KnownWord lesson={lesson} /> : null}
-    </LookFirst>
+    </div>
   );
 }
 
@@ -221,44 +154,27 @@ export function SentenceStep({
   onDone: () => void;
 }) {
   return (
-    <LookFirst
-      then={
-        <>
-          <p className="text-white/80">{lesson.task}</p>
-          <OrderIntoSlots
-            slots={lesson.words.map((word) => ({ id: word.id, label: word.label }))}
-            bank={[lesson.words[1]!, lesson.words[0]!].map((word) => ({
-              id: word.id,
-              arabic: word.arabic,
-              label: word.label,
-            }))}
-            onCorrect={onDone}
-          />
-          {done ? (
-            <div className="space-y-2 rounded-2xl border border-white/10 p-4 text-center">
-              <p dir="rtl" className="font-arabic text-3xl text-amber-50">
-                {lesson.words.map((word) => word.arabic).join(" ")}
-              </p>
-              <p className="text-white/80">{lesson.meaning}</p>
-              <HearButton text={lesson.words.map((word) => word.arabic).join(" ")} label="Play the sentence" />
-            </div>
-          ) : null}
-        </>
-      }
-    >
-      <div dir="rtl" className="flex justify-center gap-3">
-        {lesson.words.map((word) => (
-          <div key={word.id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-center">
-            <span lang="ar" className="font-arabic block text-2xl text-amber-50">
-              {word.arabic}
-            </span>
-            <span dir="ltr" className="text-sm text-white/70">
-              {word.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </LookFirst>
+    <div className="space-y-4">
+      <p className="text-base text-white/80">{lesson.task}</p>
+      <OrderIntoSlots
+        slots={lesson.words.map((word) => ({ id: word.id, label: word.label }))}
+        bank={[lesson.words[1]!, lesson.words[0]!].map((word) => ({
+          id: word.id,
+          arabic: word.arabic,
+          label: word.label,
+        }))}
+        onCorrect={onDone}
+      />
+      {done ? (
+        <div className="space-y-2 rounded-2xl border border-white/10 p-4 text-center">
+          <p dir="rtl" className="font-arabic text-3xl text-amber-50 [unicode-bidi:isolate]">
+            {lesson.words.map((word) => word.arabic).join(" ")}
+          </p>
+          <p className="text-white/80">{lesson.meaning}</p>
+          <HearButton text={lesson.words.map((word) => word.arabic).join(" ")} label="Play the sentence" />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -271,7 +187,7 @@ function KnownWord({ lesson }: { lesson: FrameLesson }) {
       <ArabicText size="lg" forceFull className="text-amber-50">
         {known.word}
       </ArabicText>
-      <p className="text-white/70">You already have this one. It means {known.translation}.</p>
+      <p className="text-white/70">This word is already on the plant. It means {known.translation}.</p>
       <HearButton text={known.word} label="Play the word" />
     </div>
   );
@@ -371,7 +287,7 @@ function OrderIntoSlots({
     if (solved || placed.includes(id)) return;
     const expected = slots[placed.length];
     if (!expected || id !== expected.id) {
-      setNote(`Not yet. The next box is “${expected?.label ?? "the next one"}”.`);
+      setNote(`Not yet. The next box is "${expected?.label ?? "the next one"}".`);
       return;
     }
     const next = [...placed, id];
@@ -436,7 +352,7 @@ function PlaceMark({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="space-y-4 text-center">
-      <p className="text-white/80">Tap the short a mark onto the letter.</p>
+      <p className="text-base text-white/80">Tap the short a onto b.</p>
       <ArabicText size="lg" forceFull className="text-amber-50">
         {current?.shown ?? "ب"}
       </ArabicText>
@@ -454,15 +370,16 @@ function PlaceMark({ onDone }: { onDone: () => void }) {
             onClick={() => {
               setMarkId(mark.id);
               if (mark.id === "a") {
-                setNote("Yes. That mark is a short a.");
+                setNote("That is the short a.");
                 onDone();
               } else {
-                setNote("That mark is a different sound. Use the short line above.");
+                setNote("That mark is a different sound. Use the short line above the letter.");
               }
             }}
           >
-            <span lang="ar" className="font-arabic block text-2xl">
-              {mark.shown}
+            <span lang="ar" className="font-arabic block text-2xl [unicode-bidi:isolate]">
+              {"\u25CC"}
+              {mark.mark}
             </span>
             <span>{mark.label}</span>
           </button>
@@ -613,7 +530,7 @@ function InsertPiece({
                 setNote(null);
                 onCorrect();
               } else {
-                setNote(`Not that one. Use the ${correct?.label ?? "right piece"}.`);
+                setNote(`Use the ${correct?.label ?? "piece that belongs here"}.`);
               }
             }}
           >
