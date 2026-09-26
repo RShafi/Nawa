@@ -1,12 +1,35 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 /**
  * Zero-latency procedural SFX via Web Audio API (Desert Twilight feel).
  */
+function dropNode(node: AudioNode) {
+  const stoppable = node as AudioNode & { addEventListener?: EventTarget["addEventListener"] };
+  stoppable.addEventListener?.(
+    "ended",
+    () => {
+      try {
+        node.disconnect();
+      } catch {
+        /* already disconnected */
+      }
+    },
+    { once: true },
+  );
+}
+
 export function useSoundEffects() {
   const ctxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    return () => {
+      const ac = ctxRef.current;
+      ctxRef.current = null;
+      if (ac && ac.state !== "closed") void ac.close();
+    };
+  }, []);
 
   const ctx = useCallback(() => {
     if (typeof window === "undefined") return null;
@@ -44,6 +67,7 @@ export function useSoundEffects() {
     gain.connect(ac.destination);
     osc.start(t0);
     osc.stop(t0 + 0.08);
+    dropNode(osc);
   }, [ctx]);
 
   const playSnap = useCallback(() => {
@@ -62,6 +86,7 @@ export function useSoundEffects() {
     gain.connect(ac.destination);
     osc.start(t0);
     osc.stop(t0 + 0.25);
+    dropNode(osc);
   }, [ctx]);
 
   const playSuccess = useCallback(() => {
@@ -82,6 +107,7 @@ export function useSoundEffects() {
       gain.connect(ac.destination);
       osc.start(start);
       osc.stop(start + 0.5);
+      dropNode(osc);
     });
   }, [ctx]);
 
@@ -105,6 +131,7 @@ export function useSoundEffects() {
     gain.connect(ac.destination);
     osc.start(t0);
     osc.stop(t0 + 0.3);
+    dropNode(osc);
   }, [ctx]);
 
   const playCast = useCallback(() => {
@@ -134,6 +161,7 @@ export function useSoundEffects() {
     gain.connect(ac.destination);
     noise.start(t0);
     noise.stop(t0 + 0.36);
+    dropNode(noise);
 
     const osc = ac.createOscillator();
     const og = ac.createGain();
@@ -147,6 +175,7 @@ export function useSoundEffects() {
     og.connect(ac.destination);
     osc.start(t0);
     osc.stop(t0 + 0.34);
+    dropNode(osc);
   }, [ctx]);
 
   const playImpact = useCallback(() => {
@@ -169,6 +198,7 @@ export function useSoundEffects() {
     gain.connect(ac.destination);
     osc.start(t0);
     osc.stop(t0 + 0.25);
+    dropNode(osc);
   }, [ctx]);
 
   return { playTap, playSnap, playSuccess, playError, playCast, playImpact };

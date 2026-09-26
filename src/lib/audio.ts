@@ -112,9 +112,12 @@ export function normalizeForSpeech(text: string): NormalizedSpeech {
 let sharedAudio: HTMLAudioElement | null = null;
 let playGeneration = 0;
 let lastPlayAt = 0;
+let settleCurrent: (() => void) | null = null;
 const MIN_REPLAY_GAP_MS = 180;
 
 function stopCurrentAudio() {
+  settleCurrent?.();
+  settleCurrent = null;
   if (!sharedAudio) return;
   sharedAudio.pause();
   sharedAudio.onended = null;
@@ -153,13 +156,27 @@ export async function speakArabic(
     sharedAudio = new Audio(url);
     const audio = sharedAudio;
     await new Promise<void>((resolve, reject) => {
-      if (gen !== playGeneration) {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        if (settleCurrent === finish) settleCurrent = null;
         resolve();
+      };
+      const fail = (err: unknown) => {
+        if (settled) return;
+        settled = true;
+        if (settleCurrent === finish) settleCurrent = null;
+        reject(err instanceof Error ? err : new Error("Audio playback failed"));
+      };
+      settleCurrent = finish;
+      if (gen !== playGeneration) {
+        finish();
         return;
       }
-      audio.onended = () => resolve();
-      audio.onerror = () => reject(new Error("Audio playback failed"));
-      void audio.play().catch((err) => reject(err instanceof Error ? err : new Error(String(err))));
+      audio.onended = () => finish();
+      audio.onerror = () => fail(new Error("Audio playback failed"));
+      void audio.play().catch(fail);
     });
     return { mode: "api", usedVoice: "elevenlabs" };
   } catch {

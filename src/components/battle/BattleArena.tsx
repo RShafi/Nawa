@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import confetti from "canvas-confetti";
 import { AnimatePresence, motion } from "framer-motion";
-import { RotateCcw } from "lucide-react";
 import { awardBattleWinHibrAction } from "@/app/actions/economy";
 import { BattleResultOverlay } from "@/components/battle/BattleResultOverlay";
 import { BattleStage, CombatPhaseBanner, HUD_BOSS, HUD_HAND, HUD_MIDDLE } from "@/components/battle/BattleStage";
@@ -13,20 +12,16 @@ import { CombatTurnBanner } from "@/components/battle/CombatTurnBanner";
 import { BossAttackFlash, SpellCastVFX, type SpellProjectile } from "@/components/battle/SpellCastVFX";
 import { ResonanceCheck } from "@/components/battle/ResonanceCheck";
 import { SyntaxBoard } from "@/components/battle/SyntaxBoard";
-import { TutorialArena } from "@/components/battle/TutorialArena";
-import {
-  markArenaTutorialDone,
-  resetArenaTutorialProgress,
-  useShouldAutoStartTutorial,
-} from "@/components/battle/TutorialOverlay";
 import { ArabicText } from "@/components/common/ArabicText";
 import { Button } from "@/components/ui/button";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
+import { courseWordIds } from "@/data/garden";
 import { useAppStore } from "@/store/useAppStore";
 import { useBattleStore } from "@/store/useBattleStore";
 
+let battleAwardStarted = false;
+
 export function BattleArena() {
-  const [railTutorial, setRailTutorial] = useState(false);
   const [projectile, setProjectile] = useState<SpellProjectile | null>(null);
   const [floats, setFloats] = useState<CombatFloat[]>([]);
   const [bossHit, setBossHit] = useState(false);
@@ -34,8 +29,6 @@ export function BattleArena() {
   const [playerHit, setPlayerHit] = useState(false);
   const [playerDamageFloat, setPlayerDamageFloat] = useState<string | null>(null);
   const [bossFlash, setBossFlash] = useState(false);
-  const [maxCombo, setMaxCombo] = useState(0);
-  const [spellsCast, setSpellsCast] = useState(0);
   const prevCombat = useRef<string>("idle");
   const { playSuccess, playError, playImpact } = useSoundEffects();
 
@@ -51,9 +44,6 @@ export function BattleArena() {
   const enemyName = useBattleStore((s) => s.enemyName);
   const enemyNameAr = useBattleStore((s) => s.enemyNameAr);
   const enemyShield = useBattleStore((s) => s.enemyShield);
-  const burnTicks = useBattleStore((s) => s.burnTicks);
-  const frostSkip = useBattleStore((s) => s.frostSkip);
-  const weakTo = useBattleStore((s) => s.weakTo);
   const lastResult = useBattleStore((s) => s.lastResult);
   const lastEnemyHit = useBattleStore((s) => s.lastEnemyHit);
   const screenShake = useBattleStore((s) => s.screenShake);
@@ -63,19 +53,12 @@ export function BattleArena() {
   const resetBattle = useBattleStore((s) => s.resetBattle);
   const clearLastResult = useBattleStore((s) => s.clearLastResult);
 
-  const hydrateApp = useAppStore((s) => s.hydrate);
   const unlockedDeck = useAppStore((s) => s.unlockedDeck);
-  const hasRustDebuff = useAppStore((s) => s.hasRustDebuff);
   const addHibrOptimistic = useAppStore((s) => s.addHibrOptimistic);
   const setHibrBalance = useAppStore((s) => s.setHibrBalance);
   const appStatus = useAppStore((s) => s.status);
-
-  const autoTutorial = useShouldAutoStartTutorial();
+  const grownDeck = unlockedDeck.filter((id) => courseWordIds().includes(id));
   const [, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (appStatus === "idle") void hydrateApp();
-  }, [appStatus, hydrateApp]);
 
   // Player cast VFX driven by combatState + lastResult
   useEffect(() => {
@@ -87,9 +70,6 @@ export function BattleArena() {
 
     playSuccess();
     setProjectile({ id: `cast-${Date.now()}`, arabic: lastResult.arabic || "…" });
-    const wordCount = lastResult.arabic.trim().split(/\s+/).filter(Boolean).length;
-    setSpellsCast((n) => n + 1);
-    setMaxCombo((m) => Math.max(m, Math.max(1, wordCount)));
 
     const hitT = window.setTimeout(() => {
       setBossHit(true);
@@ -98,21 +78,10 @@ export function BattleArena() {
       const list: CombatFloat[] = [
         {
           id,
-          text:
-            lastResult.kind === "shield-break"
-              ? "✨ STAGGERED"
-              : crit
-                ? `−${lastResult.damage} CRITICAL!`
-                : `−${lastResult.damage} DMG`,
-          tone: lastResult.kind === "shield-break" ? "mind" : crit ? "critical" : "damage",
+          text: crit ? `−${lastResult.damage}` : `−${lastResult.damage}`,
+          tone: crit ? "critical" : "damage",
         },
       ];
-      if (lastResult.schools.includes("FLAME")) {
-        list.push({ id: `${id}-b`, text: "🔥 BURN", tone: "burn" });
-      }
-      if (lastResult.schools.includes("FROST")) {
-        list.push({ id: `${id}-f`, text: "❄ WARD", tone: "frost" });
-      }
       setFloats(list);
       window.setTimeout(() => setBossHit(false), 500);
       window.setTimeout(() => setFloats([]), crit ? 2000 : 1600);
@@ -133,13 +102,13 @@ export function BattleArena() {
         setBossFlash(true);
         const dmg = lastEnemyHit;
         if (dmg === 0) {
-          setPlayerDamageFloat("BLOCKED!");
+          setPlayerDamageFloat("Blocked");
         } else if (typeof dmg === "number" && dmg > 0) {
           setPlayerHit(true);
-          setPlayerDamageFloat(`−${dmg} DMG`);
+          setPlayerDamageFloat(`−${dmg}`);
         } else {
           setPlayerHit(true);
-          setPlayerDamageFloat("−? DMG");
+          setPlayerDamageFloat("Hit");
         }
       }, 200);
       const clearA = window.setTimeout(() => setBossAttacking(false), 700);
@@ -163,14 +132,18 @@ export function BattleArena() {
   }, [combatState, lastEnemyHit, lastResult, playImpact, clearLastResult]);
 
   useEffect(() => {
-    if (!victory || hibrAwarded == null) return;
+    if (!victory || hibrAwarded == null) {
+      battleAwardStarted = false;
+      return;
+    }
+    if (battleAwardStarted) return;
+    battleAwardStarted = true;
     void confetti({
       particleCount: 90,
       spread: 70,
       origin: { y: 0.35 },
       colors: ["#F59E0B", "#38BDF8", "#10B981"],
     });
-    markArenaTutorialDone();
     startTransition(async () => {
       addHibrOptimistic(hibrAwarded);
       const res = await awardBattleWinHibrAction();
@@ -180,45 +153,17 @@ export function BattleArena() {
     });
   }, [victory, hibrAwarded, addHibrOptimistic, setHibrBalance]);
 
-  function openRailTutorial() {
-    resetArenaTutorialProgress();
-    resetBattle();
-    setRailTutorial(true);
-  }
-
   function beginFreePlay() {
-    setMaxCombo(0);
-    setSpellsCast(0);
-    startEncounter({
-      deck: unlockedDeck,
-      rustActive: hasRustDebuff(),
-    });
+    startEncounter({ deck: grownDeck });
   }
 
   function rematch() {
-    setMaxCombo(0);
-    setSpellsCast(0);
     resetBattle();
-    startEncounter({
-      deck: unlockedDeck,
-      rustActive: hasRustDebuff(),
-    });
-  }
-
-  if (railTutorial) {
-    return (
-      <TutorialArena
-        onExit={() => setRailTutorial(false)}
-        onComplete={() => {
-          markArenaTutorialDone();
-          setRailTutorial(false);
-        }}
-      />
-    );
+    startEncounter({ deck: grownDeck });
   }
 
   if (!started) {
-    const canFight = unlockedDeck.length > 0;
+    const canFight = grownDeck.length > 0;
     const loading = appStatus === "loading" || appStatus === "idle";
 
     return (
@@ -226,63 +171,36 @@ export function BattleArena() {
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-tablet glow-amber relative overflow-hidden border-amber-400/25 px-8 py-12 shadow-2xl"
+          className="glass-tablet relative overflow-hidden border-white/10 px-8 py-12 shadow-2xl"
         >
-          <ArabicText size="lg" className="relative text-amber-100/90">
-            حَرْبُ الْجُمَل
-          </ArabicText>
           <h1 className="relative mt-1 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            Sentence Arena
+            Say a sentence
           </h1>
-          <ol className="relative mx-auto mt-5 max-w-sm space-y-2 text-start text-sm text-white/65">
-            <li className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-              <span className="font-semibold text-emerald-200">1.</span> Forge Word Cards on the
-              Learning Path.
-            </li>
-            <li className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-              <span className="font-semibold text-amber-200">2.</span> Chain cards into a correct
-              Arabic sentence (VSO; adjectives after nouns).
-            </li>
-            <li className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-              <span className="font-semibold text-violet-200">3.</span> Cast — grammar multiplies
-              power; schools apply Burn, Frost Ward, Mind, Kinetic.
-            </li>
-          </ol>
+          <p className="relative mt-2 text-sm text-white/60">Use words from your plant.</p>
+          <div className="relative mx-auto mt-5 max-w-sm space-y-2 text-start text-sm text-white/70">
+            <p>Tap an action word first, then a thing.</p>
+            <p>A longer sentence is harder. Then choose the English.</p>
+            <p>You can use up to five words. They return when you finish.</p>
+          </div>
           <div className="relative mt-8 flex flex-col items-center gap-3">
             {canFight ? (
-              <Button
-                size="lg"
-                className="bg-celestial-amber h-12 px-8 text-base font-semibold text-obsidian hover:bg-amber-400"
-                onClick={beginFreePlay}
-              >
-                Enter the Arena
+              <Button size="lg" className="h-12 px-8 text-base" onClick={beginFreePlay}>
+                Begin
               </Button>
             ) : (
-              <Button
-                asChild
-                size="lg"
-                className="h-12 bg-emerald-500 px-8 font-semibold text-black hover:bg-emerald-400"
-              >
-                <Link href="/path">Forge cards on the Path</Link>
+              <Button asChild size="lg" className="h-12 px-8">
+                <Link href="/">Grow a word first</Link>
               </Button>
             )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="border-white/15 bg-white/5 text-white/80"
-              onClick={openRailTutorial}
-            >
-              <RotateCcw className="size-3.5" />
-              How to play
-            </Button>
-            {loading ? <p className="text-xs text-white/40">Syncing deck…</p> : null}
+            {appStatus === "error" ? (
+              <p className="text-xs text-rose-200">Could not load your words. Refresh and try again.</p>
+            ) : loading ? (
+              <p className="text-xs text-white/40">Loading your words…</p>
+            ) : null}
           </div>
           {canFight ? (
             <p className="relative mt-3 text-xs text-white/40">
-              Deck: {unlockedDeck.length} card{unlockedDeck.length === 1 ? "" : "s"}
-              {hasRustDebuff() ? " · Rust active" : ""}
-              {autoTutorial ? " · Tutorial recommended" : ""}
+              {grownDeck.length} word{grownDeck.length === 1 ? "" : "s"} ready
             </p>
           ) : null}
         </motion.div>
@@ -305,23 +223,7 @@ export function BattleArena() {
       {/* Row 1 — Boss Zone */}
       <div className={HUD_BOSS}>
         <div className="mb-1 flex w-full items-center justify-between gap-2 px-1">
-          <p className="text-[clamp(0.55rem,1.2vh,0.65rem)] tracking-wide text-white/40 uppercase">
-            Sentence battle
-          </p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 text-white/45"
-            disabled={combatState !== "idle"}
-            onClick={() => {
-              resetBattle();
-              openRailTutorial();
-            }}
-          >
-            <RotateCcw className="size-3.5" />
-            How to play
-          </Button>
+          <p className="text-[clamp(0.55rem,1.2vh,0.65rem)] text-white/40">Your sentence</p>
         </div>
         <CombatTurnBanner />
         <div className="flex w-full items-start justify-center gap-3 px-1 md:gap-6">
@@ -338,15 +240,12 @@ export function BattleArena() {
             hp={enemyHp}
             maxHp={enemyMaxHp}
             shield={enemyShield}
-            burn={burnTicks}
-            frost={frostSkip}
-            weakTo={weakTo}
             hit={bossHit}
             attacking={bossAttacking || combatState === "enemy_attacking"}
             floats={floats}
             intentLabel={
               enemyIntent
-                ? `${enemyIntent.label}${enemyIntent.damage ? ` for ${enemyIntent.damage}` : ""}`
+                ? enemyIntent.label
                 : undefined
             }
           />
@@ -385,12 +284,10 @@ export function BattleArena() {
           <div className={HUD_HAND} aria-hidden />
           <BattleResultOverlay
             outcome={victory ? "victory" : "defeat"}
-            maxCombo={Math.max(1, maxCombo)}
-            spellsCast={Math.max(1, spellsCast)}
+            sentence={lastResult?.arabic}
+            meaning={lastResult?.english}
             hibrAwarded={victory ? hibrAwarded : null}
             onRematch={rematch}
-            pathHref="/path"
-            pathLabel="Return to Path"
           />
         </>
       )}

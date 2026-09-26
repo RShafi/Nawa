@@ -4,7 +4,6 @@ import { NextResponse, type NextRequest } from "next/server";
 const PROTECTED_PREFIXES = [
   "/arena",
   "/bustan",
-  "/forge",
   "/review",
   "/passport",
   "/passports",
@@ -44,9 +43,9 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isProtected = PROTECTED_PREFIXES.some(
-    (prefix) => path === prefix || path.startsWith(`${prefix}/`),
-  );
+  const isProtected =
+    path === "/" ||
+    PROTECTED_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
   const isLogin = path === "/login" || path.startsWith("/login/");
 
   if (isProtected && !user) {
@@ -60,7 +59,7 @@ export async function middleware(request: NextRequest) {
     const next = request.nextUrl.searchParams.get("next");
     const url = request.nextUrl.clone();
     url.pathname =
-      next && next.startsWith("/") && !next.startsWith("//") ? next : "/path";
+      next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -73,6 +72,6 @@ export const config = {
     /*
      * Match all request paths except static assets and image optimization.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp3)$).*)",
   ],
 };

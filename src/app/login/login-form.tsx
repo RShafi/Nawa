@@ -16,7 +16,7 @@ type LoginFormProps = {
   next?: string;
 };
 
-export function LoginForm({ next = "/path" }: LoginFormProps) {
+export function LoginForm({ next = "/" }: LoginFormProps) {
   const [loginState, loginAction, loginPending] = useActionState(login, initialState);
   const [signupState, signupAction, signupPending] = useActionState(signup, initialState);
 
@@ -25,7 +25,7 @@ export function LoginForm({ next = "/path" }: LoginFormProps) {
   const pending = loginPending || signupPending;
 
   return (
-    <form className="flex flex-col gap-4">
+    <form className="flex flex-col gap-4" suppressHydrationWarning>
       <input type="hidden" name="next" value={next} />
 
       <div className="flex flex-col gap-2">
@@ -38,6 +38,7 @@ export function LoginForm({ next = "/path" }: LoginFormProps) {
           required
           placeholder="you@example.com"
           disabled={pending}
+          suppressHydrationWarning
         />
       </div>
 
@@ -52,6 +53,7 @@ export function LoginForm({ next = "/path" }: LoginFormProps) {
           minLength={6}
           placeholder="••••••••"
           disabled={pending}
+          suppressHydrationWarning
         />
       </div>
 
@@ -69,7 +71,7 @@ export function LoginForm({ next = "/path" }: LoginFormProps) {
 
       <div className="flex flex-col gap-2 pt-1 sm:flex-row">
         <Button type="submit" formAction={loginAction} className="flex-1" disabled={pending}>
-          {loginPending ? "Signing in…" : "Log In"}
+          {loginPending ? "Signing in…" : "Sign in"}
         </Button>
         <Button
           type="submit"
@@ -78,7 +80,7 @@ export function LoginForm({ next = "/path" }: LoginFormProps) {
           className="flex-1"
           disabled={pending}
         >
-          {signupPending ? "Creating…" : "Create Account"}
+          {signupPending ? "Creating…" : "Create an account"}
         </Button>
       </div>
     </form>

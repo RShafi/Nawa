@@ -18,9 +18,8 @@ const notoNaskh = Noto_Naskh_Arabic({
 });
 
 export const metadata: Metadata = {
-  title: "Nawā | نَوَاة — Arabic Root Learning",
-  description:
-    "Learn Arabic through root-and-pattern morphology, dynamic tashkeel, and MSA–dialect bridging.",
+  title: "Nawā",
+  description: "Arabic words grow as families.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

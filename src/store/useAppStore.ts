@@ -9,6 +9,7 @@ import {
   type MasteryLevel,
   type UnlockedVocab,
 } from "@/types/app-progress";
+import { plantByRoot, type TreeRow } from "@/data/garden";
 import { createClient } from "@/utils/supabase/client";
 
 type HydrateStatus = "idle" | "loading" | "ready" | "error";
@@ -23,6 +24,7 @@ type AppStore = {
   fsrsItems: FsrsItem[];
   unlockedCities: string[];
   completedLessonIds: string[];
+  trees: TreeRow[];
 
   status: HydrateStatus;
   error: string | null;
@@ -31,6 +33,7 @@ type AppStore = {
   hydrate: () => Promise<boolean>;
   applyHydration: (payload: AppHydrationPayload) => void;
   reset: () => void;
+  clearGarden: () => void;
 
   setHibrBalance: (amount: number) => void;
   addHibrOptimistic: (delta: number) => void;
@@ -49,7 +52,6 @@ type AppStore = {
   getMastery: (wordId: string) => MasteryLevel | null;
   getMasteryForPair: (rootId: string, patternId: string) => MasteryLevel | null;
   dueReviewCount: (now?: Date) => number;
-  hasRustDebuff: (now?: Date) => boolean;
 };
 
 const initialState = {
@@ -61,6 +63,7 @@ const initialState = {
   fsrsItems: [] as FsrsItem[],
   unlockedCities: [] as string[],
   completedLessonIds: [] as string[],
+  trees: [] as TreeRow[],
   status: "idle" as HydrateStatus,
   error: null as string | null,
   hydratedAt: null as number | null,
@@ -116,27 +119,58 @@ function clampMastery(n: number): MasteryLevel {
   return 2;
 }
 
-const RUST_OVERDUE_MS = 3 * 24 * 60 * 60 * 1000;
+let hydrateInflight: Promise<boolean> | null = null;
 
-export const useAppStore = create<AppStore>((set, get) => ({
-  ...initialState,
+async function readSession(supabase: ReturnType<typeof createClient>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let first: Awaited<ReturnType<typeof supabase.auth.getUser>>;
+  try {
+    first = await Promise.race([
+      supabase.auth.getUser(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("timeout")), 6000);
+      }),
+    ]);
+  } catch (err) {
+    if (!(err instanceof Error) || err.message !== "timeout") throw err;
+    return supabase.auth.getUser();
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+  if (first.data.user) return first;
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  return supabase.auth.getUser();
+}
 
-  hydrate: async () => {
-    set({ status: "loading", error: null });
+async function runHydrate(
+  set: (partial: Partial<AppStore> | ((state: AppStore) => Partial<AppStore>)) => void,
+  get: () => AppStore,
+): Promise<boolean> {
+  if (get().status !== "loading") set({ status: "loading", error: null });
 
-    try {
-      const supabase = createClient();
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
+  try {
+    const supabase = createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await readSession(supabase);
 
       if (authError || !user) {
-        set({ ...initialState, status: "idle", error: authError?.message ?? "Not signed in." });
+        if (get().userId) {
+          set({ status: "ready", error: null });
+          return true;
+        }
+        const missingSession = !authError || /session missing/i.test(authError.message);
+        set({
+          ...initialState,
+          status: missingSession ? "ready" : "error",
+          error: missingSession ? null : "Could not reach your account. Refresh and try again.",
+          hydratedAt: Date.now(),
+        });
         return false;
       }
 
-      const [profileRes, vocabRes, fsrsRes, citiesRes, lessonsRes] = await Promise.all([
+      const [profileRes, vocabRes, fsrsRes, citiesRes, lessonsRes, treesRes] = await Promise.all([
         supabase
           .from("user_profiles")
           .select("email, hibr_balance")
@@ -152,22 +186,26 @@ export const useAppStore = create<AppStore>((set, get) => ({
           .eq("user_id", user.id),
         supabase.from("user_unlocked_cities").select("city_id").eq("user_id", user.id),
         supabase.from("user_lesson_progress").select("lesson_id").eq("user_id", user.id),
+        supabase.from("user_bustan_trees").select("root_id, letters, mastery_level").eq("user_id", user.id),
       ]);
 
       let hibrBalance = profileRes.data?.hibr_balance ?? 0;
       let email = profileRes.data?.email ?? user.email ?? null;
 
+      if (profileRes.error) throw new Error(profileRes.error.message);
       if (!profileRes.data) {
-        const { data: created } = await supabase
+        await supabase.from("user_profiles").upsert(
+          { id: user.id, email: user.email ?? null, hibr_balance: 0 },
+          { onConflict: "id", ignoreDuplicates: true },
+        );
+        const again = await supabase
           .from("user_profiles")
-          .upsert(
-            { id: user.id, email: user.email ?? null, hibr_balance: 0 },
-            { onConflict: "id" },
-          )
           .select("email, hibr_balance")
+          .eq("id", user.id)
           .maybeSingle();
-        hibrBalance = created?.hibr_balance ?? 0;
-        email = created?.email ?? user.email ?? null;
+        if (again.error) throw new Error(again.error.message);
+        hibrBalance = again.data?.hibr_balance ?? 0;
+        email = again.data?.email ?? user.email ?? null;
       }
 
       if (vocabRes.error) throw new Error(vocabRes.error.message);
@@ -184,18 +222,48 @@ export const useAppStore = create<AppStore>((set, get) => ({
         unlockedVocab,
         unlockedDeck: deckFromVocab(unlockedVocab),
         fsrsItems: mapFsrsRows(fsrsRes.data ?? []),
-        unlockedCities: (citiesRes.data ?? []).map((r) => r.city_id as string),
-        completedLessonIds: (lessonsRes.data ?? []).map((r) => r.lesson_id as string),
+        unlockedCities: ((citiesRes.data ?? []) as Array<{ city_id: string }>).map((r) => r.city_id),
+        completedLessonIds: ((lessonsRes.data ?? []) as Array<{ lesson_id: string }>).map(
+          (r) => r.lesson_id,
+        ),
+        trees: treesRes.error
+          ? []
+          : ((treesRes.data ?? []) as Array<{ root_id: string; letters: string; mastery_level: number }>).map(
+              (row) => ({
+                rootId: row.root_id,
+                letters: row.letters,
+                masteryLevel: Number(row.mastery_level ?? 0),
+              }),
+            ),
         status: "ready",
         error: null,
         hydratedAt: Date.now(),
       });
       return true;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to hydrate app state.";
-      set({ status: "error", error: message });
-      return false;
-    }
+    } catch {
+      if (get().userId) {
+        set({ status: "ready", error: null });
+        return true;
+      }
+      set({
+        ...initialState,
+        status: "error",
+        error: "Could not reach your account. Refresh and try again.",
+        hydratedAt: Date.now(),
+      });
+    return false;
+  }
+}
+
+export const useAppStore = create<AppStore>((set, get) => ({
+  ...initialState,
+
+  hydrate: () => {
+    if (hydrateInflight) return hydrateInflight;
+    hydrateInflight = runHydrate(set, get).finally(() => {
+      hydrateInflight = null;
+    });
+    return hydrateInflight;
   },
 
   applyHydration: (payload) =>
@@ -210,12 +278,22 @@ export const useAppStore = create<AppStore>((set, get) => ({
       fsrsItems: payload.fsrsItems,
       unlockedCities: payload.unlockedCities,
       completedLessonIds: payload.completedLessonIds,
+      trees: [],
       status: "ready",
       error: null,
       hydratedAt: Date.now(),
     }),
 
   reset: () => set({ ...initialState }),
+
+  clearGarden: () =>
+    set((s) => ({
+      ...initialState,
+      userId: s.userId,
+      email: s.email,
+      status: "ready" as const,
+      hydratedAt: Date.now(),
+    })),
 
   setHibrBalance: (amount) => set({ hibrBalance: Math.max(0, amount) }),
 
@@ -288,9 +366,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setMasteryOptimistic: (wordId, masteryLevel, dueDate) =>
     set((s) => {
+      const rootId = wordId.split(":")[0] ?? "";
+      const plant = plantByRoot(rootId);
+      const trees = plant
+        ? s.trees.some((tree) => tree.rootId === rootId)
+          ? s.trees.map((tree) =>
+              tree.rootId === rootId ? { ...tree, masteryLevel } : tree,
+            )
+          : [...s.trees, { rootId, letters: plant.letters, masteryLevel }]
+        : s.trees;
       const idx = s.fsrsItems.findIndex((f) => f.wordId === wordId);
       if (idx === -1) {
         return {
+          trees,
           fsrsItems: [
             ...s.fsrsItems,
             {
@@ -312,7 +400,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         dueDate: dueDate ?? cur.dueDate,
         lastReview: new Date().toISOString(),
       };
-      return { fsrsItems: next };
+      return { trees, fsrsItems: next };
     }),
 
   markLessonCompleteOptimistic: (lessonId) =>
@@ -342,13 +430,5 @@ export const useAppStore = create<AppStore>((set, get) => ({
   dueReviewCount: (now = new Date()) => {
     const t = now.getTime();
     return get().fsrsItems.filter((f) => new Date(f.dueDate).getTime() <= t).length;
-  },
-
-  hasRustDebuff: (now = new Date()) => {
-    const t = now.getTime();
-    return get().fsrsItems.some((f) => {
-      const due = new Date(f.dueDate).getTime();
-      return due < t - RUST_OVERDUE_MS;
-    });
   },
 }));

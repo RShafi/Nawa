@@ -13,6 +13,8 @@ import { Progress } from "@/components/ui/progress";
 import { useAppStore } from "@/store/useAppStore";
 import { useReviewStore } from "@/store/useReviewStore";
 
+let reviewAwardStarted = false;
+
 export function ReviewPageClient() {
   return (
     <AppStoreHydrator>
@@ -53,7 +55,7 @@ function ReviewInner() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to load due cards");
+        setError(err instanceof Error ? err.message : "Could not load review.");
         setLoading(false);
       });
 
@@ -64,16 +66,21 @@ function ReviewInner() {
   }, [initializeQueue, resetSession]);
 
   useEffect(() => {
-    if (!done || totalTouched === 0 || hibrMsg) return;
+    if (!done || totalTouched === 0 || hibrMsg) {
+      if (!done || totalTouched === 0) reviewAwardStarted = false;
+      return;
+    }
+    if (reviewAwardStarted) return;
+    reviewAwardStarted = true;
     startTransition(async () => {
       const res = await awardReviewSessionHibrAction(totalTouched);
       if (res.ok && res.awarded) {
         addHibrOptimistic(res.awarded);
         if (typeof res.hibrBalance === "number") setHibrBalance(res.hibrBalance);
-        setHibrMsg(`+${res.awarded} Hibr earned for reviewing.`);
+        setHibrMsg(`+${res.awarded} score.`);
         void hydrate();
       } else if (res.ok) {
-        setHibrMsg("Session complete.");
+        setHibrMsg("Done.");
       }
     });
   }, [done, totalTouched, hibrMsg, addHibrOptimistic, setHibrBalance, hydrate]);
@@ -82,33 +89,29 @@ function ReviewInner() {
     <main className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button asChild variant="ghost" size="sm" className="-ms-2 gap-1">
-          <Link href="/path">
+          <Link href="/">
             <ArrowLeft className="size-4" />
-            Back to Path
+            Garden
           </Link>
         </Button>
         {!done && !loading ? (
           <p className="text-muted-foreground text-sm">
-            {totalTouched} reviewed · {remaining} left · Earn up to 50 Hibr
+            {totalTouched} done · {remaining} left
           </p>
         ) : null}
       </div>
 
       <header className="space-y-1">
-        <p className="text-[11px] tracking-[0.2em] text-emerald-300/70 uppercase">
-          Pillar 4 · Daily Review
-        </p>
-        <h1 className="text-2xl font-semibold text-white sm:text-3xl">Maintain combat power</h1>
+        <h1 className="text-2xl font-semibold text-white sm:text-3xl">Read a word again</h1>
         <p className="text-sm text-white/55">
-          Strong reviews raise mastery (harder tooltips, better fights). Neglecting cards applies
-          Rust in the Arena.
+          You see the three letters, the vowels alone, or the word with the marks taken off. The English meaning comes after you choose.
         </p>
       </header>
 
       {!done && !loading && !error ? (
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="font-medium">Session progress</span>
+            <span className="font-medium">This sitting</span>
             <span className="text-muted-foreground">
               {totalTouched} / {totalTouched + remaining}
             </span>
@@ -120,19 +123,19 @@ function ReviewInner() {
       {loading ? (
         <div className="text-muted-foreground flex items-center justify-center gap-2 py-24 text-base">
           <Loader2 className="size-5 animate-spin" />
-          Loading today’s queue…
+          Loading words…
         </div>
       ) : null}
 
       {error ? (
         <Card>
           <CardHeader>
-            <CardTitle>Couldn’t start review</CardTitle>
+            <CardTitle>Could not load review</CardTitle>
             <CardDescription className="text-base">{error}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline">
-              <Link href="/path">Return to Path</Link>
+              <Link href="/">Back to the garden</Link>
             </Button>
           </CardContent>
         </Card>
@@ -146,16 +149,18 @@ function ReviewInner() {
             <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-emerald-600/15">
               <CheckCircle2 className="size-7 text-emerald-700 dark:text-emerald-300" />
             </div>
-            <CardTitle className="text-2xl">Review complete</CardTitle>
+            <CardTitle className="text-2xl">
+              {totalTouched === 0 ? "No word is due" : "Those words can rest"}
+            </CardTitle>
             <CardDescription className="text-base">
               {totalTouched === 0
-                ? "Nothing due — check back tomorrow, or learn more on the Path."
-                : "FSRS updated. Mastery also sharpens Arena tooltips."}
+                ? "Grow a word, or come back later."
+                : "They will come back when they are due."}
             </CardDescription>
             {hibrMsg ? (
               <p className="mt-2 inline-flex items-center justify-center gap-1 text-amber-200">
                 <Sparkles className="size-4" />
-                {pending ? "Awarding Hibr…" : hibrMsg}
+                {pending ? "Adding score…" : hibrMsg}
               </p>
             ) : null}
           </CardHeader>
@@ -163,18 +168,15 @@ function ReviewInner() {
             {totalTouched > 0 ? (
               <ul className="mx-auto grid max-w-lg grid-cols-2 gap-3 text-center sm:grid-cols-5">
                 <Stat label="Reviewed" value={stats.reviewed} />
-                <Stat label="Again" value={stats.again} />
+                <Stat label="Missed" value={stats.again} />
                 <Stat label="Hard" value={stats.hard} />
-                <Stat label="Good" value={stats.good} />
+                <Stat label="Got it" value={stats.good} />
                 <Stat label="Easy" value={stats.easy} />
               </ul>
             ) : null}
             <div className="flex flex-wrap justify-center gap-2 pt-2">
               <Button asChild variant="outline">
-                <Link href="/path">Learning Path</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/arena">Enter Arena</Link>
+                <Link href="/">Back to the garden</Link>
               </Button>
             </div>
           </CardContent>
@@ -187,7 +189,7 @@ function ReviewInner() {
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <li className="rounded-lg border bg-background/60 px-3 py-2">
-      <p className="text-muted-foreground text-xs tracking-wide uppercase">{label}</p>
+      <p className="text-muted-foreground text-xs">{label}</p>
       <p className="text-xl font-semibold">{value}</p>
     </li>
   );

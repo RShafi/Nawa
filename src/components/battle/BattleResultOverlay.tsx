@@ -3,29 +3,25 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Map, RotateCcw, Swords } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { InlineArabic } from "@/components/ui/InlineArabic";
 import { Button } from "@/components/ui/button";
 import { useSoundEffects } from "@/hooks/useSoundEffects";
 
 export function BattleResultOverlay({
   outcome,
-  maxCombo = 1,
-  spellsCast = 1,
+  sentence,
+  meaning,
   hibrAwarded,
   onRematch,
   rematchLabel,
-  pathHref = "/path",
-  pathLabel = "Return to Path",
 }: {
   outcome: "victory" | "defeat";
-  maxCombo?: number;
-  spellsCast?: number;
+  sentence?: string;
+  meaning?: string;
   hibrAwarded?: number | null;
   onRematch?: () => void;
   rematchLabel?: string;
-  pathHref?: string;
-  pathLabel?: string;
 }) {
   const { playSuccess, playError } = useSoundEffects();
   const won = outcome === "victory";
@@ -51,37 +47,21 @@ export function BattleResultOverlay({
       >
         {won ? (
           <>
-            <p className="text-glow-amber text-4xl font-black tracking-wide text-amber-300 sm:text-5xl">
-              VICTORY
-            </p>
-            <InlineArabic className="mt-2 block text-3xl text-amber-100">انتصار</InlineArabic>
+            <p className="text-2xl font-semibold text-amber-100">You said it.</p>
+            {sentence ? (
+              <InlineArabic className="mt-3 block text-3xl text-amber-50">{sentence}</InlineArabic>
+            ) : null}
+            {meaning ? <p className="mt-2 text-sm text-white/70">{meaning}</p> : null}
           </>
         ) : (
           <>
-            <p className="text-4xl font-black tracking-wide text-rose-300 sm:text-5xl">DEFEAT</p>
-            <InlineArabic className="mt-2 block text-3xl text-rose-100/90">هزيمة</InlineArabic>
+            <p className="text-2xl font-semibold text-rose-200">That order is not a sentence yet.</p>
+            <p className="mt-2 text-sm text-white/60">Try a shorter line, or grow another word.</p>
           </>
         )}
 
-        <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
-          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
-            <p className="text-[10px] tracking-wide text-white/45 uppercase">Max Combo</p>
-            <p className="mt-1 font-mono text-lg font-bold text-white">{maxCombo} Words</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-3">
-            <p className="text-[10px] tracking-wide text-white/45 uppercase">Spells Cast</p>
-            <p className="mt-1 font-mono text-lg font-bold text-white">{spellsCast}</p>
-          </div>
-        </div>
-
         {won && hibrAwarded ? (
-          <p className="mt-4 text-sm font-semibold text-amber-200">+{hibrAwarded} Hibr earned</p>
-        ) : null}
-
-        {!won ? (
-          <p className="mt-4 text-sm text-white/60">
-            Forge more Word Cards on the Path, then return stronger.
-          </p>
+          <p className="mt-4 text-sm text-amber-200/80">+{hibrAwarded} score</p>
         ) : null}
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
@@ -94,10 +74,7 @@ export function BattleResultOverlay({
                 : "h-12 bg-emerald-500 font-semibold text-black hover:bg-emerald-400"
             }
           >
-            <Link href={pathHref}>
-              <Map className="size-4" />
-              {pathLabel}
-            </Link>
+            <Link href="/">Back to the garden</Link>
           </Button>
           {onRematch ? (
             <Button
@@ -110,10 +87,7 @@ export function BattleResultOverlay({
               {rematchLabel ? (
                 rematchLabel
               ) : won ? (
-                <>
-                  <Swords className="size-4" />
-                  Fight again
-                </>
+                "Say another"
               ) : (
                 <>
                   <RotateCcw className="size-4" />

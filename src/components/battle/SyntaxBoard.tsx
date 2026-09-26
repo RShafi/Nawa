@@ -74,7 +74,7 @@ export function SyntaxBoard() {
             }}
           >
             <Sparkles className="size-3.5" />
-            Cast{mult > 0 ? ` (${mult}×)` : ""}
+            Say it
           </Button>
 
           <InkPoolBar
@@ -109,7 +109,7 @@ export function SyntaxBoard() {
             />
           ))}
           {hand.length === 0 ? (
-            <p className="py-2 text-sm text-white/35">Hand empty — try Redraw</p>
+            <p className="py-2 text-sm text-white/35">No words in hand. Tap Swap hand.</p>
           ) : null}
         </div>
       </div>
@@ -144,9 +144,7 @@ export function SyntaxChamber({
       )}
     >
       <div className="mb-0.5 flex shrink-0 items-center justify-between gap-2">
-        <p className="text-[clamp(0.55rem,1.2vh,0.65rem)] tracking-[0.14em] text-amber-200/55 uppercase">
-          Spell Chamber
-        </p>
+        <p className="text-[clamp(0.55rem,1.2vh,0.65rem)] text-amber-200/70">Sentence</p>
         <div className="flex items-center gap-2">
           {mult > 0 ? (
             <span
@@ -182,7 +180,7 @@ export function SyntaxChamber({
               animate={{ opacity: 1 }}
               className="px-3 text-center text-[clamp(0.7rem,1.6vh,0.875rem)] text-amber-100/70"
             >
-              Spell Chamber — tap cards to weave
+              Tap words to build the sentence.
             </motion.p>
           ) : (
             cards.map((card, i) => (
@@ -213,7 +211,7 @@ export function SyntaxChamber({
         </AnimatePresence>
       </div>
       {!syntaxValid && syntaxError ? (
-        <p className="shrink-0 truncate text-center text-[clamp(0.55rem,1.2vh,0.65rem)] text-rose-200">
+        <p className="shrink-0 text-center text-[clamp(0.55rem,1.2vh,0.65rem)] text-rose-200">
           {syntaxError}
         </p>
       ) : null}

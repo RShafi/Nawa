@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { submitCardReview } from "@/app/actions/srs";
+import { useAppStore } from "@/store/useAppStore";
 import type { PopulatedSrsItem, SessionStats, SrsRating } from "@/types/srs";
 
 type ReviewStore = {
@@ -100,5 +101,12 @@ export const useReviewStore = create<ReviewStore>((set, get) => ({
     void submitCardReview(current.id, rating, durationMs).catch((err) => {
       console.error("[srs] submitCardReview failed", err);
     });
+
+    const wordId = current.reference_id;
+    const currentLevel = useAppStore.getState().getMastery(wordId) ?? 1;
+    const nextLevel = (
+      rating >= 3 ? Math.min(3, currentLevel + 1) : rating === 1 ? Math.max(1, currentLevel - 1) : currentLevel
+    ) as 1 | 2 | 3;
+    useAppStore.getState().setMasteryOptimistic(wordId, nextLevel);
   },
 }));

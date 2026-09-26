@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { VALID_SPELLS } from "@/data/combatDictionary";
+import { isCourseWord, plantByRoot } from "@/data/garden";
 import { processReview } from "@/lib/fsrs";
 import type { MasteryLevel } from "@/types/app-progress";
 import type { PopulatedSrsItem, SrsItem, SrsRating } from "@/types/srs";
@@ -61,7 +62,7 @@ function rowToSrsItem(row: FsrsRow): SrsItem {
 function populateFromWordId(item: SrsItem): PopulatedSrsItem | null {
   const [rootId, patternId] = item.reference_id.split(":");
   const spell = VALID_SPELLS.find((s) => s.root === rootId && s.pattern === patternId);
-  if (!spell) return null;
+  if (!spell || !isCourseWord(spell.id)) return null;
   return {
     ...item,
     content: {
@@ -164,6 +165,20 @@ export async function submitCardReview(
     .eq("user_id", user.id);
 
   if (updateError) throw new Error(updateError.message);
+
+  const rootId = (row as FsrsRow).word_id.split(":")[0] ?? "";
+  const plant = plantByRoot(rootId);
+  if (plant) {
+    await supabase.from("user_bustan_trees").upsert(
+      {
+        user_id: user.id,
+        root_id: rootId,
+        letters: plant.letters,
+        mastery_level: nextMastery,
+      },
+      { onConflict: "user_id,root_id" },
+    );
+  }
 
   revalidatePath("/review");
   revalidatePath("/arena");

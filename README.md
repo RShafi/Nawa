@@ -1,6 +1,6 @@
 # Nawā (نَوَاة)
 
-Arabic learning MVP built around root-and-pattern morphology, dynamic tashkeel, and MSA–dialect bridging.
+Arabic learning MVP. A root is a plant. A visit grows one frame. The arena only casts words you have grown.
 
 ## Stack
 
@@ -20,12 +20,6 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Audio (TTS)
 
-`POST /api/tts` with `{ text, lang }` returns MP3. Client prep lives in `src/lib/audio.ts` (+ `useAudio` hook):
+`GET /api/tts?text=...` returns MP3 from ElevenLabs (`eleven_multilingual_v2`). Set `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID`. Missing keys return 503. Files cache under `public/tts/`.
 
-- Isolated letters → phonetic CV (`ب` → `بَ` /ba/), never letter names
-- Full tashkeel preserved; Azure IPA keeps final fatha audible
-- Fallback: Web Speech `ar-SA` at rate `0.85`
-
-Provider priority: Azure Neural → Google Cloud → OpenAI → Edge → gTTS.
-
-Copy `.env.example` → `.env.local` and add a speech key for best quality.
+Copy `.env.example` to `.env.local`. `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are required.

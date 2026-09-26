@@ -79,13 +79,11 @@ export function ResonanceCheck(props: LocalProps | StoreProps = {}) {
       >
         <p
           id="resonance-title"
-          className="text-center text-sm font-bold tracking-[0.18em] text-amber-400 uppercase"
+          className="text-center text-sm font-semibold text-amber-100"
         >
-          Channel the Meaning
+          What did you say?
         </p>
-        <p className="mt-1 text-center text-xs text-white/50">
-          Translate your spell to unlock a Critical Strike
-        </p>
+        <p className="mt-1 text-center text-xs text-white/50">Pick the English. A right answer hits harder.</p>
 
         <div className="mt-5 rounded-xl border border-white/10 bg-black/30 px-4 py-5 text-center">
           <ArabicText size="display" forceFull className="battle-arabic text-4xl text-amber-50">

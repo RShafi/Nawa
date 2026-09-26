@@ -1,9 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Flame, Shield, Sparkles, Swords } from "lucide-react";
+import { Shield, Sparkles, Swords } from "lucide-react";
 import { InlineArabic } from "@/components/ui/InlineArabic";
-import type { ElementSchool } from "@/data/combatDictionary";
 import { cn } from "@/lib/utils";
 
 export type CombatFloat = {
@@ -74,12 +73,10 @@ export function PlayerHero({
           )}
         </div>
       </div>
-      <p className="text-[clamp(0.6rem,1.3vh,0.75rem)] font-semibold tracking-wide text-amber-100/80 uppercase">
-        Apprentice
-      </p>
+      <p className="text-[clamp(0.6rem,1.3vh,0.75rem)] font-semibold text-amber-100/80">You</p>
       {shield > 0 ? (
         <p className="font-mono text-[clamp(0.55rem,1.2vh,0.65rem)] font-bold text-sky-300">
-          Ward {shield}
+          Shield {shield}
         </p>
       ) : null}
       <div className="h-1.5 w-16 overflow-hidden rounded-full bg-black/50 sm:w-20">
@@ -98,9 +95,6 @@ export function BossEntity({
   hp,
   maxHp,
   shield = 0,
-  burn = 0,
-  frost = false,
-  weakTo,
   hit = false,
   attacking = false,
   floats = [],
@@ -113,9 +107,6 @@ export function BossEntity({
   hp: number;
   maxHp: number;
   shield?: number;
-  burn?: number;
-  frost?: boolean;
-  weakTo?: ElementSchool | null;
   hit?: boolean;
   /** Lunge toward player on enemy turn */
   attacking?: boolean;
@@ -185,7 +176,7 @@ export function BossEntity({
         <div
           className={cn(
             "absolute -inset-1 rounded-full blur-2xl",
-            burn > 0 ? "bg-orange-500/30" : frost ? "bg-cyan-400/25" : "bg-violet-500/25",
+            "bg-violet-500/25",
           )}
         />
         <div
@@ -194,12 +185,7 @@ export function BossEntity({
             large && "max-h-[120px]",
           )}
         >
-          <span className="text-[clamp(1.5rem,4vh,2.5rem)]" aria-hidden>
-            𓂀
-          </span>
-          <span className="text-[clamp(0.5rem,1vh,0.6rem)] tracking-widest text-violet-200/70 uppercase">
-            Djinn
-          </span>
+          <Swords className="size-[clamp(1.5rem,4vh,2.5rem)] text-rose-200" aria-hidden />
         </div>
         {shield > 0 ? (
           <motion.div
@@ -212,19 +198,16 @@ export function BossEntity({
 
       <div className="text-center">
         <p className="text-[clamp(0.8rem,1.8vh,1.1rem)] font-semibold text-white">{name}</p>
-        <InlineArabic className="mt-0.5 block text-[clamp(1rem,2.2vh,1.5rem)] text-amber-100/80">
-          {nameAr}
-        </InlineArabic>
-        {weakTo ? (
-          <p className="text-[clamp(0.55rem,1.2vh,0.7rem)] font-medium text-amber-200/80">
-            Weak to {weakTo}
-          </p>
+        {nameAr ? (
+          <InlineArabic className="mt-0.5 block text-[clamp(1rem,2.2vh,1.5rem)] text-amber-100/80">
+            {nameAr}
+          </InlineArabic>
         ) : null}
       </div>
 
       <div className="glass-tablet w-full max-w-[14rem] space-y-1 border-white/10 px-3 py-1.5">
         <div className="flex justify-between text-[clamp(0.65rem,1.4vh,0.8rem)] text-white/70">
-          <span className="font-medium">HP</span>
+          <span className="font-medium">Health</span>
           <span className="font-mono tabular-nums">
             {hp}/{maxHp}
           </span>
@@ -239,13 +222,7 @@ export function BossEntity({
           {shield > 0 ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/20 px-2 py-0.5 text-[clamp(0.55rem,1.2vh,0.7rem)] font-semibold text-cyan-100">
               <Shield className="size-3" />
-              Ward {shield}
-            </span>
-          ) : null}
-          {burn > 0 ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-orange-500/20 px-2 py-0.5 text-[clamp(0.55rem,1.2vh,0.7rem)] font-semibold text-orange-100">
-              <Flame className="size-3" />
-              Burn {burn}
+              Shield {shield}
             </span>
           ) : null}
         </div>

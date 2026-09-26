@@ -268,7 +268,7 @@ export const WORD_CARDS: WordCard[] = [
   {
     id: "ktb-form-2",
     word: "كَتَّبَ",
-    translation: "He made (someone) write",
+    translation: "He made someone write",
     lemmaEn: "made write",
     transliteration: "kattaba",
     partOfSpeech: "VERB",
@@ -298,7 +298,7 @@ export const WORD_CARDS: WordCard[] = [
   {
     id: "slm-form-2",
     word: "سَلَّمَ",
-    translation: "He greeted / handed over",
+    translation: "He greeted",
     lemmaEn: "greeted",
     transliteration: "sallama",
     partOfSpeech: "VERB",
@@ -312,7 +312,7 @@ export const WORD_CARDS: WordCard[] = [
   {
     id: "slm-active-participle",
     word: "سَالِم",
-    translation: "Safe / sound one",
+    translation: "Safe",
     lemmaEn: "safe",
     transliteration: "sālim",
     partOfSpeech: "ADJECTIVE",
@@ -415,7 +415,7 @@ export const WORD_CARDS: WordCard[] = [
   {
     id: "drs-active-participle",
     word: "دَارِس",
-    translation: "Student / one who studies",
+    translation: "The student",
     lemmaEn: "student",
     transliteration: "dāris",
     partOfSpeech: "NOUN",
@@ -429,7 +429,7 @@ export const WORD_CARDS: WordCard[] = [
   {
     id: "drs-noun-of-place",
     word: "مَدْرَسَة",
-    translation: "School / place of learning",
+    translation: "The school",
     lemmaEn: "school",
     transliteration: "madrasa",
     partOfSpeech: "NOUN",
@@ -527,7 +527,7 @@ export const WORD_CARDS: WordCard[] = [
   {
     id: "ktb-active-participle",
     word: "كَاتِب",
-    translation: "Writer / scribe",
+    translation: "The writer",
     lemmaEn: "writer",
     transliteration: "kātib",
     partOfSpeech: "NOUN",
@@ -543,7 +543,7 @@ export const WORD_CARDS: WordCard[] = [
   {
     id: "ktb-place-noun",
     word: "مَكْتَب",
-    translation: "Office / desk",
+    translation: "The desk",
     lemmaEn: "desk",
     transliteration: "maktab",
     partOfSpeech: "NOUN",
@@ -557,7 +557,7 @@ export const WORD_CARDS: WordCard[] = [
   {
     id: "ktb-noun-book",
     word: "كِتَاب",
-    translation: "Book",
+    translation: "The book",
     lemmaEn: "book",
     transliteration: "kitāb",
     partOfSpeech: "NOUN",

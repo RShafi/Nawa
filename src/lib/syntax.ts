@@ -20,7 +20,7 @@ export type SyntaxResult = {
 function semanticFail(modifier: WordCard, noun: WordCard): SyntaxResult {
   return {
     ok: false,
-    error: `"${englishLemma(modifier)}" doesn’t fit with "${englishLemma(noun)}" — pick a logically matching word.`,
+    error: `"${englishLemma(modifier)}" does not fit with "${englishLemma(noun)}". Pick a word that matches.`,
   };
 }
 
@@ -54,7 +54,7 @@ function validateSemantics(cards: WordCard[]): SyntaxResult | null {
  */
 export function validateSyntax(cards: WordCard[]): SyntaxResult {
   if (cards.length === 0) {
-    return { ok: false, error: "Play at least one Word Card." };
+    return { ok: false, error: "Add at least one word." };
   }
 
   if (cards.length === 1) {
@@ -68,7 +68,7 @@ export function validateSyntax(cards: WordCard[]): SyntaxResult {
     if (pos[i] === "ADJECTIVE" && pos[i + 1] === "NOUN") {
       return {
         ok: false,
-        error: "In Arabic, adjectives follow nouns — put the noun before the adjective.",
+        error: "A describing word follows the noun. Put the noun first.",
       };
     }
   }
@@ -86,14 +86,14 @@ export function validateSyntax(cards: WordCard[]): SyntaxResult {
       return { ok: true, pattern: "Noun + adjective" };
     }
     if (pos[0] === "NOUN" && pos[1] === "NOUN") {
-      return { ok: true, pattern: "Noun phrase (Iḍāfa)" };
+      return { ok: true, pattern: "Two nouns" };
     }
     if (pos[0] === "VERB" && pos[1] === "VERB") {
-      return { ok: false, error: "Two verbs in a row — add a noun or rearrange." };
+      return { ok: false, error: "Two verbs in a row. Add a noun, or change the order." };
     }
     return {
       ok: false,
-      error: "Try Verb→Noun, or Noun→Adjective.",
+      error: "Try a verb, then a noun. Or a noun, then a describing word.",
     };
   }
 
@@ -101,7 +101,7 @@ export function validateSyntax(cards: WordCard[]): SyntaxResult {
   if (pos[0] !== "VERB") {
     return {
       ok: false,
-      error: "Longer sentences usually start with a Verb (VSO).",
+      error: "A longer line starts with a verb.",
     };
   }
 
@@ -112,7 +112,7 @@ export function validateSyntax(cards: WordCard[]): SyntaxResult {
     if (p === "ADJECTIVE" && !seenNoun) {
       return {
         ok: false,
-        error: "Adjectives need a noun before them.",
+        error: "A describing word needs a noun before it.",
       };
     }
   }
@@ -133,7 +133,7 @@ export function validateSyntax(cards: WordCard[]): SyntaxResult {
     return { ok: true, pattern: "Verb-led sentence" };
   }
 
-  return { ok: false, error: "That order isn’t a valid Arabic chain yet." };
+  return { ok: false, error: "That order is not a sentence yet." };
 }
 
 export function describePos(pos: PartOfSpeech): string {

@@ -1,111 +1,127 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, MapPin } from "lucide-react";
-import { unlockCityAction } from "@/app/actions/progress";
-import { CityCard } from "@/components/passport/CityCard";
+import { openRegisterAction } from "@/app/actions/garden";
+import { DialectBridgeCard } from "@/components/dialect/DialectBridgeCard";
+import { ArabicText } from "@/components/common/ArabicText";
 import { AppStoreHydrator } from "@/components/progress/AppStoreHydrator";
-import { PASSPORT_CITIES } from "@/data/passportCities";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PLANTS, registerReady } from "@/data/garden";
 import { useAppStore } from "@/store/useAppStore";
 
 export function PassportPageClient() {
   return (
-    <AppStoreHydrator force>
-      <PassportInner />
+    <AppStoreHydrator>
+      <Registers />
     </AppStoreHydrator>
   );
 }
 
-function PassportInner() {
-  const hibrBalance = useAppStore((s) => s.hibrBalance);
-  const unlockedCities = useAppStore((s) => s.unlockedCities);
-  const status = useAppStore((s) => s.status);
-  const setHibrBalance = useAppStore((s) => s.setHibrBalance);
-  const unlockCityOptimistic = useAppStore((s) => s.unlockCityOptimistic);
-  const hydrate = useAppStore((s) => s.hydrate);
-
+function Registers() {
+  const completed = useAppStore((s) => s.completedLessonIds);
+  const deck = useAppStore((s) => s.unlockedDeck);
+  const cities = useAppStore((s) => s.unlockedCities);
+  const hibr = useAppStore((s) => s.hibrBalance);
+  const setHibr = useAppStore((s) => s.setHibrBalance);
+  const unlockCity = useAppStore((s) => s.unlockCityOptimistic);
   const [error, setError] = useState<string | null>(null);
-  const [justUnlocked, setJustUnlocked] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
-  function unlock(cityId: string, cost: number) {
+  const readyPlants = PLANTS.filter((plant) => registerReady(plant, completed, deck));
+
+  async function open(registerId: string, cost: number) {
+    if (hibr < cost) {
+      setError("Not enough score yet. Finish a lesson, a review, or a sentence, then try again.");
+      return;
+    }
+    setPending(registerId);
     setError(null);
-    startTransition(async () => {
-      const result = await unlockCityAction(cityId, cost);
-      if (!result.ok) {
-        setError(result.error ?? "Could not unlock city.");
-        return;
-      }
-      unlockCityOptimistic(cityId);
-      setJustUnlocked(cityId);
-      window.setTimeout(() => setJustUnlocked(null), 2200);
-      if (typeof result.currency === "number") {
-        setHibrBalance(result.currency);
-      } else {
-        setHibrBalance(hibrBalance - cost);
-      }
-      void hydrate();
-    });
+    const result = await openRegisterAction(registerId);
+    setPending(null);
+    if (!result.ok) {
+      setError(result.error ?? "Could not open that city.");
+      return;
+    }
+    unlockCity(registerId);
+    if (typeof result.hibrBalance === "number") setHibr(result.hibrBalance);
+    setOpenId(registerId);
   }
 
   return (
-    <main className="mx-auto max-w-4xl space-y-8 px-4 py-6 sm:px-6 sm:py-8">
-      <Button asChild variant="ghost" size="sm" className="-ms-2 gap-1 text-white/70">
-        <Link href="/path">
-          <ArrowLeft className="size-4" />
-          Back to Path
-        </Link>
-      </Button>
+    <main className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
+      <header className="space-y-2">
+        <h1 className="text-3xl font-semibold text-white">Hear it in another city</h1>
+        <p className="max-w-xl text-sm text-white/65">
+          Two words from the same three letters are enough. Score pays to hear Damascus or Cairo, and nothing else.
+        </p>
+        <p className="text-sm text-amber-100/80">Score: {hibr}</p>
+      </header>
 
-      <section className="glass-panel glow-amber relative space-y-4 overflow-hidden rounded-3xl px-5 py-8 sm:px-8">
-        <div
-          className="pointer-events-none absolute -end-8 top-0 size-48 rounded-full bg-amber-400/15 blur-3xl"
-          aria-hidden
-        />
-        <Badge
-          variant="secondary"
-          className="gap-1.5 border-amber-400/20 bg-amber-500/10 text-amber-100"
-        >
-          <MapPin className="size-3.5" />
-          Pillar 3 · Passports
-        </Badge>
-        <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-          Dialect cities
-        </h1>
-        <p className="text-muted-foreground max-w-2xl text-base leading-relaxed">
-          Spend Hibr from Arena wins and Reviews to stamp a city. Enter Hub opens dialect practice
-          (chat coming soon).
-        </p>
-        <p className="font-mono text-sm text-amber-100/90">
-          {status === "ready" ? hibrBalance : "—"} Hibr available
-        </p>
-      </section>
-
-      {error ? (
-        <p className="text-destructive text-sm" role="alert">
-          {error}
-        </p>
+      {readyPlants.length === 0 ? (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/70">
+          Grow two words from one family, then come back.{" "}
+          <Link href="/" className="text-emerald-200 underline">
+            Back to the garden
+          </Link>
+        </div>
       ) : null}
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        {PASSPORT_CITIES.map((city) => {
-          const unlocked = unlockedCities.includes(city.id);
-          return (
-            <CityCard
-              key={city.id}
-              city={city}
-              unlocked={unlocked}
-              canAfford={hibrBalance >= city.cost}
-              pending={pending}
-              justUnlocked={justUnlocked === city.id}
-              onUnlock={() => unlock(city.id, city.cost)}
+      {error ? <p className="text-sm text-rose-200">{error}</p> : null}
+
+      {readyPlants.map((plant) => (
+        <section key={plant.rootId} className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div>
+            <ArabicText size="md" forceFull className="text-emerald-50">
+              {plant.letters}
+            </ArabicText>
+            <p className="text-sm text-white/55">{plant.gloss}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {plant.registers.map((register) => {
+              const owned = cities.includes(register.id);
+              return (
+                <div key={register.id} className="rounded-xl border border-white/10 p-3">
+                  <p className="text-white">{register.city}</p>
+                  <ArabicText size="sm" forceFull className="text-amber-50">
+                    {register.cityAr}
+                  </ArabicText>
+                  <p className="mt-1 text-xs text-white/50">
+                    {register.dialect === "levantine" ? "Damascus" : "Cairo"} · {register.cost} score
+                  </p>
+                  {owned ? (
+                    <Button
+                      className="mt-3"
+                      variant="outline"
+                      onClick={() => {
+                        setError(null);
+                        setOpenId(register.id);
+                      }}
+                    >
+                      Hear it
+                    </Button>
+                  ) : (
+                    <Button
+                      className="mt-3"
+                      disabled={pending === register.id}
+                      onClick={() => void open(register.id, register.cost)}
+                    >
+                      {pending === register.id ? "Opening…" : `Use ${register.cost} score`}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {openId && plant.registers.some((register) => register.id === openId) ? (
+            <DialectBridgeCard
+              phraseId={plant.phraseId}
+              focus={plant.registers.find((register) => register.id === openId)?.dialect ?? "msa"}
             />
-          );
-        })}
-      </div>
+          ) : null}
+        </section>
+      ))}
     </main>
   );
 }

@@ -7,29 +7,33 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { logout } from "@/app/login/actions";
+import { StartOver } from "@/components/garden/StartOver";
 import { ArabicText } from "@/components/common/ArabicText";
-import { TashkeelToggle } from "@/components/common/TashkeelToggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAppStore } from "@/store/useAppStore";
 
 const NAV_LINKS = [
   {
-    href: "/path",
-    label: "Learning Path",
-    match: (p: string) => p === "/path" || p.startsWith("/path/") || p.startsWith("/lesson"),
+    href: "/",
+    label: "Garden",
+    match: (p: string) => p === "/" || p.startsWith("/lesson") || p.startsWith("/bustan") || p.startsWith("/path"),
   },
   {
     href: "/arena",
-    label: "Arena",
+    label: "Sentences",
     match: (p: string) => p.startsWith("/arena"),
   },
   {
+    href: "/review",
+    label: "Review",
+    match: (p: string) => p.startsWith("/review"),
+  },
+  {
     href: "/passports",
-    label: "Passports",
+    label: "Cities",
     match: (p: string) => p.startsWith("/passport"),
   },
-  { href: "/review", label: "Review", match: (p: string) => p.startsWith("/review") },
 ] as const;
 
 type NavbarProps = {
@@ -102,7 +106,6 @@ export function Navbar({ email }: NavbarProps) {
 
         <div className="flex items-center gap-1.5 sm:gap-2">
           <HibrBadge />
-          <TashkeelToggle />
           <Button
             variant="ghost"
             size="icon"
@@ -136,6 +139,10 @@ export function Navbar({ email }: NavbarProps) {
                     transition={{ type: "spring", stiffness: 400, damping: 28 }}
                     className="glass-panel-strong absolute end-0 top-[calc(100%+8px)] z-50 min-w-[10rem] overflow-hidden rounded-xl p-1 shadow-2xl"
                   >
+                    <StartOver
+                      className="flex w-full items-center rounded-lg px-3 py-2 text-start text-sm text-white/80 transition hover:bg-white/8 hover:text-white"
+                      onDone={() => setUserOpen(false)}
+                    />
                     <form action={logout}>
                       <button
                         type="submit"
@@ -151,7 +158,7 @@ export function Navbar({ email }: NavbarProps) {
             </div>
           ) : (
             <Button asChild size="sm" variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10">
-              <Link href="/login">Log In</Link>
+              <Link href="/login">Sign in</Link>
             </Button>
           )}
 
@@ -202,7 +209,7 @@ function HibrBadge() {
   const [bump, setBump] = useState(false);
 
   useEffect(() => {
-    void hydrate();
+    if (useAppStore.getState().status === "idle") void hydrate();
   }, [hydrate]);
 
   useEffect(() => {
@@ -221,24 +228,17 @@ function HibrBadge() {
         "glow-amber glass-panel inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-amber-100 transition hover:bg-amber-400/10",
         bump && "ring-1 ring-amber-300/50",
       )}
-      title="Hibr ink"
+      title="Score is a receipt. It pays to hear a word in Damascus or Cairo."
     >
       <InkDropIcon className="size-3.5 shrink-0 text-amber-300" />
-      <AnimatePresence mode="popLayout">
-        <motion.span
-          key={hydrated ? hibr : "…"}
-          initial={{ y: 8, opacity: 0, scale: 0.85 }}
-          animate={{ y: 0, opacity: 1, scale: bump ? 1.12 : 1 }}
-          exit={{ y: -8, opacity: 0, scale: 0.9 }}
-          transition={{ type: "spring", stiffness: 420, damping: 22 }}
-          className="font-mono text-xs font-semibold tabular-nums sm:text-sm"
-        >
-          {hydrated ? hibr : "—"}
-        </motion.span>
-      </AnimatePresence>
-      <span className="hidden text-[10px] tracking-wide text-amber-200/70 uppercase sm:inline">
-        Hibr
-      </span>
+      <motion.span
+        animate={{ scale: bump ? 1.12 : 1 }}
+        transition={{ type: "spring", stiffness: 420, damping: 22 }}
+        className="font-mono text-xs font-semibold tabular-nums sm:text-sm"
+      >
+        {hydrated ? hibr : "..."}
+      </motion.span>
+      <span className="hidden text-[10px] tracking-wide text-amber-200/70 sm:inline">Score</span>
     </Link>
   );
 }
