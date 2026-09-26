@@ -482,6 +482,7 @@ function HearFrame({
             {known.word}
           </ArabicText>
           <p className="text-white/70">You already have this one. It means {known.translation}.</p>
+          <HearButton text={known.word} label="Play the word" />
         </div>
       ) : null}
     </LookFirst>
