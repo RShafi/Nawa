@@ -33,6 +33,7 @@ type AppStore = {
   hydrate: () => Promise<boolean>;
   applyHydration: (payload: AppHydrationPayload) => void;
   reset: () => void;
+  clearGarden: () => void;
 
   setHibrBalance: (amount: number) => void;
   addHibrOptimistic: (delta: number) => void;
@@ -284,6 +285,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }),
 
   reset: () => set({ ...initialState }),
+
+  clearGarden: () =>
+    set((s) => ({
+      ...initialState,
+      userId: s.userId,
+      email: s.email,
+      status: "ready" as const,
+      hydratedAt: Date.now(),
+    })),
 
   setHibrBalance: (amount) => set({ hibrBalance: Math.max(0, amount) }),
 

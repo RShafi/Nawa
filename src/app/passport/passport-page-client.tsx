@@ -52,7 +52,6 @@ function Registers() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
       <header className="space-y-2">
-        <p className="text-xs tracking-wide text-emerald-200/80 uppercase">Cities</p>
         <h1 className="text-3xl font-semibold text-white">Hear it another way</h1>
         <p className="max-w-xl text-sm text-white/65">
           After two words from the same three letters, you can hear them the way people speak in Damascus or Cairo. Your score pays for that.

@@ -104,7 +104,7 @@ function ReviewInner() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold text-white sm:text-3xl">Build the word again</h1>
         <p className="text-sm text-white/55">
-          You see the three letters, the pattern, or the word with no vowel marks. The English meaning comes after you answer.
+          You see the three letters, the word shape, or the word with no vowel marks. The English meaning comes after you answer.
         </p>
       </header>
 
@@ -190,7 +190,7 @@ function ReviewInner() {
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <li className="rounded-lg border bg-background/60 px-3 py-2">
-      <p className="text-muted-foreground text-xs tracking-wide uppercase">{label}</p>
+      <p className="text-muted-foreground text-xs">{label}</p>
       <p className="text-xl font-semibold">{value}</p>
     </li>
   );

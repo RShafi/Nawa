@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { logout } from "@/app/login/actions";
+import { StartOver } from "@/components/garden/StartOver";
 import { ArabicText } from "@/components/common/ArabicText";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -138,6 +139,10 @@ export function Navbar({ email }: NavbarProps) {
                     transition={{ type: "spring", stiffness: 400, damping: 28 }}
                     className="glass-panel-strong absolute end-0 top-[calc(100%+8px)] z-50 min-w-[10rem] overflow-hidden rounded-xl p-1 shadow-2xl"
                   >
+                    <StartOver
+                      className="flex w-full items-center rounded-lg px-3 py-2 text-start text-sm text-white/80 transition hover:bg-white/8 hover:text-white"
+                      onDone={() => setUserOpen(false)}
+                    />
                     <form action={logout}>
                       <button
                         type="submit"
@@ -153,7 +158,7 @@ export function Navbar({ email }: NavbarProps) {
             </div>
           ) : (
             <Button asChild size="sm" variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10">
-              <Link href="/login">Log In</Link>
+              <Link href="/login">Sign in</Link>
             </Button>
           )}
 

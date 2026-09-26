@@ -25,7 +25,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               Nawā
             </Link>
           </CardTitle>
-          <CardDescription>Sign in. Today you learn one letter, then build one word.</CardDescription>
+          <CardDescription>Learn Arabic one small step at a time.</CardDescription>
         </CardHeader>
         <CardContent>
           <LoginForm next={next} />

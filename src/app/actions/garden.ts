@@ -30,6 +30,11 @@ export type RegisterActionResult = {
   hibrBalance?: number;
 };
 
+export type ResetActionResult = {
+  ok: boolean;
+  error?: string;
+};
+
 function plainCityError(message: string): string {
   if (/insufficient hibr/i.test(message)) {
     return "Not enough score yet. Learn, review, or finish a sentence, then try again.";
@@ -197,6 +202,37 @@ export async function completeVisitAction(lessonId: string): Promise<VisitAction
     bonusAwarded,
     hibrBalance,
   };
+}
+
+export async function resetProgressAction(): Promise<ResetActionResult> {
+  const { supabase, user } = await requireUser();
+  if (!user) return { ok: false, error: "Sign in first." };
+
+  const tables = [
+    "user_lesson_progress",
+    "user_unlocked_vocab",
+    "user_fsrs_items",
+    "user_bustan_trees",
+    "user_unlocked_cities",
+  ] as const;
+
+  for (const table of tables) {
+    const { error } = await supabase.from(table).delete().eq("user_id", user.id);
+    if (error) return { ok: false, error: "Could not clear your progress. Try again." };
+  }
+
+  const { error: profileError } = await supabase
+    .from("user_profiles")
+    .update({ hibr_balance: 0 })
+    .eq("id", user.id);
+  if (profileError) return { ok: false, error: "Could not clear your score. Try again." };
+
+  revalidatePath("/");
+  revalidatePath("/arena");
+  revalidatePath("/review");
+  revalidatePath("/passports");
+
+  return { ok: true };
 }
 
 export async function openRegisterAction(registerId: string): Promise<RegisterActionResult> {

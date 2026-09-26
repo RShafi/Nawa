@@ -177,17 +177,12 @@ export function BattleArena() {
             Make a sentence
           </h1>
           <p className="relative mt-2 text-sm text-white/60">Use only words you have learned.</p>
-          <ol className="relative mx-auto mt-5 max-w-sm space-y-2 text-start text-sm text-white/65">
-            <li className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-              1. Put the verb first. A describing word follows the noun.
-            </li>
-            <li className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-              2. A longer correct sentence scores more.
-            </li>
-            <li className="rounded-xl border border-white/10 bg-black/20 px-3 py-2">
-              3. Then pick the English meaning. Each word costs 1 play. Plays come back after their turn.
-            </li>
-          </ol>
+          <div className="relative mx-auto mt-5 max-w-sm space-y-2 text-start text-sm text-white/70">
+            <p>Tap an action word first, then a thing.</p>
+            <p>A longer sentence is a bigger win.</p>
+            <p>Then choose the English meaning.</p>
+            <p>You can tap up to 5 words. They come back when the sentence is finished.</p>
+          </div>
           <div className="relative mt-8 flex flex-col items-center gap-3">
             {canFight ? (
               <Button size="lg" className="h-12 px-8 text-base" onClick={beginFreePlay}>
@@ -229,9 +224,7 @@ export function BattleArena() {
       {/* Row 1 — Boss Zone */}
       <div className={HUD_BOSS}>
         <div className="mb-1 flex w-full items-center justify-between gap-2 px-1">
-          <p className="text-[clamp(0.55rem,1.2vh,0.65rem)] tracking-wide text-white/40 uppercase">
-            Your sentence
-          </p>
+          <p className="text-[clamp(0.55rem,1.2vh,0.65rem)] text-white/40">Your sentence</p>
         </div>
         <CombatTurnBanner />
         <div className="flex w-full items-start justify-center gap-3 px-1 md:gap-6">
@@ -253,7 +246,7 @@ export function BattleArena() {
             floats={floats}
             intentLabel={
               enemyIntent
-                ? `${enemyIntent.label}${enemyIntent.damage ? ` for ${enemyIntent.damage}` : ""}`
+                ? enemyIntent.label
                 : undefined
             }
           />

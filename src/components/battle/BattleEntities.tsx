@@ -73,9 +73,7 @@ export function PlayerHero({
           )}
         </div>
       </div>
-      <p className="text-[clamp(0.6rem,1.3vh,0.75rem)] font-semibold tracking-wide text-amber-100/80 uppercase">
-        You
-      </p>
+      <p className="text-[clamp(0.6rem,1.3vh,0.75rem)] font-semibold text-amber-100/80">You</p>
       {shield > 0 ? (
         <p className="font-mono text-[clamp(0.55rem,1.2vh,0.65rem)] font-bold text-sky-300">
           Shield {shield}

@@ -16,7 +16,9 @@ import {
   readingLabel,
   readingModeFromLevel,
   registerReady,
+  type LessonDef,
 } from "@/data/garden";
+import { StartOver } from "@/components/garden/StartOver";
 import { useAppStore } from "@/store/useAppStore";
 
 export function GardenHome() {
@@ -47,25 +49,23 @@ function GardenInner() {
         <p className="text-sm text-white/50">Loading your words…</p>
       ) : firstVisit ? (
         <header className="space-y-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-5">
-          <p className="text-xs tracking-wide text-emerald-200/80 uppercase">Start here</p>
-          <h1 className="text-3xl font-semibold text-white">This is your garden</h1>
+          <h1 className="text-3xl font-semibold text-white">This is your garden.</h1>
           <p className="max-w-xl text-sm text-white/80">
-            Arabic words grow here from three shared letters. Each visit adds one new word to a family you already started.
+            Words you learn stay here. You start with one letter.
           </p>
           <p className="max-w-xl text-sm text-white/80">
-            Today: the letter b, how it joins, a short a, then one word you can hear.
+            Today you only learn the letter b. Then how it joins, a short a, and one word: he wrote.
           </p>
           <p className="max-w-xl text-sm text-white/70">When you see a speaker, it plays the sound.</p>
           <Button asChild className="mt-1">
-            <Link href="/lesson/hour-letter">Start with the letter b</Link>
+            <Link href="/lesson/hour-letter">Hear the letter b</Link>
           </Button>
         </header>
       ) : (
         <header className="space-y-2">
-          <p className="text-xs tracking-wide text-emerald-200/80 uppercase">Garden</p>
           <h1 className="text-3xl font-semibold text-white">Your words</h1>
           <p className="max-w-xl text-sm text-white/65">
-            Three shared letters grow into several words. One new word each visit. Vowel marks fade as you review.
+            One step is waiting. Gray names are words you have not learned yet.
           </p>
         </header>
       )}
@@ -74,10 +74,9 @@ function GardenInner() {
         <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
           <p className="text-sm text-emerald-100/80">Next</p>
           <p className="mt-1 text-lg text-white">{nextLesson.title}</p>
+          <p className="mt-1 text-sm text-white/70">{nextLesson.teach}</p>
           <Button asChild className="mt-3">
-            <Link href={`/lesson/${nextLesson.id}`}>
-              {nextLesson.kind === "frame" ? "Learn this word" : "Continue"}
-            </Link>
+            <Link href={`/lesson/${nextLesson.id}`}>{nextAction(nextLesson)}</Link>
           </Button>
         </div>
       ) : status === "ready" && !firstVisit ? (
@@ -104,7 +103,7 @@ function GardenInner() {
                 {grown.length > 0 ? (
                   <p className="text-xs text-white/50">{readingLabel(mode)}</p>
                 ) : (
-                  <p className="text-xs text-white/40">Not started</p>
+                  <p className="text-xs text-white/40">Still to come</p>
                 )}
               </div>
               <ul className="mt-4 space-y-2">
@@ -161,6 +160,21 @@ function GardenInner() {
         })}
       </div>
       ) : null}
+
+      {status === "ready" && !firstVisit ? (
+        <p className="text-sm text-white/45">
+          <StartOver />
+        </p>
+      ) : null}
     </main>
   );
+}
+
+function nextAction(lesson: LessonDef): string {
+  if (lesson.kind === "sentence") return "Make this sentence";
+  if (lesson.kind === "frame") return "Learn this word";
+  if (lesson.kind === "letter") return "Hear the letter b";
+  if (lesson.kind === "shapes") return "See how b joins";
+  if (lesson.kind === "vowel") return "Add a short a";
+  return "Continue";
 }

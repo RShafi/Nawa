@@ -71,7 +71,7 @@ export function LoginForm({ next = "/" }: LoginFormProps) {
 
       <div className="flex flex-col gap-2 pt-1 sm:flex-row">
         <Button type="submit" formAction={loginAction} className="flex-1" disabled={pending}>
-          {loginPending ? "Signing in…" : "Log In"}
+          {loginPending ? "Signing in…" : "Sign in"}
         </Button>
         <Button
           type="submit"
@@ -80,7 +80,7 @@ export function LoginForm({ next = "/" }: LoginFormProps) {
           className="flex-1"
           disabled={pending}
         >
-          {signupPending ? "Creating…" : "Create Account"}
+          {signupPending ? "Creating…" : "Create an account"}
         </Button>
       </div>
     </form>

@@ -55,7 +55,7 @@ export function Flashcard() {
     prompt.mode === "root"
       ? "Which word do these letters make?"
       : prompt.mode === "frame"
-        ? "Which word uses this pattern?"
+        ? "Which word matches this shape?"
         : "Which word is this, with the vowels back?";
 
   return (
