@@ -55,7 +55,7 @@ function Registers() {
         <p className="text-xs tracking-wide text-emerald-200/80 uppercase">Cities</p>
         <h1 className="text-3xl font-semibold text-white">Hear it another way</h1>
         <p className="max-w-xl text-sm text-white/65">
-          After two words from the same three letters, you can hear them the way people speak in Damascus or Cairo. Your score pays for that. The score is called Hibr.
+          After two words from the same three letters, you can hear them the way people speak in Damascus or Cairo. Your score pays for that.
         </p>
         <p className="text-sm text-amber-100/80">Score: {hibr}</p>
       </header>

@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     /* miss */
   }
 
-  console.log("[TTS] Requesting ElevenLabs audio for:", text, "with voiceId:", voiceId);
+  console.log("[TTS] Requesting audio");
 
   try {
     const bytes = await synthesizeElevenLabs(text, apiKey, voiceId);

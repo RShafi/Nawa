@@ -43,6 +43,8 @@ function GardenInner() {
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
       {status === "error" ? (
         <p className="text-sm text-rose-200">Could not load your words. Refresh and try again.</p>
+      ) : status !== "ready" ? (
+        <p className="text-sm text-white/50">Loading your words…</p>
       ) : firstVisit ? (
         <header className="space-y-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-5">
           <p className="text-xs tracking-wide text-emerald-200/80 uppercase">Start here</p>
@@ -68,7 +70,7 @@ function GardenInner() {
         </header>
       )}
 
-      {!firstVisit && status !== "error" && nextLesson ? (
+      {status === "ready" && !firstVisit && nextLesson ? (
         <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4">
           <p className="text-sm text-emerald-100/80">Next</p>
           <p className="mt-1 text-lg text-white">{nextLesson.title}</p>
@@ -78,12 +80,11 @@ function GardenInner() {
             </Link>
           </Button>
         </div>
-      ) : !firstVisit && status === "ready" ? (
+      ) : status === "ready" && !firstVisit ? (
         <p className="text-sm text-white/70">You have learned every word here. Review them, or make a sentence.</p>
-      ) : !firstVisit ? (
-        <p className="text-sm text-white/50">Loading your words…</p>
       ) : null}
 
+      {status === "ready" ? (
       <div className="grid gap-4">
         {visible.map((plant) => {
           const grown = grownFrames(plant, completed, deck);
@@ -159,6 +160,7 @@ function GardenInner() {
           );
         })}
       </div>
+      ) : null}
     </main>
   );
 }

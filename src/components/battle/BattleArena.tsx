@@ -19,6 +19,8 @@ import { courseWordIds } from "@/data/garden";
 import { useAppStore } from "@/store/useAppStore";
 import { useBattleStore } from "@/store/useBattleStore";
 
+let battleAwardStarted = false;
+
 export function BattleArena() {
   const [projectile, setProjectile] = useState<SpellProjectile | null>(null);
   const [floats, setFloats] = useState<CombatFloat[]>([]);
@@ -130,7 +132,12 @@ export function BattleArena() {
   }, [combatState, lastEnemyHit, lastResult, playImpact, clearLastResult]);
 
   useEffect(() => {
-    if (!victory || hibrAwarded == null) return;
+    if (!victory || hibrAwarded == null) {
+      battleAwardStarted = false;
+      return;
+    }
+    if (battleAwardStarted) return;
+    battleAwardStarted = true;
     void confetti({
       particleCount: 90,
       spread: 70,

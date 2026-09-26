@@ -328,6 +328,7 @@ function ShapeStep({ onDone }: { onDone: () => void }) {
       }
     >
       <p className="text-white/80">The letter b changes shape when it joins the letters beside it.</p>
+      <HearButton text="ب" label="Play the sound" />
       <div className="grid grid-cols-2 gap-2">
         {SHAPES.map((shape) => (
           <div key={shape.id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-center">

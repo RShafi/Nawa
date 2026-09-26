@@ -13,6 +13,8 @@ import { Progress } from "@/components/ui/progress";
 import { useAppStore } from "@/store/useAppStore";
 import { useReviewStore } from "@/store/useReviewStore";
 
+let reviewAwardStarted = false;
+
 export function ReviewPageClient() {
   return (
     <AppStoreHydrator>
@@ -64,7 +66,12 @@ function ReviewInner() {
   }, [initializeQueue, resetSession]);
 
   useEffect(() => {
-    if (!done || totalTouched === 0 || hibrMsg) return;
+    if (!done || totalTouched === 0 || hibrMsg) {
+      if (!done || totalTouched === 0) reviewAwardStarted = false;
+      return;
+    }
+    if (reviewAwardStarted) return;
+    reviewAwardStarted = true;
     startTransition(async () => {
       const res = await awardReviewSessionHibrAction(totalTouched);
       if (res.ok && res.awarded) {

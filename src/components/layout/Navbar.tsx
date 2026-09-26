@@ -204,7 +204,7 @@ function HibrBadge() {
   const [bump, setBump] = useState(false);
 
   useEffect(() => {
-    void hydrate();
+    if (useAppStore.getState().status === "idle") void hydrate();
   }, [hydrate]);
 
   useEffect(() => {
@@ -238,9 +238,7 @@ function HibrBadge() {
           {hydrated ? hibr : "..."}
         </motion.span>
       </AnimatePresence>
-      <span className="hidden text-[10px] tracking-wide text-amber-200/70 uppercase sm:inline">
-        Score
-      </span>
+      <span className="hidden text-[10px] tracking-wide text-amber-200/70 sm:inline">Score</span>
     </Link>
   );
 }

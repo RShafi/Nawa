@@ -312,7 +312,7 @@ export function readingModeFromLevel(level: number): TashkeelMode {
 
 export function readingLabel(mode: TashkeelMode): string {
   if (mode === "none") return "No vowel marks";
-  if (mode === "minimal") return "Short marks only";
+  if (mode === "minimal") return "Fewer vowel marks";
   return "Vowel marks on";
 }
 

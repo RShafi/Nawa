@@ -11,6 +11,7 @@ import {
   registerReady,
 } from "@/data/garden";
 import { VISIT_HIBR } from "@/data/rewards";
+import { makeWordId } from "@/types/app-progress";
 import { createClient } from "@/utils/supabase/server";
 
 export type VisitActionResult = {
@@ -108,6 +109,7 @@ export async function completeVisitAction(lessonId: string): Promise<VisitAction
     ? await ownsPattern(supabase, user.id, card.rootId, card.patternId)
     : true;
 
+  let insertedLesson = false;
   if (!hadLesson) {
     const { error: insertError } = await supabase.from("user_lesson_progress").insert({
       user_id: user.id,
@@ -116,6 +118,7 @@ export async function completeVisitAction(lessonId: string): Promise<VisitAction
     if (insertError && insertError.code !== "23505") {
       return { ok: false, error: "Could not save this step. Try again." };
     }
+    insertedLesson = !insertError;
   }
 
   if (card && !hadCard) {
@@ -133,7 +136,24 @@ export async function completeVisitAction(lessonId: string): Promise<VisitAction
         .eq("user_id", user.id)
         .eq("root_id", plant.rootId)
         .maybeSingle();
-      const mastery = Math.max(1, Number(tree?.mastery_level ?? 0));
+      const existing = Number(tree?.mastery_level ?? 0);
+      let seeded = existing;
+      if (existing <= 0) {
+        const wordIds = plant.frames.flatMap((frame) => {
+          const word = getWordCard(frame.wordId);
+          return word ? [word.id, makeWordId(word.rootId, word.patternId)] : [];
+        });
+        const { data: items } = wordIds.length
+          ? await supabase
+              .from("user_fsrs_items")
+              .select("mastery_level, word_id")
+              .eq("user_id", user.id)
+              .in("word_id", wordIds)
+          : { data: [] };
+        const fromCards = Math.max(0, ...(items ?? []).map((row) => Number(row.mastery_level) || 0));
+        seeded = Math.max(1, fromCards);
+      }
+      const mastery = Math.min(3, Math.max(1, seeded));
       const { error: treeError } = await supabase.from("user_bustan_trees").upsert(
         {
           user_id: user.id,
@@ -152,21 +172,16 @@ export async function completeVisitAction(lessonId: string): Promise<VisitAction
   const already = hadLesson && hadCard;
   let bonusAwarded = 0;
   let hibrBalance: number | undefined;
-  if (!hadLesson) {
-    const { data: profile, error: profileError } = await supabase
-      .from("user_profiles")
-      .select("hibr_balance")
-      .eq("id", user.id)
-      .maybeSingle();
-    if (profileError || !profile) {
-      return { ok: false, error: "Could not find your score. Sign in again." };
+  if (insertedLesson) {
+    const { data, error: awardError } = await supabase.rpc("award_hibr", {
+      p_amount: VISIT_HIBR,
+      p_reason: "lesson",
+    });
+    if (awardError) {
+      return { ok: false, error: "Could not add your score. The step is saved." };
     }
-    hibrBalance = profile.hibr_balance + VISIT_HIBR;
-    const { error: updateError } = await supabase
-      .from("user_profiles")
-      .update({ hibr_balance: hibrBalance })
-      .eq("id", user.id);
-    if (updateError) return { ok: false, error: "Could not add your score. The step is saved." };
+    const payload = data as { hibr_balance?: number } | null;
+    hibrBalance = payload?.hibr_balance;
     bonusAwarded = VISIT_HIBR;
   }
 
